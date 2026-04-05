@@ -11,6 +11,7 @@ Eliminar arquitectura paralela y dejar una única ruta activa por capa.
 - Dialecto único: DuckDB SQL.
 - Runner único: `src/run_sql_layer.py`.
 - Scripts oficiales: `sql/01_*.sql` ... `sql/11_*.sql`.
+- SQL legacy no operativo: `archive/legacy/sql/`.
 
 3. Modelo y scoring
 - Features: `src/feature_engineering.py`.
@@ -32,6 +33,7 @@ Eliminar arquitectura paralela y dejar una única ruta activa por capa.
 
 ### Deprecar
 - Outputs duplicados con naming legacy en `data/processed/` se conservan para trazabilidad histórica, pero no son fuente primaria para nuevos desarrollos.
+- Scripts SQL legacy fuera de secuencia activa movidos a `archive/legacy/sql/` para evitar confusión visual.
 
 ### Activos
 - `src/explore_data_audit.py`
@@ -44,6 +46,8 @@ Eliminar arquitectura paralela y dejar una única ruta activa por capa.
 - Contratos de datos en `docs/data_contracts.md`.
 - Lineage en `docs/metric_lineage.md`.
 - Validación publish-blocker en `outputs/reports/publish_blockers.csv`.
+- Entrypoints de ejecución para reviewers: `scripts/run_pipeline.sh` y `scripts/run_tests.sh`.
+- Configuración operativa viva en `src/config.py`; carpeta `configs/` reservada para futura externalización declarativa.
 
 ## Criterio de revisión externa
 Un reviewer debe poder entender el repo en <10 minutos siguiendo:
