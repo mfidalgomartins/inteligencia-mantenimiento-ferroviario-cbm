@@ -1,0 +1,52 @@
+# OS / editor
+.DS_Store
+.idea/
+.vscode/
+
+# Python caches / env
+__pycache__/
+*.py[cod]
+*.pyo
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+.coverage.*
+htmlcov/
+.venv/
+venv/
+
+# Build / logs / temp
+*.log
+*.tmp
+*.bak
+
+# Jupyter checkpoints
+.ipynb_checkpoints/
+
+# Local databases and binary artifacts
+*.db
+*.sqlite
+*.sqlite3
+*.parquet
+
+# Large generated data (keep repo lightweight)
+data/raw/*
+data/processed/*
+!data/raw/.gitkeep
+!data/processed/.gitkeep
+
+# Generated outputs (keep only executive dashboard + key markdown reports)
+outputs/charts/*
+outputs/reports/*.csv
+outputs/reports/**/*.csv
+outputs/reports/*.json
+outputs/reports/**/*.json
+outputs/reports/*.parquet
+outputs/reports/**/*.parquet
+outputs/reports/*.xlsx
+outputs/reports/**/*.xlsx
+outputs/reports/*.db
+!outputs/reports/*.md
+!outputs/reports/**/*.md
+!outputs/dashboard/index.html
