@@ -6,6 +6,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 DASHBOARD = ROOT / "outputs" / "dashboard" / "index.html"
+DASHBOARD_BRANDED = ROOT / "outputs" / "dashboard" / "centro-control-mantenimiento-ferroviario.html"
 
 
 def _html() -> str:
@@ -16,7 +17,9 @@ def _html() -> str:
 def test_dashboard_single_official_artifact():
     dashboard_dir = ROOT / "outputs" / "dashboard"
     html_files = sorted(p.name for p in dashboard_dir.glob("*.html"))
-    assert html_files == ["index.html"], f"Se esperava solo index.html oficial, encontrado: {html_files}"
+    assert "index.html" in html_files
+    assert "centro-control-mantenimiento-ferroviario.html" in html_files
+    assert len(html_files) == 2, f"Se esperaban 2 HTMLs (index + branded), encontrado: {html_files}"
 
 
 def test_dashboard_offline_no_cdn_refs():

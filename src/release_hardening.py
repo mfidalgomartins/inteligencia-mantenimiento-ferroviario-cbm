@@ -64,13 +64,14 @@ def _run_checks() -> pd.DataFrame:
     checks: list[ReleaseCheck] = []
 
     dashboard_files = list(OUTPUTS_DASHBOARD_DIR.glob("*.html"))
+    expected_files = {"index.html", "centro-control-mantenimiento-ferroviario.html"}
     checks.append(
         ReleaseCheck(
             check_id="release_single_dashboard_artifact",
-            passed=(len(dashboard_files) == 1 and dashboard_files[0].name == "index.html"),
+            passed=(set(x.name for x in dashboard_files) == expected_files),
             severity="alta",
             detail=f"dashboard_html_files={[x.name for x in dashboard_files]}",
-            recommendation="Mantener un único dashboard oficial: outputs/dashboard/index.html.",
+            recommendation="Mantener index.html + versión branded en outputs/dashboard/.",
         )
     )
 

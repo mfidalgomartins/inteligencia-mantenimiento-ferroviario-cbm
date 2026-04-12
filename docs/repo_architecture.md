@@ -19,7 +19,8 @@ Eliminar arquitectura paralela y dejar una única ruta activa por capa.
 
 4. Dashboard
 - Generador único: `src/build_dashboard.py`.
-- Output único: `outputs/dashboard/index.html`.
+- Outputs: `outputs/dashboard/index.html` + `centro-control-mantenimiento-ferroviario.html`.
+- Publicación GitHub Pages: `docs/index.html`.
 
 5. Reporting
 - Governance de narrativa: `src/reporting_governance.py`.

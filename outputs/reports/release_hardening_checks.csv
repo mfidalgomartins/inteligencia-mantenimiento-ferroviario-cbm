@@ -1,5 +1,5 @@
 check_id,passed,severity,detail,recommendation
-release_single_dashboard_artifact,True,alta,dashboard_html_files=['index.html'],Mantener un único dashboard oficial: outputs/dashboard/index.html.
+release_single_dashboard_artifact,True,alta,"dashboard_html_files=['index.html', 'centro-control-mantenimiento-ferroviario.html']",Mantener index.html + versión branded en outputs/dashboard/.
 release_dashboard_signature_consistency,True,alta,"meta_sig=b84a6ba32e, payload_sig=b84a6ba32e",Sincronizar meta dashboard-signature con payload_signature.
 release_dashboard_offline_mode,True,critica,external_refs_found=False,Eliminar dependencias externas para ejecución offline.
 release_dashboard_decision_alignment_ssot,True,alta,"top_unit_html=UNI0057, top_unit_expected=UNI0057, top_comp_html=COMP000454, top_comp_expected=COMP000454",Regenerar dashboard desde métricas SSOT tras actualizar scoring/priorización.

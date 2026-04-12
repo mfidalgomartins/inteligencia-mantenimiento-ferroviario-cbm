@@ -8,6 +8,8 @@ import numpy as np
 import pandas as pd
 
 from src.config import DATA_PROCESSED_DIR, DATA_RAW_DIR, OUTPUTS_DASHBOARD_DIR, DOCS_DIR
+
+DASHBOARD_SLUG = "centro-control-mantenimiento-ferroviario.html"
 from src.reporting_governance import load_or_compute_narrative_metrics
 
 
@@ -1063,8 +1065,12 @@ window.addEventListener("resize", () => {
 
     out_path = OUTPUTS_DASHBOARD_DIR / "index.html"
     out_path.write_text(html, encoding="utf-8")
+    branded_path = OUTPUTS_DASHBOARD_DIR / DASHBOARD_SLUG
+    branded_path.write_text(html, encoding="utf-8")
     docs_index = DOCS_DIR / "index.html"
     docs_index.write_text(html, encoding="utf-8")
+    docs_branded = DOCS_DIR / DASHBOARD_SLUG
+    docs_branded.write_text(html, encoding="utf-8")
     (DOCS_DIR / ".nojekyll").write_text("", encoding="utf-8")
     return str(out_path)
 
