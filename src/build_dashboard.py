@@ -10,6 +10,7 @@ import pandas as pd
 from src.config import DATA_PROCESSED_DIR, DATA_RAW_DIR, OUTPUTS_DASHBOARD_DIR, DOCS_DIR, ROOT_DIR
 
 DASHBOARD_SLUG = "centro-control-mantenimiento-ferroviario.html"
+PAGES_BASE_URL = "https://mfidalgomartins.github.io/inteligencia-mantenimiento-ferroviario-cbm/"
 from src.reporting_governance import load_or_compute_narrative_metrics
 
 
@@ -1073,7 +1074,7 @@ window.addEventListener("resize", () => {
             "<html lang=\"es\">",
             "<head>",
             "  <meta charset=\"UTF-8\" />",
-            "  <meta http-equiv=\"refresh\" content=\"0; url=centro-control-mantenimiento-ferroviario.html\" />",
+            f"  <meta http-equiv=\"refresh\" content=\"0; url={PAGES_BASE_URL}{DASHBOARD_SLUG}\" />",
             "  <title>Dashboard Ejecutivo</title>",
             "</head>",
             "<body>",
@@ -1085,7 +1086,7 @@ window.addEventListener("resize", () => {
     docs_index = DOCS_DIR / "index.html"
     docs_index.write_text(redirect_html, encoding="utf-8")
     root_index = ROOT_DIR / "index.html"
-    root_index.write_text(redirect_html, encoding="utf-8")
+    root_index.write_text(html, encoding="utf-8")
     (DOCS_DIR / ".nojekyll").write_text("", encoding="utf-8")
     (ROOT_DIR / ".nojekyll").write_text("", encoding="utf-8")
     return str(branded_path)
