@@ -7,7 +7,7 @@ from datetime import datetime
 import numpy as np
 import pandas as pd
 
-from src.config import DATA_PROCESSED_DIR, DATA_RAW_DIR, OUTPUTS_DASHBOARD_DIR
+from src.config import DATA_PROCESSED_DIR, DATA_RAW_DIR, OUTPUTS_DASHBOARD_DIR, DOCS_DIR
 from src.reporting_governance import load_or_compute_narrative_metrics
 
 
@@ -68,6 +68,7 @@ def _coalesce_columns(df: pd.DataFrame, canonical: str, candidates: list[str]) -
 
 def build_dashboard() -> str:
     OUTPUTS_DASHBOARD_DIR.mkdir(parents=True, exist_ok=True)
+    DOCS_DIR.mkdir(parents=True, exist_ok=True)
 
     flotas = pd.read_csv(DATA_RAW_DIR / "flotas.csv")
     unidades = pd.read_csv(DATA_RAW_DIR / "unidades.csv")
@@ -1062,6 +1063,9 @@ window.addEventListener("resize", () => {
 
     out_path = OUTPUTS_DASHBOARD_DIR / "index.html"
     out_path.write_text(html, encoding="utf-8")
+    docs_index = DOCS_DIR / "index.html"
+    docs_index.write_text(html, encoding="utf-8")
+    (DOCS_DIR / ".nojekyll").write_text("", encoding="utf-8")
     return str(out_path)
 
 

@@ -32,6 +32,7 @@ Integra operación, sensores, inspección automática y mantenimiento para const
 
 ## Outputs clave
 - `outputs/dashboard/index.html`
+- Dashboard en vivo: [GitHub Pages](https://mfidalgomartins.github.io/inteligencia-mantenimiento-ferroviario-cbm/)
 - `outputs/reports/informe_analitico_avanzado.md`
 - `outputs/reports/memo_ejecutivo_es.md`
 - `outputs/reports/validation_report.md`
