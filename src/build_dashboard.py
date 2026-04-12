@@ -253,30 +253,32 @@ def build_dashboard() -> str:
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Dashboard CBM Ferroviario</title>
+  <meta name="dashboard-version" content="__DASHBOARD_VERSION__" />
+  <meta name="dashboard-signature" content="__PAYLOAD_SIGNATURE__" />
   <style>
     :root{
-      --bg:#ecf2f8;--bg-soft:#f6f9fc;--card:#ffffff;--ink:#0f2438;--muted:#526479;--line:#d6e2ef;
-      --blue:#1f5f99;--red:#c44536;--green:#2a9d8f;--amber:#f4a261;--slate:#64748b;--navy:#0b1f34;
-      --shadow:0 10px 26px rgba(13, 44, 78, .10);--sidebar-width:300px;
+      --bg:#eff4fb;--bg-soft:#f6f8fc;--card:#ffffff;--ink:#0d1f2d;--muted:#5a6b7d;--line:#d6e0ec;
+      --blue:#1f5f99;--red:#c44536;--green:#2a9d8f;--amber:#f2a65a;--slate:#66758a;--navy:#0b1f34;
+      --shadow:0 10px 26px rgba(12, 34, 58, .10);--sidebar-width:300px;
     }
     *{box-sizing:border-box}
     html{scroll-behavior:smooth}
     body{margin:0;background:
-      radial-gradient(1200px 500px at -10% -5%, rgba(31,95,153,.16) 0%, transparent 55%),
-      radial-gradient(900px 400px at 110% -8%, rgba(42,157,143,.12) 0%, transparent 45%),
+      radial-gradient(1200px 500px at -10% -5%, rgba(31,95,153,.12) 0%, transparent 55%),
+      radial-gradient(900px 400px at 110% -8%, rgba(42,157,143,.10) 0%, transparent 45%),
       var(--bg);
-      color:var(--ink);font-family:"Avenir Next","Segoe UI Variable","Trebuchet MS",sans-serif;overflow-x:hidden;line-height:1.35}
+      color:var(--ink);font-family:"Avenir Next","Segoe UI Variable","Trebuchet MS",sans-serif;overflow-x:hidden;line-height:1.45}
     .layout{display:grid;grid-template-columns:minmax(260px,var(--sidebar-width)) minmax(0,1fr);min-height:100svh;width:100%;max-width:none;align-items:start}
-    .sidebar{background:linear-gradient(180deg,#0c2137,#102a45);color:#eaf0f8;padding:16px 12px;position:sticky;top:0;height:100dvh;overflow:auto;border-right:1px solid rgba(255,255,255,.09)}
+    .sidebar{background:linear-gradient(180deg,#0b2136,#102844);color:#eaf0f8;padding:18px 14px;position:sticky;top:0;height:100dvh;overflow:auto;border-right:1px solid rgba(255,255,255,.09)}
     .sidebar h2{margin:0 0 8px;font-size:1.05rem;letter-spacing:.02em}
     .sidebar p{margin:0 0 14px;font-size:.84rem;color:#c3d4ea}
-    .sidebar .brand{padding:10px;border:1px solid rgba(255,255,255,.14);border-radius:11px;background:rgba(255,255,255,.04);margin-bottom:10px}
-    .sidebar .brand b{display:block;font-size:.86rem}
-    .sidebar .brand span{font-size:.76rem;color:#c9dbf1}
-    .filter-group{margin-bottom:10px}
+    .sidebar .brand{padding:12px;border:1px solid rgba(255,255,255,.14);border-radius:12px;background:rgba(255,255,255,.04);margin-bottom:12px}
+    .sidebar .brand b{display:block;font-size:.9rem}
+    .sidebar .brand span{font-size:.78rem;color:#c9dbf1}
+    .filter-group{margin-bottom:12px}
     .filter-group label{display:block;font-size:.78rem;margin-bottom:4px;color:#dbe8f6}
     .filter-group select,.filter-group input{
-      width:100%;padding:8px 30px 8px 10px;border-radius:9px;border:1px solid #355276;background:#122a44;color:#eef4ff;
+      width:100%;padding:9px 30px 9px 10px;border-radius:10px;border:1px solid #355276;background:#122a44;color:#eef4ff;
       -webkit-appearance:none;appearance:none;background-image:
       linear-gradient(45deg, transparent 50%, #b9d0ea 50%),
       linear-gradient(135deg, #b9d0ea 50%, transparent 50%);
@@ -284,33 +286,36 @@ def build_dashboard() -> str:
       background-size: 5px 5px, 5px 5px;background-repeat:no-repeat;
     }
     .side-actions{display:flex;gap:8px;margin:12px 0 10px}
-    .btn{border:1px solid transparent;border-radius:9px;padding:7px 10px;font-size:.78rem;cursor:pointer}
-    .btn-reset{background:#f4a261;color:#102a45;font-weight:700}
+    .btn{border:1px solid transparent;border-radius:10px;padding:7px 12px;font-size:.78rem;cursor:pointer}
+    .btn-reset{background:#f2a65a;color:#102a45;font-weight:700}
     .btn-top{position:fixed;right:18px;bottom:18px;background:#12385e;color:#fff;box-shadow:var(--shadow);z-index:30}
-    .sidebar-stats{margin-top:10px;padding:10px;border-radius:10px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.11);font-size:.78rem}
+    .sidebar-stats{margin-top:10px;padding:10px;border-radius:12px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.11);font-size:.78rem}
     .sidebar-stats b{color:#fff}
-    .content{padding:16px 20px 28px;min-width:0;overflow-x:hidden}
-    .header{background:linear-gradient(120deg,#0f4c81,#1d3557);color:#fff;border-radius:16px;padding:18px 20px;box-shadow:var(--shadow);border:1px solid rgba(255,255,255,.14)}
-    .header h1{margin:0;font-size:1.45rem;line-height:1.15}
-    .sub{margin-top:6px;color:#d7e8ff;font-size:.91rem}
-    .meta{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;min-width:0}
-    .pill{font-size:.78rem;background:rgba(255,255,255,.18);border:1px solid rgba(255,255,255,.26);padding:4px 8px;border-radius:999px}
-    .top-nav{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;min-width:0}
-    .top-nav a{font-size:.77rem;text-decoration:none;color:#10304f;background:#eef5fc;border:1px solid #d5e3f2;padding:6px 10px;border-radius:999px}
+    .content{padding:18px 22px 30px;min-width:0;overflow-x:hidden}
+    .header{background:linear-gradient(120deg,#0f4c81,#1c3d62);color:#fff;border-radius:18px;padding:20px 22px;box-shadow:var(--shadow);border:1px solid rgba(255,255,255,.14)}
+    .header-row{display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap}
+    .header h1{margin:0;font-size:1.6rem;line-height:1.15}
+    .header-actions{display:flex;gap:8px;align-items:center}
+    .btn-print{background:#eef5fc;border:1px solid rgba(255,255,255,.4);color:#12385e;font-weight:700}
+    .sub{margin-top:6px;color:#d7e8ff;font-size:.93rem}
+    .meta{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;min-width:0}
+    .pill{font-size:.78rem;background:rgba(255,255,255,.18);border:1px solid rgba(255,255,255,.26);padding:5px 9px;border-radius:999px}
+    .top-nav{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;min-width:0}
+    .top-nav a{font-size:.78rem;text-decoration:none;color:#10304f;background:#eef5fc;border:1px solid #d5e3f2;padding:7px 12px;border-radius:999px}
     .top-nav a:hover{background:#dbeaf9}
-    .insight{margin-top:8px;padding:10px 12px;border-radius:10px;background:#eaf4ff;border:1px solid #cddff5;font-size:.84rem;color:#163754;font-weight:600}
-    .cards{margin-top:14px;display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,170px),1fr));gap:10px;min-width:0}
-    .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:10px;box-shadow:0 4px 14px rgba(13,44,78,.06)}
-    .card:hover{transform:translateY(-1px);transition:all .15s ease;box-shadow:0 8px 18px rgba(13,44,78,.09)}
-    .card .k{font-size:.73rem;color:var(--muted);text-transform:uppercase;letter-spacing:.03em}
-    .card .v{margin-top:3px;font-size:1.28rem;font-weight:700}
-    .section{margin-top:14px;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px;box-shadow:0 5px 18px rgba(13,44,78,.06);min-width:0;overflow:hidden}
-    .section h3{margin:2px 0 8px;font-size:1.02rem}
-    .grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,430px),1fr));gap:10px;min-width:0}
-    .chart-box{background:#fff;border:1px solid var(--line);border-radius:11px;padding:10px;min-width:0;overflow:hidden}
-    .chart-box h4{margin:0 0 8px;font-size:.88rem;color:#27415b}
-    .svg-chart{width:100%;height:clamp(228px,29vh,312px);min-height:228px;border-top:1px dashed #eef2f7;overflow:hidden}
-    .svg-chart text{font-family:"Avenir Next","Segoe UI Variable","Trebuchet MS",sans-serif}
+    .insight{margin-top:10px;padding:12px 14px;border-radius:12px;background:#eaf4ff;border:1px solid #cddff5;font-size:.86rem;color:#163754;font-weight:600}
+    .cards{margin-top:16px;display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,190px),1fr));gap:12px;min-width:0}
+    .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px;box-shadow:0 6px 18px rgba(13,44,78,.08)}
+    .card:hover{transform:translateY(-1px);transition:all .15s ease;box-shadow:0 10px 22px rgba(13,44,78,.12)}
+    .card .k{font-size:.72rem;color:var(--muted);text-transform:uppercase;letter-spacing:.04em}
+    .card .v{margin-top:4px;font-size:1.36rem;font-weight:800}
+    .section{margin-top:16px;background:var(--card);border:1px solid var(--line);border-radius:16px;padding:14px;box-shadow:0 7px 22px rgba(13,44,78,.08);min-width:0;overflow:hidden}
+    .section h3{margin:2px 0 10px;font-size:1.05rem}
+    .grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,440px),1fr));gap:12px;min-width:0}
+    .chart-box{background:#fff;border:1px solid var(--line);border-radius:12px;padding:12px;min-width:0;overflow:hidden}
+    .chart-box h4{margin:0 0 8px;font-size:.9rem;color:#27415b}
+    .svg-chart{width:100%;height:clamp(240px,30vh,320px);min-height:240px;border-top:1px dashed #eef2f7;overflow:hidden}
+    .svg-chart text{font-family:"Avenir Next","Segoe UI Variable","Trebuchet MS",sans-serif;font-size:12px}
     .svg-chart rect,.svg-chart circle,.svg-chart path{transition:opacity .12s ease}
     .chart-tooltip{
       position:fixed;z-index:80;pointer-events:none;max-width:260px;background:#0f2438;color:#f8fbff;
@@ -357,7 +362,16 @@ def build_dashboard() -> str:
       .table-wrap{max-height:520px}
       table{min-width:760px}
     }
-    @media print {.sidebar,.btn-top,.top-nav{display:none}.layout{grid-template-columns:1fr}body{background:#fff}}
+    @media print{
+      body{background:#fff;color:#111}
+      .sidebar,.top-nav,.btn-top,.btn-print{display:none !important}
+      .layout{grid-template-columns:1fr}
+      .header{box-shadow:none;border:1px solid #e1e6ef}
+      .section,.card,.chart-box{box-shadow:none}
+      .insight{background:#f2f5fb;border-color:#d9e2ef}
+      .chart-tooltip{display:none !important}
+      .section{page-break-inside:avoid}
+    }
   </style>
 </head>
 <body>
@@ -390,7 +404,12 @@ def build_dashboard() -> str:
 
   <main class="content">
     <section class="header">
-      <h1>Sistema de Inteligencia de Mantenimiento Basado en Condición</h1>
+      <div class="header-row">
+        <h1>Sistema de Inteligencia de Mantenimiento Basado en Condición</h1>
+        <div class="header-actions">
+          <button class="btn btn-print" id="btnPrint">Imprimir</button>
+        </div>
+      </div>
       <div class="sub">Riesgo Operativo, Priorización de Taller y Valor Estratégico CBM para Flota Ferroviaria</div>
       <div class="meta">
         <span class="pill">Cobertura: __COVERAGE_START__ a __COVERAGE_END__</span>
@@ -398,9 +417,8 @@ def build_dashboard() -> str:
         <span class="pill">Unidades: __N_UNIDADES__</span>
         <span class="pill">Depósitos: __N_DEPOSITOS__</span>
         <span class="pill">Componentes: __N_COMPONENTES__</span>
-        <span class="pill">Dashboard: __DASHBOARD_VERSION__ · __PAYLOAD_SIGNATURE__</span>
       </div>
-      <div class="insight" id="headerInsight">Metodología: métricas gobernadas + scoring interpretable + RUL operativo + priorización y scheduling heurístico.</div>
+      <div class="insight" id="headerInsight">Resumen ejecutivo: salud de activos, riesgo operativo y prioridades de taller para la ventana seleccionada.</div>
       <div class="top-nav">
         <a href="#sec_saude">Salud</a>
         <a href="#sec_operacao">Operación</a>
@@ -582,6 +600,7 @@ function initFilters(){
   });
   document.getElementById("searchBox").addEventListener("input", applyFilters);
   document.getElementById("btnReset").addEventListener("click", resetFilters);
+  document.getElementById("btnPrint").addEventListener("click", () => window.print());
   document.getElementById("btnTop").addEventListener("click", () => window.scrollTo({top:0, behavior:"smooth"}));
   document.getElementById("btnPrevPage").addEventListener("click", () => {
     if(currentPage > 1){ currentPage -= 1; renderAll(); }
@@ -920,7 +939,7 @@ function renderInsights(d){
   document.getElementById("strategyInsight").textContent =
     `Trade-off estratégico: CBM vs reactiva ahorra ~${fmt0(savings)} EUR en escenario base, con robustez ${fmt1(prob)}% y rango plausible ${fmt2(rmin)}M€ a ${fmt2(rmax)}M€.`;
   document.getElementById("headerInsight").textContent =
-    `Contexto filtrado: ${d.rows.length} componentes activos, ${d.uniqueUnits.size} unidades y ${d.highRiskUnits.size} unidades de alto riesgo. Capa gobernada: métricas SSOT + contratos + trazabilidad raw→score→decisión.`;
+    `Contexto filtrado: ${d.rows.length} componentes activos, ${d.uniqueUnits.size} unidades y ${d.highRiskUnits.size} unidades de alto riesgo.`;
 }
 
 function renderCharts(d){

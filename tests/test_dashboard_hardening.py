@@ -25,9 +25,10 @@ def test_dashboard_offline_no_cdn_refs():
     assert re.search(r"<link[^>]+href=['\"]https?://", html, flags=re.IGNORECASE) is None
 
 
-def test_dashboard_version_stamp_present():
+def test_dashboard_meta_stamp_present():
     html = _html()
-    assert re.search(r"Dashboard:\s*\d{8}-\d{4}\s*·\s*[a-f0-9]{10}", html), "Falta versionado visible do dashboard"
+    assert 'name="dashboard-version"' in html
+    assert 'name="dashboard-signature"' in html
 
 
 def test_dashboard_layout_safety_guards_present():
@@ -73,4 +74,3 @@ def test_dashboard_responsive_redraw_debounce():
     html = _html()
     assert "window.addEventListener(\"resize\"" in html
     assert "setTimeout(() => renderAll(), 180)" in html
-

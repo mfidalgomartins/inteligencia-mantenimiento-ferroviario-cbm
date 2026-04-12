@@ -3,8 +3,8 @@
 ## Resumen Ejecutivo QA
 - Estado de publicación: **READY**
 - Confianza global: **ALTA**
-- Controles ejecutados: **154**
-- Controles aprobados: **154**
+- Controles ejecutados: **151**
+- Controles aprobados: **151**
 - Controles fallidos: **0**
 - Publish blockers activos: **0**
 
@@ -25,7 +25,7 @@
 | marts                    |                6 |                 6 |                 0 |                 0 |           1 |
 | raw_data                 |               30 |                30 |                 0 |                 0 |           1 |
 | recommendations          |               15 |                15 |                 0 |                 0 |           1 |
-| reports_docs_consistency |               15 |                15 |                 0 |                 0 |           1 |
+| reports_docs_consistency |               12 |                12 |                 0 |                 0 |           1 |
 | scores                   |               16 |                16 |                 0 |                 0 |           1 |
 | staging                  |               13 |                13 |                 0 |                 0 |           1 |
 

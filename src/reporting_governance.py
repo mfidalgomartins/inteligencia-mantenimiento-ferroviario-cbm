@@ -700,41 +700,6 @@ def _build_readme(metrics: dict[str, Any]) -> str:
     )
 
 
-def _build_summary_blocks(metrics: dict[str, Any]) -> str:
-    return "\n".join(
-        [
-            "# Summary Blocks (SSOT)",
-            "",
-            "## Snapshot de corrida",
-            f"- `as_of_ts`: {metrics['as_of_ts']}",
-            f"- `coverage`: {metrics['coverage_start']} a {metrics['coverage_end']}",
-            f"- `top_unit_by_priority`: {metrics['top_unit_by_priority']}",
-            f"- `top_component_by_priority`: {metrics['top_component_by_priority']}",
-            "",
-            "## Bloque Ejecutivo",
-            f"- Disponibilidad flota: {float(metrics['fleet_availability_pct']):.2f}%",
-            f"- Backlog físico: {int(float(metrics['backlog_physical_items_count']))}",
-            f"- Backlog vencido: {int(float(metrics['backlog_overdue_items_count']))}",
-            f"- Backlog crítico físico: {int(float(metrics['backlog_critical_physical_count']))}",
-            f"- Riesgo de diferimiento alto: {int(float(metrics['high_deferral_risk_cases_count']))}",
-            f"- Ahorro CBM vs reactiva: {float(metrics['cbm_operational_savings_eur']):.0f} EUR",
-            (
-                "- Rango plausible ahorro CBM (P10-P90): "
-                f"{float(metrics['cbm_value_range_min_eur']):.0f} a {float(metrics['cbm_value_range_max_eur']):.0f} EUR"
-            ),
-            f"- Robustez ahorro CBM: {float(metrics['cbm_prob_positive_savings']) * 100:.1f}%",
-            "",
-            "## Bloque de Diferimiento",
-            f"- Delta coste 14d vs 0d: {float(metrics['deferral_cost_delta_14d_eur']):.0f} EUR",
-            f"- Delta downtime 14d vs 0d: {float(metrics['deferral_downtime_delta_14d_h']):.2f} h",
-            "",
-            "## Bloque de Taller",
-            f"- Depósito más saturado: {metrics['top_depot_by_saturation']}",
-            f"- Saturación top depósito: {float(metrics['top_depot_saturation_pct']):.2f}%",
-        ]
-    )
-
-
 def _build_artifact_mapping() -> pd.DataFrame:
     rows = [
         ("README.md", "Key Findings", "fleet_availability_pct"),
@@ -784,9 +749,6 @@ def _build_artifact_mapping() -> pd.DataFrame:
         ("outputs/dashboard/index.html", "Decisión Ejecutiva", "top_unit_by_priority"),
         ("outputs/dashboard/index.html", "Decisión Ejecutiva", "top_component_by_priority"),
         ("outputs/dashboard/index.html", "Decisión Ejecutiva", "top_deferral_risk_score"),
-        ("outputs/reports/summary_blocks.md", "Snapshot", "top_unit_by_priority"),
-        ("outputs/reports/summary_blocks.md", "Snapshot", "top_component_by_priority"),
-        ("outputs/reports/summary_blocks.md", "Snapshot", "cbm_operational_savings_eur"),
     ]
     return pd.DataFrame(rows, columns=["artifact", "block", "metric_id"])
 
@@ -977,7 +939,6 @@ def write_reporting_governance_doc(metrics_df: pd.DataFrame, mapping_df: pd.Data
         "- README.md",
         "- docs/memo_ejecutivo_es.md",
         "- outputs/reports/memo_ejecutivo_es.md",
-        "- outputs/reports/summary_blocks.md",
         "- outputs/dashboard/index.html (KPIs + bloque de decisión)",
         "",
         "## Single Source of Truth",
@@ -1040,12 +1001,7 @@ def sync_narrative_artifacts(force_recompute: bool = True) -> dict[str, Path]:
 
     readme = _build_readme(metrics)
     (ROOT_DIR / "README.md").write_text(readme, encoding="utf-8")
-    (OUTPUTS_REPORTS_DIR / "readme_runtime_snapshot.md").write_text(readme, encoding="utf-8")
 
-    summary = _build_summary_blocks(metrics)
-    (OUTPUTS_REPORTS_DIR / "summary_blocks.md").write_text(summary, encoding="utf-8")
-
-    governance_doc = write_reporting_governance_doc(metrics_df, mapping_df)
     backlog_governance_doc = write_backlog_metric_governance_doc(
         before_after_df=backlog_before_after_df,
         taxonomy_df=backlog_taxonomy_df,
@@ -1055,8 +1011,6 @@ def sync_narrative_artifacts(force_recompute: bool = True) -> dict[str, Path]:
         "kpis": OUTPUTS_REPORTS_DIR / "kpis_ejecutivos.csv",
         "memo": DOCS_DIR / "memo_ejecutivo_es.md",
         "readme": ROOT_DIR / "README.md",
-        "summary": OUTPUTS_REPORTS_DIR / "summary_blocks.md",
-        "governance_doc": governance_doc,
         "backlog_governance_doc": backlog_governance_doc,
         "mapping": OUTPUTS_REPORTS_DIR / "narrative_artifact_mapping.csv",
         "hardcoded_audit": OUTPUTS_REPORTS_DIR / "narrative_hardcoded_audit.csv",

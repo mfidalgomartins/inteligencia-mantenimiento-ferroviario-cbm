@@ -40,8 +40,7 @@ def test_reporting_governance_artifacts_exist():
         REPORTS / "narrative_hardcoded_audit.csv",
         REPORTS / "backlog_kpi_before_after.csv",
         REPORTS / "backlog_metric_taxonomy.csv",
-        REPORTS / "summary_blocks.md",
-        DOCS / "reporting_governance.md",
+        DOCS / "gobierno_metricas.md",
         DOCS / "backlog_metric_governance.md",
         ROOT / "README.md",
         DOCS / "memo_ejecutivo_es.md",
@@ -99,18 +98,12 @@ def test_memo_dashboard_summary_aligned_to_ssot():
     metrics = _load_metrics()
     memo = (DOCS / "memo_ejecutivo_es.md").read_text(encoding="utf-8")
     dashboard = DASHBOARD.read_text(encoding="utf-8")
-    summary = (REPORTS / "summary_blocks.md").read_text(encoding="utf-8")
-
     memo_unit = _extract_token(memo, r"Unidad prioritaria:\s*([A-Z0-9]+)")
     memo_comp = _extract_token(memo, r"Componente prioritario:\s*([A-Z0-9]+)")
     dash_unit = _extract_token(dashboard, r"Unidad que debe entrar primero:</strong>\s*([A-Z0-9]+)")
     dash_comp = _extract_token(dashboard, r"Componente que debe sustituirse primero:</strong>\s*([A-Z0-9]+)")
-    summary_unit = _extract_token(summary, r"`top_unit_by_priority`:\s*([A-Z0-9]+)")
-    summary_comp = _extract_token(summary, r"`top_component_by_priority`:\s*([A-Z0-9]+)")
 
     assert memo_unit == metrics["top_unit_by_priority"]
     assert memo_comp == metrics["top_component_by_priority"]
     assert dash_unit == metrics["top_unit_by_priority"]
     assert dash_comp == metrics["top_component_by_priority"]
-    assert summary_unit == metrics["top_unit_by_priority"]
-    assert summary_comp == metrics["top_component_by_priority"]

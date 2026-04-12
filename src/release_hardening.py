@@ -74,15 +74,15 @@ def _run_checks() -> pd.DataFrame:
         )
     )
 
-    sig_header = _extract_token(html, r"Dashboard:\s*\d{8}-\d{4}\s*·\s*([a-f0-9]{10})")
+    sig_header = _extract_token(html, r'name="dashboard-signature"\s+content="([a-f0-9]{10})"')
     sig_payload = _extract_token(html, r'"payload_signature"\s*:\s*"([a-f0-9]{10})"')
     checks.append(
         ReleaseCheck(
             check_id="release_dashboard_signature_consistency",
             passed=(sig_header is not None and sig_payload is not None and sig_header == sig_payload),
             severity="alta",
-            detail=f"header_sig={sig_header}, payload_sig={sig_payload}",
-            recommendation="Sincronizar stamp visual y meta payload_signature.",
+            detail=f"meta_sig={sig_header}, payload_sig={sig_payload}",
+            recommendation="Sincronizar meta dashboard-signature con payload_signature.",
         )
     )
 
@@ -183,6 +183,7 @@ def run_release_hardening() -> None:
         ROOT_DIR / "README.md",
         ROOT_DIR / "docs" / "memo_ejecutivo_es.md",
         ROOT_DIR / "docs" / "dashboard_design.md",
+        ROOT_DIR / "docs" / "gobierno_metricas.md",
         ROOT_DIR / "outputs" / "dashboard" / "index.html",
         ROOT_DIR / "outputs" / "reports" / "validation_report.md",
         ROOT_DIR / "outputs" / "reports" / "validation_checks_detailed.csv",
@@ -248,4 +249,3 @@ def run_release_hardening() -> None:
 
 if __name__ == "__main__":
     run_release_hardening()
-

@@ -24,7 +24,7 @@
 | marts                    |                6 |                 6 |                 0 |                 0 |           1 |
 | raw_data                 |               30 |                30 |                 0 |                 0 |           1 |
 | recommendations          |               15 |                15 |                 0 |                 0 |           1 |
-| reports_docs_consistency |               15 |                15 |                 0 |                 0 |           1 |
+| reports_docs_consistency |               12 |                12 |                 0 |                 0 |           1 |
 | scores                   |               16 |                16 |                 0 |                 0 |           1 |
 | staging                  |               13 |                13 |                 0 |                 0 |           1 |
 
@@ -115,12 +115,9 @@
 | dashboard_top_unit_consistency                               | dashboard_datasets       | alta        | False             | Consistencia top unidad dashboard vs priority table                              |                                    |
 | docs_dashboard_memo_alignment                                | reports_docs_consistency | alta        | True              | Alineación narrativa entre dashboard y memo                                      |                                    |
 | docs_exists_README.md                                        | reports_docs_consistency | alta        | False             | Existencia README.md                                                             |                                    |
-| docs_exists_data_contracts.md                                | reports_docs_consistency | alta        | False             | Existencia data_contracts.md                                                     |                                    |
+| docs_exists_gobierno_metricas.md                             | reports_docs_consistency | alta        | False             | Existencia gobierno_metricas.md                                                  |                                    |
 | docs_exists_index.html                                       | reports_docs_consistency | alta        | False             | Existencia index.html                                                            |                                    |
 | docs_exists_memo_ejecutivo_es.md                             | reports_docs_consistency | alta        | False             | Existencia memo_ejecutivo_es.md                                                  |                                    |
-| docs_exists_metric_contracts.md                              | reports_docs_consistency | alta        | False             | Existencia metric_contracts.md                                                   |                                    |
-| docs_exists_metric_lineage.md                                | reports_docs_consistency | alta        | False             | Existencia metric_lineage.md                                                     |                                    |
-| docs_exists_reporting_governance.md                          | reports_docs_consistency | alta        | False             | Existencia reporting_governance.md                                               |                                    |
 | docs_readme_metric_consistency                               | reports_docs_consistency | alta        | True              | Consistencia métricas README vs data/processed                                   |                                    |
 | features_impact_saturation                                   | features                 | alta        | False             | Saturación alta de impact_on_service_proxy                                       | <=0.30                             |
 | features_monotonicity_deterioration_risk                     | features                 | alta        | True              | Monotonía riesgo por terciles de deterioro                                       |                                    |
@@ -164,7 +161,7 @@
 | staging_sql_sensor_ranges                                    | staging                  | alta        | True              | Salida SQL val_sensor_ranges                                                     | ==0                                |
 | dashboard_pagination_controls_present                        | dashboard_datasets       | media       | False             | Controles de paginación para tabla final                                         |                                    |
 | dashboard_top_component_consistency                          | dashboard_datasets       | media       | False             | Consistencia top componente dashboard vs lógica de reemplazo                     |                                    |
-| dashboard_version_stamp_visible                              | dashboard_datasets       | media       | False             | Versionado visible del dashboard (build + firma payload)                         |                                    |
+| dashboard_version_stamp_meta                                 | dashboard_datasets       | media       | False             | Versionado oculto del dashboard (meta tags build + firma payload)                |                                    |
 | docs_memo_priority_consistency                               | reports_docs_consistency | media       | False             | Consistencia prioridades memo vs tabla de priorización                           |                                    |
 | docs_sql_output_consistency_top_units                        | reports_docs_consistency | media       | False             | Consistencia KPI SQL top unidades vs mart_unit_day                               |                                    |
 | features_impact_distribution_entropy                         | features                 | media       | False             | Entropía distribución impact_on_service_proxy                                    | >=1.6                              |

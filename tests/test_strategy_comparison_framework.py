@@ -19,7 +19,6 @@ def test_strategy_framework_artifacts_exist():
         PROCESSED / "maintenance_strategy_scenario_assumptions.csv",
         PROCESSED / "maintenance_strategy_sensitivity_definition.csv",
         DOCS / "maintenance_strategy_comparison_framework.md",
-        DOCS / "maintenance_strategy_comparison.md",
     ]
     for path in expected:
         assert path.exists(), f"Falta artefacto de estrategia: {path}"

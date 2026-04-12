@@ -1627,18 +1627,18 @@ def _validate_dashboard_layer(processed: dict[str, pd.DataFrame], results: list[
         technical_recommendation="Eliminar referencias externas e incrustar todos los assets localmente.",
     )
 
-    has_version_stamp = bool(re.search(r"Dashboard:\s*\d{8}-\d{4}\s*·\s*[a-f0-9]{10}", html))
+    has_version_stamp = 'name="dashboard-version"' in html and 'name="dashboard-signature"' in html
     _add_result(
         results,
-        check_id="dashboard_version_stamp_visible",
+        check_id="dashboard_version_stamp_meta",
         layer="dashboard_datasets",
         severity="media",
         passed=has_version_stamp,
         blocker_if_fail=False,
-        what_checked="Versionado visible del dashboard (build + firma payload)",
-        detail=f"version_stamp_found={has_version_stamp}",
-        impact_potential="Sin versión visible baja auditabilidad en revisiones ejecutivas.",
-        technical_recommendation="Incluir build stamp y payload signature en header.",
+        what_checked="Versionado oculto del dashboard (meta tags build + firma payload)",
+        detail=f"meta_stamp_present={has_version_stamp}",
+        impact_potential="Sin marca de versión en metadata baja trazabilidad de build.",
+        technical_recommendation="Incluir meta tags dashboard-version y dashboard-signature en el HTML.",
     )
 
     required_sections = [
@@ -1762,10 +1762,7 @@ def _validate_dashboard_layer(processed: dict[str, pd.DataFrame], results: list[
 def _validate_reports_docs_layer(processed: dict[str, pd.DataFrame], results: list[QAResult]) -> None:
     readme_path = ROOT_DIR / "README.md"
     memo_path = DOCS_DIR / "memo_ejecutivo_es.md"
-    reporting_governance_path = DOCS_DIR / "reporting_governance.md"
-    metric_contracts_path = DOCS_DIR / "metric_contracts.md"
-    data_contracts_path = DOCS_DIR / "data_contracts.md"
-    metric_lineage_path = DOCS_DIR / "metric_lineage.md"
+    governance_doc_path = DOCS_DIR / "gobierno_metricas.md"
     validation_framework_path = DOCS_DIR / "validation_framework.md"
     dashboard_path = OUTPUTS_DASHBOARD_DIR / "index.html"
 
@@ -1777,10 +1774,7 @@ def _validate_reports_docs_layer(processed: dict[str, pd.DataFrame], results: li
         readme_path,
         memo_path,
         dashboard_path,
-        reporting_governance_path,
-        metric_contracts_path,
-        data_contracts_path,
-        metric_lineage_path,
+        governance_doc_path,
     ]:
         _add_result(
             results,
@@ -2027,7 +2021,6 @@ def _build_outputs(results_df: pd.DataFrame) -> None:
 
     # Compatibilidad legacy
     legacy_checks = results_df[["check_id", "passed", "detail"]].rename(columns={"check_id": "check", "passed": "result"})
-    legacy_checks.to_csv(OUTPUTS_REPORTS_DIR / "validation_checks.csv", index=False)
 
     failed = results_df[~results_df["passed"]].copy()
     issues = failed[["check_id", "severity", "detail", "technical_recommendation"]].rename(
@@ -2047,8 +2040,6 @@ def _build_outputs(results_df: pd.DataFrame) -> None:
                 }
             ]
         )
-    issues.to_csv(OUTPUTS_REPORTS_DIR / "issues_found.csv", index=False)
-    issues[["check", "fixes_applied_or_recommended"]].to_csv(OUTPUTS_REPORTS_DIR / "fixes_applied.csv", index=False)
 
     blockers = results_df[(~results_df["passed"]) & (results_df["publish_blocker"])].copy()
     blockers.to_csv(OUTPUTS_REPORTS_DIR / "publish_blockers.csv", index=False)

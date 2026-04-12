@@ -427,25 +427,31 @@ def run_governance_contracts(*, fail_on_blocker: bool = False) -> dict[str, str]
     lineage_df = _metric_lineage_table()
     checks_df = _apply_blocker_policy(_run_contract_checks(metric_df, data_df))
 
-    metric_df.to_csv(OUTPUTS_REPORTS_DIR / "metric_contract_registry.csv", index=False)
-    data_df.to_csv(OUTPUTS_REPORTS_DIR / "data_contract_registry.csv", index=False)
-    lineage_df.to_csv(OUTPUTS_REPORTS_DIR / "metric_lineage_registry.csv", index=False)
+    metric_df.to_csv(DATA_PROCESSED_DIR / "metric_contract_registry.csv", index=False)
+    data_df.to_csv(DATA_PROCESSED_DIR / "data_contract_registry.csv", index=False)
+    lineage_df.to_csv(DATA_PROCESSED_DIR / "metric_lineage_registry.csv", index=False)
     checks_df.to_csv(OUTPUTS_REPORTS_DIR / "governance_contract_checks.csv", index=False)
     checks_df.to_csv(DATA_PROCESSED_DIR / "governance_contract_checks.csv", index=False)
     blocker_df = checks_df[checks_df["publish_blocker"]].copy()
     blocker_df.to_csv(OUTPUTS_REPORTS_DIR / "governance_contract_blockers.csv", index=False)
 
-    metric_doc = "\n".join(
+    governance_doc = "\n".join(
         [
-            "# Metric Contracts",
+            "# Gobierno de Métricas y Datos",
             "",
             "## Objetivo",
-            "Contratos formales para evitar drift semántico entre SQL, Python, dashboard y narrativa.",
+            "Consolidar contratos y trazabilidad en un único documento de referencia.",
             "",
             "## Contratos de Métrica",
             _to_markdown(metric_df),
             "",
-            "## Source of Truth Crítico",
+            "## Contratos de Datos",
+            _to_markdown(data_df),
+            "",
+            "## Lineage por Métrica",
+            _to_markdown(lineage_df),
+            "",
+            "## Source of Truth crítico",
             "- `health_score`, `prob_fallo_30d`: `data/processed/scoring_componentes.csv`",
             "- `component_rul_estimate`: `data/processed/component_rul_estimate.csv`",
             "- backlog físico: `data/raw/backlog_mantenimiento.csv`",
@@ -459,70 +465,21 @@ def run_governance_contracts(*, fail_on_blocker: bool = False) -> dict[str, str]
             "- `cbm_operational_savings_eur`: madurez media (proxy económico).",
             "- `deferral_cost_delta_14d_eur`: madurez media (sensible a supuestos de coste).",
             "- `component_rul_estimate`: madurez media (proxy interpretable, no modelo físico de fabricante).",
-        ]
-    )
-    data_doc = "\n".join(
-        [
-            "# Data Contracts",
             "",
-            "## Objetivo",
-            "Definir contratos de estructura, grain, PK y reglas de calidad para tablas críticas.",
-            "",
-            "## Contratos de Tabla",
-            _to_markdown(data_df),
-            "",
-            "## Reglas de Governanza",
-            "- Sin PK única validada, la tabla no puede ser source-of-truth.",
+            "## Reglas de gobernanza",
+            "- Sin PK única validada, la tabla no puede ser source‑of‑truth.",
             "- No se permite usar tabla derivada en dashboard sin contrato activo.",
-            "- Si falta columna requerida, el artefacto queda en estado `non-compliant`.",
-        ]
-    )
-    lineage_doc = "\n".join(
-        [
-            "# Metric Lineage",
-            "",
-            "## Objetivo",
-            "Trazabilidad lógica desde raw hasta decisión ejecutiva.",
-            "",
-            "## Lineage por Métrica",
-            _to_markdown(lineage_df),
-            "",
-            "## Ownership por Output",
-            "- Reliability Analytics: scoring, RUL, risk drivers.",
-            "- Workshop Planning: priorización/scheduling, saturación, backlog operativo.",
-            "- Operations Analytics: disponibilidad e impacto en servicio.",
-            "- Finance Analytics (proxy): comparativo CBM y diferimiento.",
-            "- Analytics Governance: SSOT narrativo y contratos.",
+            "- Si falta columna requerida, el artefacto queda en estado `non‑compliant`.",
         ]
     )
 
-    (DOCS_DIR / "metric_contracts.md").write_text(metric_doc, encoding="utf-8")
-    (DOCS_DIR / "data_contracts.md").write_text(data_doc, encoding="utf-8")
-    (DOCS_DIR / "metric_lineage.md").write_text(lineage_doc, encoding="utf-8")
-
-    summary = [
-        "# Governance Contract Report",
-        "",
-        f"- checks_total: {len(checks_df)}",
-        f"- checks_failed: {int((~checks_df['passed']).sum())}",
-        f"- blockers: {int(checks_df['publish_blocker'].sum())}",
-        "",
-        "## Failed checks (top 20)",
-    ]
-    failed = checks_df[~checks_df["passed"]][["check_id", "severity", "detail", "publish_blocker"]].head(20)
-    if failed.empty:
-        summary.append("- none")
-    else:
-        summary.append(failed.to_markdown(index=False))
-    (OUTPUTS_REPORTS_DIR / "governance_contract_report.md").write_text("\n".join(summary), encoding="utf-8")
+    (DOCS_DIR / "gobierno_metricas.md").write_text(governance_doc, encoding="utf-8")
 
     if fail_on_blocker:
         _assert_governance_compliance(checks_df)
 
     return {
-        "metric_contracts": str(DOCS_DIR / "metric_contracts.md"),
-        "data_contracts": str(DOCS_DIR / "data_contracts.md"),
-        "metric_lineage": str(DOCS_DIR / "metric_lineage.md"),
+        "governance_doc": str(DOCS_DIR / "gobierno_metricas.md"),
         "checks": str(DATA_PROCESSED_DIR / "governance_contract_checks.csv"),
     }
 
