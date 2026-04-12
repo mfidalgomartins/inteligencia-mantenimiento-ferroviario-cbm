@@ -1,0 +1,31 @@
+check_id,contract_type,severity,passed,detail,publish_blocker
+metric_contract_source_exists::backlog_physical_items_count,metric,alta,True,source=data/raw/backlog_mantenimiento.csv,False
+metric_contract_source_exists::cbm_operational_savings_eur,metric,alta,True,source=data/processed/comparativo_estrategias.csv,False
+metric_contract_source_exists::component_health_score,metric,alta,True,source=data/processed/scoring_componentes.csv,False
+metric_contract_source_exists::component_rul_estimate,metric,alta,True,source=data/processed/component_rul_estimate.csv,False
+metric_contract_source_exists::deferral_cost_delta_14d_eur,metric,alta,True,source=data/processed/impacto_diferimiento_resumen.csv,False
+metric_contract_source_exists::fleet_availability_pct,metric,alta,True,source=data/processed/narrative_metrics_official.csv,False
+metric_contract_source_exists::high_deferral_risk_cases_count,metric,alta,True,source=data/processed/workshop_priority_table.csv,False
+metric_contract_source_exists::mean_depot_saturation_pct,metric,alta,True,source=data/processed/narrative_metrics_official.csv,False
+metric_contract_source_exists::prob_fallo_30d,metric,alta,True,source=data/processed/scoring_componentes.csv,False
+data_contract_table_exists::comparativo_estrategias,data,critica,True,path=/Users/miguelfidalgo/Documents/sistema-inteligencia-mantenimiento-ferroviario/data/processed/comparativo_estrategias.csv,False
+data_contract_required_columns::comparativo_estrategias,data,alta,True,missing=[],False
+data_contract_pk_uniqueness::comparativo_estrategias,data,alta,True,"pk=['estrategia'], duplicates=0",False
+data_contract_table_exists::component_rul_estimate,data,critica,True,path=/Users/miguelfidalgo/Documents/sistema-inteligencia-mantenimiento-ferroviario/data/processed/component_rul_estimate.csv,False
+data_contract_required_columns::component_rul_estimate,data,alta,True,missing=[],False
+data_contract_pk_uniqueness::component_rul_estimate,data,alta,True,"pk=['unidad_id', 'componente_id'], duplicates=0",False
+data_contract_table_exists::impacto_diferimiento_resumen,data,critica,True,path=/Users/miguelfidalgo/Documents/sistema-inteligencia-mantenimiento-ferroviario/data/processed/impacto_diferimiento_resumen.csv,False
+data_contract_required_columns::impacto_diferimiento_resumen,data,alta,True,missing=[],False
+data_contract_pk_uniqueness::impacto_diferimiento_resumen,data,alta,True,"pk=['defer_dias'], duplicates=0",False
+data_contract_table_exists::narrative_metrics_official,data,critica,True,path=/Users/miguelfidalgo/Documents/sistema-inteligencia-mantenimiento-ferroviario/data/processed/narrative_metrics_official.csv,False
+data_contract_required_columns::narrative_metrics_official,data,alta,True,missing=[],False
+data_contract_pk_uniqueness::narrative_metrics_official,data,alta,True,"pk=['metric_id'], duplicates=0",False
+data_contract_table_exists::scoring_componentes,data,critica,True,path=/Users/miguelfidalgo/Documents/sistema-inteligencia-mantenimiento-ferroviario/data/processed/scoring_componentes.csv,False
+data_contract_required_columns::scoring_componentes,data,alta,True,missing=[],False
+data_contract_pk_uniqueness::scoring_componentes,data,alta,True,"pk=['unidad_id', 'componente_id'], duplicates=0",False
+data_contract_table_exists::vw_depot_maintenance_pressure,data,critica,True,path=/Users/miguelfidalgo/Documents/sistema-inteligencia-mantenimiento-ferroviario/data/processed/vw_depot_maintenance_pressure.csv,False
+data_contract_required_columns::vw_depot_maintenance_pressure,data,alta,True,missing=[],False
+data_contract_pk_uniqueness::vw_depot_maintenance_pressure,data,alta,True,"pk=['fecha', 'deposito_id'], duplicates=0",False
+data_contract_table_exists::workshop_priority_table,data,critica,True,path=/Users/miguelfidalgo/Documents/sistema-inteligencia-mantenimiento-ferroviario/data/processed/workshop_priority_table.csv,False
+data_contract_required_columns::workshop_priority_table,data,alta,True,missing=[],False
+data_contract_pk_uniqueness::workshop_priority_table,data,alta,True,"pk=['unidad_id', 'componente_id'], duplicates=0",False

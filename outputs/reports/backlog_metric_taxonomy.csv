@@ -1,0 +1,6 @@
+metric_id,category,definition,unit,value,decision_use
+backlog_physical_items_count,backlog_fisico,pendientes reales abiertos,count,2054.0,dimensionamiento de cola real de taller
+backlog_overdue_items_count,backlog_vencido,pendientes con antigüedad >=14 días,count,2000.0,escalado táctico para recuperar cumplimiento
+backlog_critical_physical_count,backlog_critico_por_edad_severidad,pendientes críticos por edad/severidad o riesgo acumulado,count,1957.0,secuenciación de intervención física prioritaria
+high_deferral_risk_cases_count,riesgo_diferimiento,casos con score de diferimiento >=70,count,64.0,límite de aplazamiento y ventana de entrada
+backlog_exposure_adjusted_mean,exposure_backlog_adjusted,exposición compuesta 0-100 (cantidad+edad+criticidad backlog físico),score_0_100,96.21,priorización de depósitos y rebalanceo de capacidad

@@ -1,0 +1,48 @@
+artifact,block,metric_id
+README.md,Key Findings,fleet_availability_pct
+README.md,Key Findings,high_risk_units_count
+README.md,Key Findings,backlog_physical_items_count
+README.md,Key Findings,backlog_overdue_items_count
+README.md,Key Findings,backlog_critical_physical_count
+README.md,Key Findings,high_deferral_risk_cases_count
+README.md,Key Findings,cbm_vs_reactiva_availability_pp
+README.md,Key Findings,cbm_operational_savings_eur
+README.md,Key Findings,cbm_value_range_min_eur
+README.md,Key Findings,cbm_value_range_max_eur
+README.md,Key Findings,cbm_prob_positive_savings
+README.md,Key Findings,avoidable_downtime_hours_inspection
+README.md,Decisión Final,top_unit_by_priority
+README.md,Decisión Final,top_component_by_priority
+README.md,Decisión Final,top_component_family_by_priority
+README.md,Decisión Final,deferral_cost_delta_14d_eur
+README.md,Decisión Final,deferral_downtime_delta_14d_h
+docs/memo_ejecutivo_es.md,Hallazgos,fleet_availability_pct
+docs/memo_ejecutivo_es.md,Hallazgos,high_risk_units_count
+docs/memo_ejecutivo_es.md,Hallazgos,backlog_physical_items_count
+docs/memo_ejecutivo_es.md,Hallazgos,backlog_overdue_items_count
+docs/memo_ejecutivo_es.md,Hallazgos,backlog_critical_physical_count
+docs/memo_ejecutivo_es.md,Hallazgos,high_deferral_risk_cases_count
+docs/memo_ejecutivo_es.md,Implicaciones económicas,cbm_operational_savings_eur
+docs/memo_ejecutivo_es.md,Implicaciones económicas,cbm_value_range_min_eur
+docs/memo_ejecutivo_es.md,Implicaciones económicas,cbm_value_range_max_eur
+docs/memo_ejecutivo_es.md,Implicaciones económicas,cbm_prob_positive_savings
+docs/memo_ejecutivo_es.md,Trade-offs,deferral_cost_delta_14d_eur
+docs/memo_ejecutivo_es.md,Trade-offs,deferral_downtime_delta_14d_h
+docs/memo_ejecutivo_es.md,Prioridades,top_unit_by_priority
+docs/memo_ejecutivo_es.md,Prioridades,top_component_by_priority
+outputs/dashboard/index.html,KPI Cards,fleet_availability_pct
+outputs/dashboard/index.html,KPI Cards,mtbf_proxy_hours
+outputs/dashboard/index.html,KPI Cards,mttr_proxy_hours
+outputs/dashboard/index.html,KPI Cards,high_risk_units_count
+outputs/dashboard/index.html,KPI Cards,backlog_physical_items_count
+outputs/dashboard/index.html,KPI Cards,backlog_overdue_items_count
+outputs/dashboard/index.html,KPI Cards,backlog_critical_physical_count
+outputs/dashboard/index.html,KPI Cards,high_deferral_risk_cases_count
+outputs/dashboard/index.html,KPI Cards,cbm_operational_savings_eur
+outputs/dashboard/index.html,KPI Cards,cbm_value_range_min_eur
+outputs/dashboard/index.html,KPI Cards,cbm_value_range_max_eur
+outputs/dashboard/index.html,KPI Cards,cbm_prob_positive_savings
+outputs/dashboard/index.html,KPI Cards,mean_depot_saturation_pct
+outputs/dashboard/index.html,Decisión Ejecutiva,top_unit_by_priority
+outputs/dashboard/index.html,Decisión Ejecutiva,top_component_by_priority
+outputs/dashboard/index.html,Decisión Ejecutiva,top_deferral_risk_score

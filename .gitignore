@@ -36,12 +36,8 @@ data/processed/*
 !data/raw/.gitkeep
 !data/processed/.gitkeep
 
-# Generated outputs (keep only executive dashboard + key markdown reports)
+# Generated outputs (keep executive dashboard + reports CSV/MD)
 outputs/charts/*
-outputs/reports/*.csv
-outputs/reports/**/*.csv
-outputs/reports/*.json
-outputs/reports/**/*.json
 outputs/reports/*.parquet
 outputs/reports/**/*.parquet
 outputs/reports/*.xlsx

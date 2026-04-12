@@ -1,0 +1,7 @@
+check_id,passed,severity,detail,recommendation
+release_single_dashboard_artifact,True,alta,dashboard_html_files=['index.html'],Mantener un único dashboard oficial: outputs/dashboard/index.html.
+release_dashboard_signature_consistency,True,alta,"meta_sig=b84a6ba32e, payload_sig=b84a6ba32e",Sincronizar meta dashboard-signature con payload_signature.
+release_dashboard_offline_mode,True,critica,external_refs_found=False,Eliminar dependencias externas para ejecución offline.
+release_dashboard_decision_alignment_ssot,True,alta,"top_unit_html=UNI0057, top_unit_expected=UNI0057, top_comp_html=COMP000454, top_comp_expected=COMP000454",Regenerar dashboard desde métricas SSOT tras actualizar scoring/priorización.
+release_readiness_not_blocked,True,critica,"publish_blocked=False, primary_state=committee-grade",Resolver publish-blockers antes de declarar release candidate.
+release_validation_has_results,True,media,failed_checks=0,Ejecutar validación completa y generar validation_checks_detailed.csv.

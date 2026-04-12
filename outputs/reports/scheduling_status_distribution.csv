@@ -1,0 +1,7 @@
+estado_intervencion,share,scenario,share_pct
+pendiente_capacidad,0.6944444444444444,baseline_greedy_21d,69.444
+programada,0.3055555555555556,baseline_greedy_21d,30.556
+pendiente_capacidad,0.4496527777777778,heuristica_redisenada_35d,44.965
+programable_proxima_ventana,0.3168402777777778,heuristica_redisenada_35d,31.684
+programada,0.19270833333333334,heuristica_redisenada_35d,19.271
+pendiente_repuesto,0.04079861111111111,heuristica_redisenada_35d,4.08

@@ -1,0 +1,6 @@
+kpi_name,definition_before,value_before,source_before,definition_after,value_after,source_after,decision_supported
+backlog_fisico,n/a,,,pendientes reales abiertos de mantenimiento,2054.0,data/raw/backlog_mantenimiento.csv,dimensionar carga real de taller
+backlog_vencido,n/a,,,pendientes físicos con antigüedad >= 14 días,2000.0,data/raw/backlog_mantenimiento.csv,acelerar cola vencida y proteger SLA
+backlog_critico_fisico,conteo de componentes con deferral_risk_score >= 70 (mezclado con diferimiento),64.0,data/processed/workshop_priority_table.csv,pendientes físicos críticos por edad/severidad o riesgo acumulado alto,1957.0,data/raw/backlog_mantenimiento.csv,qué pendientes físicos deben intervenirse antes
+riesgo_diferimiento_alto,implícitamente mezclado con backlog crítico,64.0,data/processed/workshop_priority_table.csv,"casos con deferral_risk_score >= 70 (riesgo de aplazar, no backlog físico)",64.0,data/processed/workshop_priority_table.csv,qué no debe diferirse por impacto operacional
+exposure_backlog_adjusted,n/a,,,score compuesto 0-100 de exposición de backlog físico,96.21,data/processed/vw_depot_maintenance_pressure.csv,priorizar depósitos por exposición estructural de backlog

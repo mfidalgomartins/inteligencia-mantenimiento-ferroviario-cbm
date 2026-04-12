@@ -1,0 +1,9 @@
+layer,total_controls,passed_controls,failed_controls,failed_blockers,pass_rate
+dashboard_datasets,47,47,0,0,1.0
+features,12,12,0,0,1.0
+marts,6,6,0,0,1.0
+raw_data,30,30,0,0,1.0
+recommendations,15,15,0,0,1.0
+reports_docs_consistency,12,12,0,0,1.0
+scores,16,16,0,0,1.0
+staging,13,13,0,0,1.0

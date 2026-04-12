@@ -1,0 +1,15 @@
+artifact_path,exists,size_bytes,sha256,modified_utc
+README.md,True,5158,c7d1f9a60a5bfc9cb76de45c057596ddfd32190c142d4e0361b2d244c46d7978,2026-04-11T22:09:51.008807+00:00
+docs/memo_ejecutivo_es.md,True,1944,c38fdb3f2a89543e11dd5ab80e6b8a07f9458da542faecc710726818d2d3917c,2026-04-11T22:09:51.008535+00:00
+docs/dashboard_design.md,True,2805,f148c45f2a9c36d1483107e2b8000930b2ac8b27e0acb72ebee224a0bd67cfbd,2026-04-02T12:35:58.336682+00:00
+docs/gobierno_metricas.md,True,18964,8ab08c01bf0d6f1660eae0f7167599a63e60da231f72ccc8115be6afc2aacde3,2026-04-11T22:09:44.159642+00:00
+outputs/dashboard/index.html,True,1143609,776aa8478fbdf23b4a6fffa1cb1acd805c1acb12b7c07a007d89cdaca5a02b5a,2026-04-11T21:19:38.281206+00:00
+outputs/reports/validation_report.md,True,2988,8b89e3d2c46e28944cda62a4d4db6738c9b7541af8ecc18afd5ec6e633757049,2026-04-11T22:11:23.350267+00:00
+outputs/reports/validation_checks_detailed.csv,True,41653,baf853ef455b02d27c8b83c36fdfede75c16871bf3dee336ca8116d27691375b,2026-04-11T22:11:23.332433+00:00
+outputs/reports/release_readiness.csv,True,467,b96ae554397a3e8bb771ba0ffa04390aa228083970dc0ea82ccf8d33b6ec9dec,2026-04-11T22:11:23.338832+00:00
+outputs/reports/narrative_metrics_official.csv,True,8145,a16a1ccc2794613c9e5e2576dd9ae1db89e40b82e8008af10f9c6d0210473573,2026-04-11T22:09:51.006567+00:00
+data/processed/scoring_componentes.csv,True,381232,2fc8c93a7a9be7f926b02647650b52eaa71098d52d5d06cec85ef085befc04bf,2026-04-02T12:52:52.613597+00:00
+data/processed/workshop_priority_table.csv,True,524829,3ee2b521652ff627b5949f3c6cb61aa7f2411e4411c64ce312a0b0bda8e74274,2026-04-02T12:53:04.457057+00:00
+data/processed/component_rul_estimate.csv,True,317537,1eebbf7ae3573cc7a36c1db853841899745444a97a55a313264bc82f684b38aa,2026-04-02T12:52:56.118057+00:00
+data/processed/comparativo_estrategias.csv,True,1683,483a05a449821a08f4a50aaa43ec8f5b25dc6c829d115a0909af14950b5d8676,2026-04-02T12:53:05.146695+00:00
+data/processed/impacto_diferimiento_resumen.csv,True,402,58eca4052b48da09f0cadee3995f4cb4ad441ddcaab30038e59d5aabb69293c6,2026-04-02T12:53:05.308760+00:00

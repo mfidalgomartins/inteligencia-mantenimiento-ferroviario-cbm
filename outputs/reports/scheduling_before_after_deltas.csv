@@ -1,0 +1,15 @@
+metric,baseline_greedy_21d,heuristica_redisenada_35d,delta_after_minus_before
+total_casos,1152.0,1152.0,0.0
+programadas_pct,30.556,19.271,-11.285
+programables_proxima_ventana_pct,0.0,31.684,31.684
+pendientes_total_pct,69.444,49.045,-20.399
+pendiente_capacidad_pct,69.444,44.965,-24.479
+pendiente_repuesto_pct,0.0,4.08,4.08
+pendiente_conflicto_operativo_pct,0.0,0.0,0.0
+escalar_decision_pct,0.0,0.0,0.0
+actionable_pct,30.556,50.955,20.398999999999997
+capacidad_utilizada_pct,17.471,46.748,29.276999999999997
+horas_taller_usadas,1822.958,4003.554,2180.596
+riesgo_residual_no_atendido_pct,66.915,44.253,-22.662000000000006
+valor_capturado_proxy,6786249.003,7927454.785,1141205.7820000006
+valor_no_capturado_proxy,8999477.157,7858271.375,-1141205.7819999997

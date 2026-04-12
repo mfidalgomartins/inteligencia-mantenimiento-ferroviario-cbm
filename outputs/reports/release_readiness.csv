@@ -1,0 +1,8 @@
+dimension,value,rule
+technically_valid,True,no critical failures & no blockers
+analytically_acceptable,True,technically_valid & no high failures & fail_rate<=8%
+decision-support only,False,technically_valid but not analytically_acceptable
+screening-grade only,False,analytically_acceptable but not committee_grade
+not committee-grade,False,committee_grade == False
+publish-blocked,False,any failed publish_blocker
+primary_release_state,committee-grade,derived status
