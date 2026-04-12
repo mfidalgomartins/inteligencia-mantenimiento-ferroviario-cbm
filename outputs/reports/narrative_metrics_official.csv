@@ -1,5 +1,5 @@
 metric_id,metric_value,label,unit,source_of_truth,window_definition,filter_definition,aggregation_definition,definition
-as_of_ts,2026-04-11 23:09,as_of_ts,meta,pipeline_runtime,,,,Metadato de corrida.
+as_of_ts,2026-04-12 13:51,as_of_ts,meta,pipeline_runtime,,,,Metadato de corrida.
 coverage_start,2024-01-01,coverage_start,meta,pipeline_runtime,,,,Metadato de corrida.
 coverage_end,2025-12-29,coverage_end,meta,pipeline_runtime,,,,Metadato de corrida.
 fleet_availability_pct,90.44942980310341,Disponibilidad media de flota,pct,data/processed/fleet_week_features.csv,histórico completo semanal disponible,todos los registros válidos,mean(availability_rate) * 100,Disponibilidad promedio de flota para narrativa ejecutiva.
