@@ -31,7 +31,6 @@ Integra operación, sensores, inspección automática y mantenimiento para const
 - `tests/` validación y QA
 
 ## Outputs clave
-- Dashboard en vivo: https://mfidalgomartins.github.io/inteligencia-mantenimiento-ferroviario-cbm/
 - `outputs/dashboard/centro-control-mantenimiento-ferroviario.html`
 - `outputs/reports/informe_analitico_avanzado.md`
 - `outputs/reports/memo_ejecutivo_es.md`

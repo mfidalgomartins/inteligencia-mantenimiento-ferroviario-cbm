@@ -11,7 +11,7 @@ def test_archivos_clave_existen():
         ROOT / "data" / "processed" / "rul_instancia.csv",
         ROOT / "data" / "processed" / "priorizacion_intervenciones.csv",
         ROOT / "data" / "processed" / "plan_taller_14d.csv",
-        ROOT / "outputs" / "dashboard" / "index.html",
+        ROOT / "outputs" / "dashboard" / "centro-control-mantenimiento-ferroviario.html",
     ]
     for file in expected:
         assert file.exists(), f"No existe: {file}"

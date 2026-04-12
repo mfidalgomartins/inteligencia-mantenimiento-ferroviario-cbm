@@ -31,7 +31,7 @@
 ## Catálogo de Controles
 | check_id                                                     | layer                    | severity    | blocker_if_fail   | what_checked                                                                     | threshold                          |
 |:-------------------------------------------------------------|:-------------------------|:------------|:------------------|:---------------------------------------------------------------------------------|:-----------------------------------|
-| dashboard_file_exists                                        | dashboard_datasets       | critica     | True              | Existencia de outputs/dashboard/index.html                                       |                                    |
+| dashboard_file_exists                                        | dashboard_datasets       | critica     | True              | Existencia de outputs/dashboard/centro-control-mantenimiento-ferroviario.html    |                                    |
 | dashboard_offline_no_external_cdn                            | dashboard_datasets       | critica     | True              | Autocontención offline sin dependencias CDN                                      |                                    |
 | marts_grain_uniqueness                                       | marts                    | critica     | True              | Unicidad de grain en marts                                                       |                                    |
 | marts_non_empty                                              | marts                    | critica     | True              | Existencia y no vacíos de marts principales                                      |                                    |

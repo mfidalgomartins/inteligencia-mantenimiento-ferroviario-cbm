@@ -10,7 +10,7 @@ import pytest
 
 
 ROOT = Path(__file__).resolve().parents[1]
-DASHBOARD = ROOT / "outputs" / "dashboard" / "index.html"
+DASHBOARD = ROOT / "outputs" / "dashboard" / "centro-control-mantenimiento-ferroviario.html"
 
 
 @pytest.mark.skipif(shutil.which("node") is None, reason="Node.js não disponível para check sintático")
@@ -26,4 +26,3 @@ def test_dashboard_embedded_js_has_valid_syntax():
 
     result = subprocess.run(["node", "--check", tmp_path], capture_output=True, text=True)
     assert result.returncode == 0, f"Erro de sintaxe JS no dashboard: {result.stderr}"
-

@@ -55,7 +55,7 @@ def _extract_token(text: str, pattern: str) -> str | None:
 
 
 def _run_checks() -> pd.DataFrame:
-    dashboard = OUTPUTS_DASHBOARD_DIR / "index.html"
+    dashboard = OUTPUTS_DASHBOARD_DIR / "centro-control-mantenimiento-ferroviario.html"
     readiness = OUTPUTS_REPORTS_DIR / "release_readiness.csv"
     narrative = OUTPUTS_REPORTS_DIR / "narrative_metrics_official.csv"
     validation = OUTPUTS_REPORTS_DIR / "validation_checks_detailed.csv"
@@ -64,14 +64,14 @@ def _run_checks() -> pd.DataFrame:
     checks: list[ReleaseCheck] = []
 
     dashboard_files = list(OUTPUTS_DASHBOARD_DIR.glob("*.html"))
-    expected_files = {"index.html", "centro-control-mantenimiento-ferroviario.html"}
+    expected_files = {"centro-control-mantenimiento-ferroviario.html"}
     checks.append(
         ReleaseCheck(
             check_id="release_single_dashboard_artifact",
             passed=(set(x.name for x in dashboard_files) == expected_files),
             severity="alta",
             detail=f"dashboard_html_files={[x.name for x in dashboard_files]}",
-            recommendation="Mantener index.html + versión branded en outputs/dashboard/.",
+            recommendation="Mantener un único dashboard final en outputs/dashboard/.",
         )
     )
 
@@ -185,7 +185,7 @@ def run_release_hardening() -> None:
         ROOT_DIR / "docs" / "memo_ejecutivo_es.md",
         ROOT_DIR / "docs" / "dashboard_design.md",
         ROOT_DIR / "docs" / "gobierno_metricas.md",
-        ROOT_DIR / "outputs" / "dashboard" / "index.html",
+        ROOT_DIR / "outputs" / "dashboard" / "centro-control-mantenimiento-ferroviario.html",
         ROOT_DIR / "outputs" / "reports" / "validation_report.md",
         ROOT_DIR / "outputs" / "reports" / "validation_checks_detailed.csv",
         ROOT_DIR / "outputs" / "reports" / "release_readiness.csv",

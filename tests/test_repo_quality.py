@@ -30,4 +30,4 @@ def test_governance_contract_blockers_empty():
 
 def test_repo_architecture_points_to_active_dashboard_artifact():
     doc = (ROOT / "docs" / "repo_architecture.md").read_text(encoding="utf-8")
-    assert "outputs/dashboard/index.html" in doc
+    assert "outputs/dashboard/centro-control-mantenimiento-ferroviario.html" in doc

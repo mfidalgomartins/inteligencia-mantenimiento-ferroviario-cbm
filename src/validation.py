@@ -1578,7 +1578,7 @@ def _validate_recommendations_layer(processed: dict[str, pd.DataFrame], results:
 
 
 def _validate_dashboard_layer(processed: dict[str, pd.DataFrame], results: list[QAResult]) -> None:
-    dashboard_path = OUTPUTS_DASHBOARD_DIR / "index.html"
+    dashboard_path = OUTPUTS_DASHBOARD_DIR / "centro-control-mantenimiento-ferroviario.html"
     html = dashboard_path.read_text(encoding="utf-8") if dashboard_path.exists() else ""
     prio = processed["workshop_priority_table"]
     score = processed["scoring_componentes"]
@@ -1592,7 +1592,7 @@ def _validate_dashboard_layer(processed: dict[str, pd.DataFrame], results: list[
         severity="critica",
         passed=dashboard_path.exists(),
         blocker_if_fail=True,
-        what_checked="Existencia de outputs/dashboard/index.html",
+        what_checked="Existencia de outputs/dashboard/centro-control-mantenimiento-ferroviario.html",
         detail="ok" if dashboard_path.exists() else "dashboard_no_generado",
         impact_potential="Entregable ejecutivo ausente.",
         technical_recommendation="Ejecutar build_dashboard al final del pipeline.",

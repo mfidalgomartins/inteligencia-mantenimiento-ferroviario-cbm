@@ -10,7 +10,7 @@ ROOT = Path(__file__).resolve().parents[1]
 PROCESSED = ROOT / "data" / "processed"
 REPORTS = ROOT / "outputs" / "reports"
 DOCS = ROOT / "docs"
-DASHBOARD = ROOT / "outputs" / "dashboard" / "index.html"
+DASHBOARD = ROOT / "outputs" / "dashboard" / "centro-control-mantenimiento-ferroviario.html"
 
 
 def _load_metrics() -> dict[str, str]:

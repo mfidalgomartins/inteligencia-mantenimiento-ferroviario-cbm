@@ -1063,16 +1063,31 @@ window.addEventListener("resize", () => {
         .replace("__PAYLOAD_SIGNATURE__", payload_signature)
     )
 
-    out_path = OUTPUTS_DASHBOARD_DIR / "index.html"
-    out_path.write_text(html, encoding="utf-8")
     branded_path = OUTPUTS_DASHBOARD_DIR / DASHBOARD_SLUG
     branded_path.write_text(html, encoding="utf-8")
-    docs_index = DOCS_DIR / "index.html"
-    docs_index.write_text(html, encoding="utf-8")
     docs_branded = DOCS_DIR / DASHBOARD_SLUG
     docs_branded.write_text(html, encoding="utf-8")
+    docs_index = DOCS_DIR / "index.html"
+    docs_index.write_text(
+        "\n".join(
+            [
+                "<!DOCTYPE html>",
+                "<html lang=\"es\">",
+                "<head>",
+                "  <meta charset=\"UTF-8\" />",
+                "  <meta http-equiv=\"refresh\" content=\"0; url=centro-control-mantenimiento-ferroviario.html\" />",
+                "  <title>Dashboard Ejecutivo</title>",
+                "</head>",
+                "<body>",
+                "  <p>Redirigiendo al dashboard ejecutivo...</p>",
+                "</body>",
+                "</html>",
+            ]
+        ),
+        encoding="utf-8",
+    )
     (DOCS_DIR / ".nojekyll").write_text("", encoding="utf-8")
-    return str(out_path)
+    return str(branded_path)
 
 
 if __name__ == "__main__":
