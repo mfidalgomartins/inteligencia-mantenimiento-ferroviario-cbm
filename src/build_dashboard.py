@@ -1086,7 +1086,15 @@ window.addEventListener("resize", () => {
     docs_index = DOCS_DIR / "index.html"
     docs_index.write_text(redirect_html, encoding="utf-8")
     root_index = ROOT_DIR / "index.html"
-    root_index.write_text(html, encoding="utf-8")
+    root_index.write_text(
+        redirect_html.replace(
+            f"{PAGES_BASE_URL}{DASHBOARD_SLUG}",
+            DASHBOARD_SLUG,
+        ),
+        encoding="utf-8",
+    )
+    root_branded = ROOT_DIR / DASHBOARD_SLUG
+    root_branded.write_text(html, encoding="utf-8")
     (DOCS_DIR / ".nojekyll").write_text("", encoding="utf-8")
     (ROOT_DIR / ".nojekyll").write_text("", encoding="utf-8")
     return str(branded_path)
