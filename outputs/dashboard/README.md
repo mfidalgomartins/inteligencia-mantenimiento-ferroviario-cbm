@@ -1,9 +1,10 @@
-# Dashboard Ejecutivo
+# Dashboard ejecutivo
 
-**Live dashboard (GitHub Pages):**
-- https://mfidalgomartins.github.io/inteligencia-mantenimiento-ferroviario-cbm/
+Carpeta con el dashboard interactivo del proyecto.
 
-**Archivo HTML profesional (repo):**
-- `centro-control-mantenimiento-ferroviario.html`
+**Abrir en vivo (recomendado):**
+https://mfidalgomartins.github.io/inteligencia-mantenimiento-ferroviario-cbm/
 
-Si estás navegando el repo desde GitHub, usa el enlace de GitHub Pages para ver el dashboard en modo interactivo.
+Acceso alternativo (solo archivo HTML): `centro-control-mantenimiento-ferroviario.html`
+
+Nota: GitHub muestra el HTML como código; el enlace en vivo es la experiencia correcta.
