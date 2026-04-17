@@ -8,10 +8,10 @@ import numpy as np
 import pandas as pd
 
 from src.config import DATA_PROCESSED_DIR, DATA_RAW_DIR, OUTPUTS_DASHBOARD_DIR, DOCS_DIR, ROOT_DIR
+from src.reporting_governance import load_or_compute_narrative_metrics
 
 DASHBOARD_SLUG = "centro-control-mantenimiento-ferroviario.html"
 PAGES_BASE_URL = "https://mfidalgomartins.github.io/inteligencia-mantenimiento-ferroviario-cbm/"
-from src.reporting_governance import load_or_compute_narrative_metrics
 
 
 def _risk_tier(score: float) -> str:
@@ -234,6 +234,10 @@ def build_dashboard() -> str:
             "fleet_availability_pct": float(metrics.get("fleet_availability_pct", 0.0)),
             "mtbf_proxy_hours": float(metrics.get("mtbf_proxy_hours", 0.0)),
             "mttr_proxy_hours": float(metrics.get("mttr_proxy_hours", 0.0)),
+            "high_risk_units_count": float(metrics.get("high_risk_units_count", 0.0)),
+            "backlog_physical_items_count": float(metrics.get("backlog_physical_items_count", 0.0)),
+            "backlog_overdue_items_count": float(metrics.get("backlog_overdue_items_count", 0.0)),
+            "backlog_critical_physical_count": float(metrics.get("backlog_critical_physical_count", 0.0)),
             "cbm_operational_savings_eur": float(metrics.get("cbm_operational_savings_eur", 0.0)),
             "deferral_downtime_delta_14d_h": float(metrics.get("deferral_downtime_delta_14d_h", 0.0)),
             "avoidable_correctives_inspection": float(metrics.get("avoidable_correctives_inspection", 0.0)),
@@ -242,6 +246,9 @@ def build_dashboard() -> str:
             "backlog_exposure_adjusted_mean": float(metrics.get("backlog_exposure_adjusted_mean", 0.0)),
             "top_unit_by_priority": str(metrics.get("top_unit_by_priority", "n/a")),
             "top_component_by_priority": str(metrics.get("top_component_by_priority", "n/a")),
+            "early_warnings_active_count": float((base["prob_fallo_30d"] >= 0.65).sum()),
+            "row_count_components": float(len(base)),
+            "row_count_units": float(base["unidad_id"].nunique()),
         },
         "meta": {
             "dashboard_version": dashboard_version,
@@ -261,64 +268,91 @@ def build_dashboard() -> str:
   <meta name="dashboard-signature" content="__PAYLOAD_SIGNATURE__" />
   <style>
     :root{
-      --bg:#eff4fb;--bg-soft:#f6f8fc;--card:#ffffff;--ink:#0d1f2d;--muted:#5a6b7d;--line:#d6e0ec;
-      --blue:#1f5f99;--red:#c44536;--green:#2a9d8f;--amber:#f2a65a;--slate:#66758a;--navy:#0b1f34;
-      --shadow:0 10px 26px rgba(12, 34, 58, .10);--sidebar-width:300px;
+      --bg:#edf2f8;--bg-soft:#f7f9fc;--card:#ffffff;--card-soft:#f3f7fb;--ink:#102031;--muted:#5d7084;--line:#d7e2ee;
+      --blue:#184e77;--blue-strong:#103c64;--red:#b13b45;--green:#1f8a70;--amber:#d99036;--slate:#607287;--navy:#0b1f34;
+      --critical:#aa2e39;--warning:#b66a18;--positive:#207567;--info:#245c92;
+      --shadow:0 14px 34px rgba(12, 34, 58, .10);--shadow-soft:0 8px 20px rgba(12, 34, 58, .06);--sidebar-width:300px;
+      --radius-lg:22px;--radius-md:16px;--radius-sm:12px;
     }
     *{box-sizing:border-box}
     html{scroll-behavior:smooth}
     body{margin:0;background:
-      radial-gradient(1200px 500px at -10% -5%, rgba(31,95,153,.12) 0%, transparent 55%),
-      radial-gradient(900px 400px at 110% -8%, rgba(42,157,143,.10) 0%, transparent 45%),
+      radial-gradient(1100px 520px at -12% -8%, rgba(24,78,119,.14) 0%, transparent 58%),
+      radial-gradient(860px 420px at 112% -12%, rgba(31,138,112,.09) 0%, transparent 46%),
+      linear-gradient(180deg,#f8fbfe 0%, #edf2f8 36%, #edf2f8 100%),
       var(--bg);
       color:var(--ink);font-family:"Avenir Next","Segoe UI Variable","Trebuchet MS",sans-serif;overflow-x:hidden;line-height:1.45}
     .layout{display:grid;grid-template-columns:minmax(260px,var(--sidebar-width)) minmax(0,1fr);min-height:100svh;width:100%;max-width:none;align-items:start}
-    .sidebar{background:linear-gradient(180deg,#0b2136,#102844);color:#eaf0f8;padding:18px 14px;position:sticky;top:0;height:100dvh;overflow:auto;border-right:1px solid rgba(255,255,255,.09)}
-    .sidebar h2{margin:0 0 8px;font-size:1.05rem;letter-spacing:.02em}
-    .sidebar p{margin:0 0 14px;font-size:.84rem;color:#c3d4ea}
-    .sidebar .brand{padding:12px;border:1px solid rgba(255,255,255,.14);border-radius:12px;background:rgba(255,255,255,.04);margin-bottom:12px}
-    .sidebar .brand b{display:block;font-size:.9rem}
-    .sidebar .brand span{font-size:.78rem;color:#c9dbf1}
+    .sidebar{background:linear-gradient(180deg,#0c2237,#112c48 54%, #143356 100%);color:#edf4fb;padding:22px 16px;position:sticky;top:0;height:100dvh;overflow:auto;border-right:1px solid rgba(255,255,255,.08);box-shadow:inset -1px 0 0 rgba(255,255,255,.05)}
+    .sidebar h2{margin:0 0 8px;font-size:1.16rem;letter-spacing:.01em}
+    .sidebar p{margin:0 0 15px;font-size:.85rem;color:#bed0e4}
+    .sidebar .brand{padding:14px;border:1px solid rgba(255,255,255,.12);border-radius:16px;background:linear-gradient(180deg,rgba(255,255,255,.08),rgba(255,255,255,.04));margin-bottom:14px;box-shadow:var(--shadow-soft)}
+    .sidebar .brand b{display:block;font-size:1rem;letter-spacing:.01em}
+    .sidebar .brand span{font-size:.8rem;color:#d3e2f2}
+    .sidebar .eyebrow{display:block;font-size:.68rem;text-transform:uppercase;letter-spacing:.12em;color:#86b8e2;margin-bottom:6px;font-weight:700}
     .filter-group{margin-bottom:12px}
-    .filter-group label{display:block;font-size:.78rem;margin-bottom:4px;color:#dbe8f6}
+    .filter-group label{display:block;font-size:.77rem;margin-bottom:5px;color:#e4eef8;font-weight:600}
     .filter-group select,.filter-group input{
-      width:100%;padding:9px 30px 9px 10px;border-radius:10px;border:1px solid #355276;background:#122a44;color:#eef4ff;
+      width:100%;padding:10px 30px 10px 12px;border-radius:12px;border:1px solid #37577b;background:#102942;color:#eef4ff;
       -webkit-appearance:none;appearance:none;background-image:
       linear-gradient(45deg, transparent 50%, #b9d0ea 50%),
       linear-gradient(135deg, #b9d0ea 50%, transparent 50%);
       background-position: calc(100% - 16px) calc(50% - 2px), calc(100% - 11px) calc(50% - 2px);
       background-size: 5px 5px, 5px 5px;background-repeat:no-repeat;
     }
+    .filter-group select:focus,.filter-group input:focus{outline:none;border-color:#80b3df;box-shadow:0 0 0 3px rgba(128,179,223,.16)}
     .side-actions{display:flex;gap:8px;margin:12px 0 10px}
-    .btn{border:1px solid transparent;border-radius:10px;padding:7px 12px;font-size:.78rem;cursor:pointer}
+    .btn{border:1px solid transparent;border-radius:12px;padding:8px 12px;font-size:.78rem;cursor:pointer;transition:transform .14s ease, box-shadow .14s ease, background .14s ease}
+    .btn:hover{transform:translateY(-1px)}
     .btn-reset{background:#f2a65a;color:#102a45;font-weight:700}
     .btn-top{position:fixed;right:18px;bottom:18px;background:#12385e;color:#fff;box-shadow:var(--shadow);z-index:30}
-    .sidebar-stats{margin-top:10px;padding:10px;border-radius:12px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.11);font-size:.78rem}
+    .sidebar-stats{margin-top:12px;padding:12px;border-radius:16px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.11);font-size:.78rem}
     .sidebar-stats b{color:#fff}
-    .content{padding:18px 22px 30px;min-width:0;overflow-x:hidden}
-    .header{background:linear-gradient(120deg,#0f4c81,#1c3d62);color:#fff;border-radius:18px;padding:20px 22px;box-shadow:var(--shadow);border:1px solid rgba(255,255,255,.14)}
-    .header-row{display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap}
-    .header h1{margin:0;font-size:1.6rem;line-height:1.15}
+    .content{padding:20px 24px 34px;min-width:0;overflow-x:hidden}
+    .header{background:linear-gradient(135deg,#103d65 0%, #184e77 52%, #205b87 100%);color:#fff;border-radius:var(--radius-lg);padding:24px 24px 22px;box-shadow:var(--shadow);border:1px solid rgba(255,255,255,.14)}
+    .header-row{display:flex;justify-content:space-between;gap:14px;align-items:flex-start;flex-wrap:wrap}
+    .header-main{max-width:920px}
+    .header .eyebrow{display:block;font-size:.71rem;text-transform:uppercase;letter-spacing:.16em;color:#a9d0ef;font-weight:700;margin-bottom:10px}
+    .header h1{margin:0;font-size:2rem;line-height:1.05;max-width:980px}
     .header-actions{display:flex;gap:8px;align-items:center}
-    .btn-print{background:#eef5fc;border:1px solid rgba(255,255,255,.4);color:#12385e;font-weight:700}
-    .sub{margin-top:6px;color:#d7e8ff;font-size:.93rem}
-    .meta{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;min-width:0}
-    .pill{font-size:.78rem;background:rgba(255,255,255,.18);border:1px solid rgba(255,255,255,.26);padding:5px 9px;border-radius:999px}
-    .top-nav{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;min-width:0}
-    .top-nav a{font-size:.78rem;text-decoration:none;color:#10304f;background:#eef5fc;border:1px solid #d5e3f2;padding:7px 12px;border-radius:999px}
+    .btn-print{background:#eef5fc;border:1px solid rgba(255,255,255,.4);color:#12385e;font-weight:700;box-shadow:var(--shadow-soft)}
+    .sub{margin-top:10px;color:#d7e8ff;font-size:1rem;max-width:880px}
+    .meta{display:flex;gap:8px;flex-wrap:wrap;margin-top:16px;min-width:0}
+    .pill{font-size:.78rem;background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.24);padding:6px 10px;border-radius:999px}
+    .hero-strip{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,240px),1fr));gap:12px;margin-top:18px}
+    .hero-panel{background:linear-gradient(180deg,rgba(255,255,255,.16),rgba(255,255,255,.10));border:1px solid rgba(255,255,255,.18);border-radius:18px;padding:14px 15px;min-width:0;backdrop-filter:blur(6px)}
+    .hero-panel .label{font-size:.7rem;letter-spacing:.12em;text-transform:uppercase;color:#b4d7f4;font-weight:700}
+    .hero-panel .value{margin-top:6px;font-size:1.22rem;font-weight:800;line-height:1.15}
+    .hero-panel .note{margin-top:6px;font-size:.8rem;color:#d9ebfb}
+    .top-nav{display:flex;gap:8px;flex-wrap:wrap;margin-top:16px;min-width:0}
+    .top-nav a{font-size:.79rem;text-decoration:none;color:#10304f;background:#eef5fc;border:1px solid #d5e3f2;padding:8px 12px;border-radius:999px;font-weight:600}
     .top-nav a:hover{background:#dbeaf9}
-    .insight{margin-top:10px;padding:12px 14px;border-radius:12px;background:#eaf4ff;border:1px solid #cddff5;font-size:.86rem;color:#163754;font-weight:600}
-    .cards{margin-top:16px;display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,190px),1fr));gap:12px;min-width:0}
-    .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px;box-shadow:0 6px 18px rgba(13,44,78,.08)}
-    .card:hover{transform:translateY(-1px);transition:all .15s ease;box-shadow:0 10px 22px rgba(13,44,78,.12)}
-    .card .k{font-size:.72rem;color:var(--muted);text-transform:uppercase;letter-spacing:.04em}
-    .card .v{margin-top:4px;font-size:1.36rem;font-weight:800}
-    .section{margin-top:16px;background:var(--card);border:1px solid var(--line);border-radius:16px;padding:14px;box-shadow:0 7px 22px rgba(13,44,78,.08);min-width:0;overflow:hidden}
-    .section h3{margin:2px 0 10px;font-size:1.05rem}
+    .insight{margin-top:12px;padding:14px 16px;border-radius:16px;background:#edf5fd;border:1px solid #d4e4f4;font-size:.88rem;color:#163754;font-weight:700;box-shadow:var(--shadow-soft)}
+    .cards{margin-top:18px;display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,190px),1fr));gap:12px;min-width:0}
+    .cards.cards-primary{grid-template-columns:repeat(auto-fit,minmax(min(100%,240px),1fr))}
+    .card{background:linear-gradient(180deg,#ffffff,#fbfdff);border:1px solid var(--line);border-radius:16px;padding:14px 14px 13px;box-shadow:var(--shadow-soft);min-width:0}
+    .card:hover{transform:translateY(-1px);transition:all .15s ease;box-shadow:0 12px 24px rgba(13,44,78,.10)}
+    .card.primary{padding:16px 16px 15px;border-top:4px solid var(--blue-strong)}
+    .card.risk{border-top-color:var(--critical)}
+    .card.capacity{border-top-color:var(--warning)}
+    .card.value{border-top-color:var(--positive)}
+    .card .k{font-size:.71rem;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;font-weight:700}
+    .card .v{margin-top:6px;font-size:1.38rem;font-weight:800;line-height:1.1}
+    .card .s{margin-top:5px;font-size:.8rem;color:#536678}
+    .section{margin-top:18px;background:linear-gradient(180deg,#ffffff,#fbfdff);border:1px solid var(--line);border-radius:18px;padding:16px;box-shadow:var(--shadow-soft);min-width:0;overflow:hidden}
+    .section-head{display:flex;justify-content:space-between;gap:14px;align-items:flex-end;flex-wrap:wrap;margin-bottom:12px}
+    .section-head .eyebrow{display:block;font-size:.69rem;text-transform:uppercase;letter-spacing:.14em;color:#557ca4;font-weight:700;margin-bottom:4px}
+    .section-head h3{margin:0;font-size:1.12rem;line-height:1.15}
+    .section-head p{margin:4px 0 0;font-size:.83rem;color:#5b6f83;max-width:760px}
     .grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,440px),1fr));gap:12px;min-width:0}
-    .chart-box{background:#fff;border:1px solid var(--line);border-radius:12px;padding:12px;min-width:0;overflow:hidden}
-    .chart-box h4{margin:0 0 8px;font-size:.9rem;color:#27415b}
-    .svg-chart{width:100%;height:clamp(240px,30vh,320px);min-height:240px;border-top:1px dashed #eef2f7;overflow:hidden}
+    .chart-box{background:linear-gradient(180deg,#ffffff,#fbfdff);border:1px solid var(--line);border-radius:16px;padding:14px;min-width:0;overflow:hidden}
+    .chart-head{display:flex;justify-content:space-between;gap:10px;align-items:flex-start;flex-wrap:wrap}
+    .chart-box h4{margin:0;font-size:.96rem;color:#223d59;line-height:1.25}
+    .chart-note{margin-top:5px;font-size:.78rem;color:#64788e}
+    .chart-legend{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+    .legend-chip{display:inline-flex;align-items:center;gap:6px;font-size:.74rem;color:#42566b;background:#f4f7fb;border:1px solid #dbe5ef;padding:4px 8px;border-radius:999px}
+    .legend-dot{display:inline-block;width:9px;height:9px;border-radius:999px}
+    .svg-chart{width:100%;height:clamp(250px,30vh,330px);min-height:250px;border-top:1px dashed #eef2f7;overflow:hidden;margin-top:10px}
     .svg-chart text{font-family:"Avenir Next","Segoe UI Variable","Trebuchet MS",sans-serif;font-size:12px}
     .svg-chart rect,.svg-chart circle,.svg-chart path{transition:opacity .12s ease}
     .chart-tooltip{
@@ -326,19 +360,23 @@ def build_dashboard() -> str:
       border:1px solid rgba(255,255,255,.2);border-radius:8px;padding:7px 9px;font-size:.75rem;line-height:1.35;
       box-shadow:0 8px 20px rgba(12,28,45,.25)
     }
-    .decision{border-left:6px solid var(--red);background:#fff5f5;padding:10px 12px;border-radius:10px;margin-top:8px;font-size:.9rem}
-    .decision p{margin:4px 0}
-    .toolbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:8px 0}
-    .toolbar input{padding:8px 10px;border:1px solid var(--line);border-radius:9px;min-width:260px;max-width:100%}
+    .decision{border:1px solid #f0d5d8;background:linear-gradient(180deg,#fff8f8,#fff2f3);padding:14px;border-radius:16px;margin-top:10px;font-size:.9rem}
+    .decision-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,220px),1fr));gap:12px}
+    .decision-item{background:rgba(255,255,255,.72);border:1px solid #efd8db;border-radius:14px;padding:12px}
+    .decision-item .label{font-size:.7rem;text-transform:uppercase;letter-spacing:.12em;color:#8f5660;font-weight:700}
+    .decision-item .value{margin-top:6px;font-size:1rem;font-weight:800;color:#172b41}
+    .decision-item .note{margin-top:6px;font-size:.8rem;color:#5b6775}
+    .toolbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:10px 0 8px}
+    .toolbar input{padding:10px 12px;border:1px solid var(--line);border-radius:11px;min-width:260px;max-width:100%;background:#fff}
     .toolbar .count{font-size:.8rem;color:#35526f;background:#f1f7fd;padding:6px 9px;border-radius:999px;border:1px solid #d4e4f5}
     .pager{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-left:auto}
     .pager .btn{background:#eff5fb;border-color:#cfe0f2;color:#1c3d5d}
     .pager .btn[disabled]{opacity:.45;cursor:not-allowed}
     .pager select{padding:7px 8px;border-radius:8px;border:1px solid var(--line);background:#fff;color:#1f3348}
     .pager .page-info{font-size:.78rem;color:#475569;background:#f8fbff;border:1px solid #dbe8f6;padding:5px 8px;border-radius:999px}
-    .table-wrap{margin-top:8px;border:1px solid var(--line);border-radius:11px;overflow:auto;max-height:620px;max-width:100%;background:#fff}
+    .table-wrap{margin-top:8px;border:1px solid var(--line);border-radius:14px;overflow:auto;max-height:620px;max-width:100%;background:#fff}
     table{width:100%;border-collapse:collapse;min-width:980px}
-    th,td{padding:8px 9px;border-bottom:1px solid #edf1f5;font-size:.82rem;text-align:left;white-space:nowrap}
+    th,td{padding:9px 10px;border-bottom:1px solid #edf1f5;font-size:.82rem;text-align:left;white-space:nowrap}
     th{position:sticky;top:0;background:#10253b;color:#fff;cursor:pointer;z-index:2}
     tr:hover td{background:#f7fbff}
     .badge{padding:2px 8px;border-radius:999px;font-weight:600;font-size:.74rem}
@@ -346,7 +384,7 @@ def build_dashboard() -> str:
     .badge-alto{background:#ffe4c7;color:#9b4a00}
     .badge-medio{background:#fff3bf;color:#5f4b00}
     .badge-bajo{background:#d6f5ea;color:#0b5b46}
-    .footer-note{font-size:.78rem;color:#6b7280;margin-top:8px}
+    .footer-note{font-size:.78rem;color:#6b7280;margin-top:10px;background:#f7f9fc;border:1px solid #e3ebf3;padding:10px 12px;border-radius:12px}
     @media (max-width:1460px){
       .cards{grid-template-columns:repeat(auto-fit,minmax(min(100%,185px),1fr))}
       .grid2{grid-template-columns:repeat(auto-fit,minmax(min(100%,380px),1fr))}
@@ -359,6 +397,7 @@ def build_dashboard() -> str:
     @media (max-width:860px){
       .content{padding:10px}
       .header h1{font-size:1.22rem}
+      .hero-strip{grid-template-columns:1fr}
       .grid2{grid-template-columns:1fr}
       .cards{grid-template-columns:repeat(2,minmax(120px,1fr));gap:8px}
       .toolbar input{min-width:100%}
@@ -382,11 +421,12 @@ def build_dashboard() -> str:
 <div class="layout">
   <aside class="sidebar">
     <div class="brand">
-      <b>Rail Maintenance Intelligence</b>
-      <span>Cockpit de decisión para mantenimiento basado en condición</span>
+      <span class="eyebrow">Centro de decisión</span>
+      <b>Inteligencia de Mantenimiento Ferroviario</b>
+      <span>Panel ejecutivo para salud de activos, priorización de taller y valor CBM.</span>
     </div>
     <h2>Filtros Globales</h2>
-    <p>Gobiernan KPIs, charts, ranking, insights y tabla final.</p>
+    <p>Aplican sobre gráficos, ranking operativo y tabla de detalle. Los KPI superiores permanecen gobernados por la capa oficial.</p>
     <div class="filter-group"><label>Flota</label><select id="f_flota"></select></div>
     <div class="filter-group"><label>Unidad</label><select id="f_unidad"></select></div>
     <div class="filter-group"><label>Depósito recomendado</label><select id="f_deposito"></select></div>
@@ -409,12 +449,15 @@ def build_dashboard() -> str:
   <main class="content">
     <section class="header">
       <div class="header-row">
-        <h1>Sistema de Inteligencia de Mantenimiento Basado en Condición</h1>
+        <div class="header-main">
+          <span class="eyebrow">Mantenimiento basado en condición</span>
+          <h1>Sistema de Inteligencia de Mantenimiento Basado en Condición</h1>
+          <div class="sub">Riesgo operativo, priorización de taller y valor estratégico CBM para una lectura ejecutiva clara y accionable.</div>
+        </div>
         <div class="header-actions">
           <button class="btn btn-print" id="btnPrint">Imprimir</button>
         </div>
       </div>
-      <div class="sub">Riesgo Operativo, Priorización de Taller y Valor Estratégico CBM para Flota Ferroviaria</div>
       <div class="meta">
         <span class="pill">Cobertura: __COVERAGE_START__ a __COVERAGE_END__</span>
         <span class="pill">Flotas: __N_FLOTAS__</span>
@@ -422,11 +465,28 @@ def build_dashboard() -> str:
         <span class="pill">Depósitos: __N_DEPOSITOS__</span>
         <span class="pill">Componentes: __N_COMPONENTES__</span>
       </div>
+      <div class="hero-strip">
+        <div class="hero-panel">
+          <div class="label">Prioridad inmediata</div>
+          <div class="value" id="hero_priority_value">-</div>
+          <div class="note" id="hero_priority_note">Unidad y componente con mayor prioridad operativa.</div>
+        </div>
+        <div class="hero-panel">
+          <div class="label">Exposición operativa</div>
+          <div class="value" id="hero_exposure_value">-</div>
+          <div class="note" id="hero_exposure_note">Riesgo alto, backlog crítico y presión de diferimiento.</div>
+        </div>
+        <div class="hero-panel">
+          <div class="label">Palanca estratégica</div>
+          <div class="value" id="hero_value_value">-</div>
+          <div class="note" id="hero_value_note">Ahorro proxy y saturación media del taller.</div>
+        </div>
+      </div>
       <div class="insight" id="headerInsight">Resumen ejecutivo: salud de activos, riesgo operativo y prioridades de taller para la ventana seleccionada.</div>
       <div class="top-nav">
         <a href="#sec_saude">Salud</a>
-        <a href="#sec_operacao">Operación</a>
-        <a href="#sec_taller">Oficina</a>
+        <a href="#sec_operacao">Servicio</a>
+        <a href="#sec_taller">Taller</a>
         <a href="#sec_alertas">Inspección</a>
         <a href="#sec_estrategica">Estrategia</a>
         <a href="#sec_decisao">Decisión</a>
@@ -434,78 +494,148 @@ def build_dashboard() -> str:
       </div>
     </section>
 
+    <section class="cards cards-primary" id="kpiCardsPrimary">
+      <div class="card primary"><div class="k">Disponibilidad de flota</div><div class="v" id="k_avail">-</div><div class="s">Lectura agregada de continuidad operacional.</div></div>
+      <div class="card primary risk"><div class="k">Unidades de alto riesgo</div><div class="v" id="k_uhr">-</div><div class="s">Casos que exigen vigilancia táctica inmediata.</div></div>
+      <div class="card primary capacity"><div class="k">Backlog crítico físico</div><div class="v" id="k_bcf">-</div><div class="s">Carga física prioritaria pendiente de taller.</div></div>
+      <div class="card primary value"><div class="k">Ahorro operativo proxy CBM</div><div class="v" id="k_ahorro">-</div><div class="s">Valor incremental frente al escenario reactivo.</div></div>
+    </section>
+
     <section class="cards" id="kpiCards">
-      <div class="card"><div class="k">Disponibilidad de flota</div><div class="v" id="k_avail">-</div></div>
-      <div class="card"><div class="k">MTBF</div><div class="v" id="k_mtbf">-</div></div>
-      <div class="card"><div class="k">MTTR</div><div class="v" id="k_mttr">-</div></div>
-      <div class="card"><div class="k">Unidades de alto riesgo</div><div class="v" id="k_uhr">-</div></div>
-      <div class="card"><div class="k">Backlog físico</div><div class="v" id="k_bf">-</div></div>
-      <div class="card"><div class="k">Backlog vencido</div><div class="v" id="k_bv">-</div></div>
-      <div class="card"><div class="k">Backlog crítico físico</div><div class="v" id="k_bcf">-</div></div>
-      <div class="card"><div class="k">Riesgo diferimiento alto</div><div class="v" id="k_drh">-</div></div>
-      <div class="card"><div class="k">Exposición backlog-ajustada</div><div class="v" id="k_bea">-</div></div>
-      <div class="card"><div class="k">Horas indisponibles evitables</div><div class="v" id="k_he">-</div></div>
-      <div class="card"><div class="k">Correctivas evitables</div><div class="v" id="k_ce">-</div></div>
-      <div class="card"><div class="k">Ahorro operativo proxy</div><div class="v" id="k_ahorro">-</div></div>
-      <div class="card"><div class="k">Alertas tempranas activas</div><div class="v" id="k_alertas">-</div></div>
-      <div class="card"><div class="k">Saturación media taller</div><div class="v" id="k_sat">-</div></div>
+      <div class="card"><div class="k">MTBF</div><div class="v" id="k_mtbf">-</div><div class="s">Fiabilidad media observada.</div></div>
+      <div class="card"><div class="k">MTTR</div><div class="v" id="k_mttr">-</div><div class="s">Recuperación media tras incidencia.</div></div>
+      <div class="card"><div class="k">Backlog físico</div><div class="v" id="k_bf">-</div><div class="s">Órdenes reales aún abiertas.</div></div>
+      <div class="card"><div class="k">Backlog vencido</div><div class="v" id="k_bv">-</div><div class="s">Carga fuera de ventana objetivo.</div></div>
+      <div class="card"><div class="k">Riesgo diferimiento alto</div><div class="v" id="k_drh">-</div><div class="s">Casos donde aplazar destruye valor.</div></div>
+      <div class="card"><div class="k">Exposición backlog-ajustada</div><div class="v" id="k_bea">-</div><div class="s">Presión estructural combinada del backlog.</div></div>
+      <div class="card"><div class="k">Horas indisponibles evitables</div><div class="v" id="k_he">-</div><div class="s">Downtime adicional evitable por actuar antes.</div></div>
+      <div class="card"><div class="k">Correctivas evitables</div><div class="v" id="k_ce">-</div><div class="s">Intervenciones reactivas que puede absorber CBM.</div></div>
+      <div class="card"><div class="k">Alertas tempranas activas</div><div class="v" id="k_alertas">-</div><div class="s">Señal de vigilancia activa en la cartera.</div></div>
+      <div class="card"><div class="k">Saturación media taller</div><div class="v" id="k_sat">-</div><div class="s">Presión media sobre capacidad disponible.</div></div>
     </section>
 
     <section class="section" id="sec_saude">
-      <h3>Vista de Salud de Activos</h3>
+      <div class="section-head">
+        <div>
+          <span class="eyebrow">Salud de activos</span>
+          <h3>Qué familias se degradan antes y con qué urgencia</h3>
+          <p>Señales para decidir dónde intervenir primero y qué ventanas de RUL requieren protección.</p>
+        </div>
+      </div>
       <div class="grid2">
-        <div class="chart-box"><h4>Deterioro y riesgo por familia (promedio filtrado)</h4><div id="ch_family" class="svg-chart"></div></div>
-        <div class="chart-box"><h4>Distribución de RUL para ventana de intervención</h4><div id="ch_rul" class="svg-chart"></div></div>
+        <div class="chart-box">
+          <div class="chart-head"><h4>Deterioro y riesgo por familia</h4></div>
+          <div class="chart-note">Compara presión de riesgo frente a salud media para detectar familias con peor equilibrio.</div>
+          <div class="chart-legend"><span class="legend-chip"><span class="legend-dot" style="background:#bc4749"></span>Riesgo</span><span class="legend-chip"><span class="legend-dot" style="background:#2a9d8f"></span>Salud</span></div>
+          <div id="ch_family" class="svg-chart"></div>
+        </div>
+        <div class="chart-box">
+          <div class="chart-head"><h4>Distribución de RUL por ventana de intervención</h4></div>
+          <div class="chart-note">Identifica concentración de componentes en ventanas cortas y tensión del frente de trabajo.</div>
+          <div id="ch_rul" class="svg-chart"></div>
+        </div>
       </div>
     </section>
 
     <section class="section" id="sec_operacao">
-      <h3>Vista de Operación y Servicio</h3>
+      <div class="section-head">
+        <div>
+          <span class="eyebrow">Servicio</span>
+          <h3>Qué unidades concentran más impacto operacional</h3>
+          <p>Ranking filtrado para priorizar intervención donde se evita más pérdida de servicio.</p>
+        </div>
+      </div>
       <div class="grid2">
-        <div class="chart-box"><h4>Top unidades por prioridad de intervención</h4><div id="ch_top_units" class="svg-chart"></div></div>
-        <div class="chart-box"><h4>Impacto en servicio por unidad (top)</h4><div id="ch_service" class="svg-chart"></div></div>
+        <div class="chart-box"><div class="chart-head"><h4>Top unidades por prioridad de intervención</h4></div><div class="chart-note">Ordena las unidades con mayor urgencia relativa en la cartera filtrada.</div><div id="ch_top_units" class="svg-chart"></div></div>
+        <div class="chart-box"><div class="chart-head"><h4>Impacto en servicio por unidad</h4></div><div class="chart-note">Muestra dónde una intervención temprana evita mayor daño al servicio.</div><div id="ch_service" class="svg-chart"></div></div>
       </div>
     </section>
 
     <section class="section" id="sec_taller">
-      <h3>Vista de Taller</h3>
+      <div class="section-head">
+        <div>
+          <span class="eyebrow">Taller</span>
+          <h3>Dónde falta capacidad y cómo se distribuye la presión operativa</h3>
+          <p>Lectura conjunta de saturación, backlog y mezcla de decisiones para rebalanceo táctico.</p>
+        </div>
+      </div>
       <div class="grid2">
-        <div class="chart-box"><h4>Backlog y saturación por depósito</h4><div id="ch_depot" class="svg-chart"></div></div>
-        <div class="chart-box"><h4>Cola de decisiones operativas</h4><div id="ch_decisions" class="svg-chart"></div></div>
+        <div class="chart-box"><div class="chart-head"><h4>Saturación por depósito</h4></div><div class="chart-note">Prioriza depósitos donde la capacidad disponible se acerca al límite operativo.</div><div id="ch_depot" class="svg-chart"></div></div>
+        <div class="chart-box"><div class="chart-head"><h4>Cola de decisiones operativas</h4></div><div class="chart-note">Visualiza el mix entre inspección, intervención, observación y escalado.</div><div id="ch_decisions" class="svg-chart"></div></div>
       </div>
     </section>
 
     <section class="section" id="sec_alertas">
-      <h3>Vista de Alertas y Inspección Automática</h3>
+      <div class="section-head">
+        <div>
+          <span class="eyebrow">Inspección</span>
+          <h3>Cuánta señal útil genera la inspección automática</h3>
+          <p>Calidad operativa de la señal temprana y drivers dominantes del riesgo actual.</p>
+        </div>
+      </div>
       <div class="grid2">
-        <div class="chart-box"><h4>Calidad de inspección por familia (cobertura + prefallo)</h4><div id="ch_inspection" class="svg-chart"></div></div>
-        <div class="chart-box"><h4>Drivers principales del riesgo (top)</h4><div id="ch_drivers" class="svg-chart"></div></div>
+        <div class="chart-box"><div class="chart-head"><h4>Calidad de inspección por familia</h4></div><div class="chart-note">Cobertura y valor pre-falla para priorizar despliegue donde la detección añade más utilidad.</div><div id="ch_inspection" class="svg-chart"></div></div>
+        <div class="chart-box"><div class="chart-head"><h4>Drivers principales del riesgo</h4></div><div class="chart-note">Resume qué señales dominan la criticidad: anomalías, repetitividad o degradación.</div><div id="ch_drivers" class="svg-chart"></div></div>
       </div>
     </section>
 
     <section class="section" id="sec_estrategica">
-      <h3>Vista Estratégica</h3>
+      <div class="section-head">
+        <div>
+          <span class="eyebrow">Estrategia</span>
+          <h3>Qué valor económico y operacional captura el enfoque CBM</h3>
+          <p>Comparativa de estrategias y sensibilidad del coste de diferimiento para la toma de decisión directiva.</p>
+        </div>
+      </div>
       <div class="insight" id="strategyInsight"></div>
       <div class="grid2">
-        <div class="chart-box"><h4>Reactivo vs Preventivo vs CBM</h4><div id="ch_strategy" class="svg-chart"></div></div>
-        <div class="chart-box"><h4>Trade-off de diferimiento (coste vs indisponibilidad)</h4><div id="ch_deferral" class="svg-chart"></div></div>
+        <div class="chart-box"><div class="chart-head"><h4>Reactivo vs Preventivo vs CBM</h4></div><div class="chart-note">Comparación de disponibilidad para leer la posición relativa de cada estrategia.</div><div id="ch_strategy" class="svg-chart"></div></div>
+        <div class="chart-box"><div class="chart-head"><h4>Trade-off de diferimiento</h4></div><div class="chart-note">Evolución conjunta del coste y la indisponibilidad al aplazar intervención.</div><div class="chart-legend"><span class="legend-chip"><span class="legend-dot" style="background:#bc4749"></span>Coste</span><span class="legend-chip"><span class="legend-dot" style="background:#1d4e89"></span>Indisponibilidad</span></div><div id="ch_deferral" class="svg-chart"></div></div>
       </div>
     </section>
 
     <section class="section" id="sec_decisao">
-      <h3>Decisión Ejecutiva</h3>
+      <div class="section-head">
+        <div>
+          <span class="eyebrow">Decisión</span>
+          <h3>Qué hacer primero y por qué</h3>
+          <p>Bloque ejecutivo para pasar de señal analítica a acción recomendada sin ambigüedad.</p>
+        </div>
+      </div>
       <div class="insight" id="dynamicInsight"></div>
       <div class="decision" id="decisionBox">
-        <p><strong>Unidad que debe entrar primero:</strong> __TOP_UNIT__</p>
-        <p><strong>Componente que debe sustituirse primero:</strong> __TOP_COMPONENT__</p>
-        <p><strong>Impacto operativo de intervenir ahora:</strong> -</p>
-        <p><strong>Riesgo de retraso:</strong> -</p>
-        <p><strong>Dónde aporta más CBM:</strong> -</p>
+        <div hidden>
+          <p><strong>Unidad que debe entrar primero:</strong> __TOP_UNIT__</p>
+          <p><strong>Componente que debe sustituirse primero:</strong> __TOP_COMPONENT__</p>
+        </div>
+        <div class="decision-grid">
+          <div class="decision-item">
+            <div class="label">Unidad prioritaria</div>
+            <div class="value">__TOP_UNIT__</div>
+            <div class="note">Entrada recomendada en la cola ejecutiva.</div>
+          </div>
+          <div class="decision-item">
+            <div class="label">Componente prioritario</div>
+            <div class="value">__TOP_COMPONENT__</div>
+            <div class="note">Elemento con mayor retorno inmediato de intervención.</div>
+          </div>
+          <div class="decision-item">
+            <div class="label">Lectura operativa</div>
+            <div class="value" id="decision_readout">-</div>
+            <div class="note" id="decision_note">-</div>
+          </div>
+        </div>
       </div>
     </section>
 
     <section class="section" id="sec_tabela">
-      <h3>Tabla Final Interactiva</h3>
+      <div class="section-head">
+        <div>
+          <span class="eyebrow">Detalle</span>
+          <h3>Tabla final interactiva</h3>
+          <p>Exploración granular para revisión técnica, contraste de casos y trazabilidad de la decisión.</p>
+        </div>
+      </div>
       <div class="toolbar">
         <input id="searchBox" placeholder="Buscar unidad, componente, driver..." />
         <span class="count" id="resultCount">0 resultados</span>
@@ -525,7 +655,7 @@ def build_dashboard() -> str:
       <div class="table-wrap">
         <table id="mainTable"><thead><tr id="tableHead"></tr></thead><tbody id="tableBody"></tbody></table>
       </div>
-      <div class="footer-note">Dashboard autocontenido offline. Sin dependencias CDN. Todas las cifras se recalculan desde la misma capa de datos filtrada y métricas gobernadas.</div>
+      <div class="footer-note">Dashboard autocontenido y listo para presentación. Los KPI superiores consumen métricas gobernadas; los filtros gobiernan gráficos, ranking y tabla sin dependencias externas.</div>
     </section>
   </main>
 </div>
@@ -580,6 +710,13 @@ function uniq(vals){ return ["Todos", ...Array.from(new Set(vals.filter(v => Str
 function fmt1(n){ return Number(n).toFixed(1); }
 function fmt2(n){ return Number(n).toFixed(2); }
 function fmt0(n){ return Math.round(Number(n)).toLocaleString("es-ES"); }
+function fmtMoneyCompact(n){
+  const value = Number(n);
+  if(!Number.isFinite(value)) return "€0";
+  if(Math.abs(value) >= 1_000_000) return `€${(value/1_000_000).toFixed(1)}M`;
+  if(Math.abs(value) >= 1_000) return `€${(value/1_000).toFixed(0)}k`;
+  return `€${fmt0(value)}`;
+}
 function mean(arr){ return arr.length ? arr.reduce((a,b)=>a+b,0)/arr.length : 0; }
 function sum(arr){ return arr.reduce((a,b)=>a+b,0); }
 function esc(v){
@@ -760,33 +897,45 @@ function computeDerived(){
 function setText(id, txt){ const el = document.getElementById(id); if(el) el.textContent = txt; }
 
 function renderKPIs(d){
-  const avail = metricSnapshot.fleet_availability_pct ?? d.avgAvail;
-  const mtbf = metricSnapshot.mtbf_proxy_hours ?? d.avgMtbf;
-  const mttr = metricSnapshot.mttr_proxy_hours ?? d.avgMttr;
-  const avoidableDowntime = metricSnapshot.deferral_downtime_delta_14d_h ?? (payload.deferral.length ? (toNum(payload.deferral[payload.deferral.length-1].downtime_total_h)-toNum(payload.deferral[0].downtime_total_h)) : 0);
-  const avoidableCorrectives = metricSnapshot.avoidable_correctives_inspection ?? d.rows.filter(r => String(r.decision_type).includes("intervención")).length;
-  const savings = metricSnapshot.cbm_operational_savings_eur ?? d.savings;
-  const exposure = d.depotSlice.length ? d.bea : (metricSnapshot.backlog_exposure_adjusted_mean ?? 0);
-  const sat = d.depotSlice.length ? d.sat : (metricSnapshot.mean_depot_saturation_pct ?? 0);
-  const deferralHigh = d.rows.length ? d.highDeferral : (metricSnapshot.high_deferral_risk_cases_count ?? 0);
+  const avail = toNum(metricSnapshot.fleet_availability_pct);
+  const mtbf = toNum(metricSnapshot.mtbf_proxy_hours);
+  const mttr = toNum(metricSnapshot.mttr_proxy_hours);
+  const highRiskUnits = toNum(metricSnapshot.high_risk_units_count);
+  const backlogPhysical = toNum(metricSnapshot.backlog_physical_items_count);
+  const backlogOverdue = toNum(metricSnapshot.backlog_overdue_items_count);
+  const backlogCritical = toNum(metricSnapshot.backlog_critical_physical_count);
+  const deferralHigh = toNum(metricSnapshot.high_deferral_risk_cases_count);
+  const exposure = toNum(metricSnapshot.backlog_exposure_adjusted_mean);
+  const avoidableDowntime = toNum(metricSnapshot.deferral_downtime_delta_14d_h);
+  const avoidableCorrectives = toNum(metricSnapshot.avoidable_correctives_inspection);
+  const savings = toNum(metricSnapshot.cbm_operational_savings_eur);
+  const alerts = toNum(metricSnapshot.early_warnings_active_count);
+  const sat = toNum(metricSnapshot.mean_depot_saturation_pct);
 
   setText("k_avail", `${fmt2(avail)}%`);
   setText("k_mtbf", fmt2(mtbf));
   setText("k_mttr", fmt2(mttr));
-  setText("k_uhr", String(d.highRiskUnits.size));
-  setText("k_bf", fmt0(d.bf));
-  setText("k_bv", fmt0(d.bv));
-  setText("k_bcf", fmt0(d.bcf));
+  setText("k_uhr", fmt0(highRiskUnits));
+  setText("k_bf", fmt0(backlogPhysical));
+  setText("k_bv", fmt0(backlogOverdue));
+  setText("k_bcf", fmt0(backlogCritical));
   setText("k_drh", fmt0(deferralHigh));
   setText("k_bea", fmt1(exposure));
   setText("k_he", fmt1(avoidableDowntime));
   setText("k_ce", fmt1(avoidableCorrectives));
   setText("k_ahorro", `€${fmt0(savings)}`);
-  setText("k_alertas", fmt0(d.rows.filter(r => toNum(r.prob_fallo_30d)>=0.65).length));
+  setText("k_alertas", fmt0(alerts));
   setText("k_sat", `${fmt1(sat)}%`);
   setText("s_count_rows", fmt0(d.rows.length));
   setText("s_count_units", fmt0(d.uniqueUnits.size));
   setText("s_count_high", fmt0(d.highRiskUnits.size));
+
+  setText("hero_priority_value", `${metricSnapshot.top_unit_by_priority || "n/a"} / ${metricSnapshot.top_component_by_priority || "n/a"}`);
+  setText("hero_priority_note", `${fmt0(highRiskUnits)} unidades en vigilancia alta y foco inmediato en la cola priorizada.`);
+  setText("hero_exposure_value", `${fmt0(backlogCritical)} backlog crítico · ${fmt0(deferralHigh)} diferimientos altos`);
+  setText("hero_exposure_note", `Exposición backlog-ajustada ${fmt1(exposure)} y presión de taller ${fmt1(sat)}%.`);
+  setText("hero_value_value", `${fmtMoneyCompact(savings)} potencial`);
+  setText("hero_value_note", `${fmt1(avoidableDowntime)} h evitables y ${fmt1(avoidableCorrectives)} correctivas absorbibles.`);
 }
 
 function makeSvg(containerId){
@@ -882,8 +1031,6 @@ function drawDualBars(containerId, labels, v1, v2, c1="#bc4749", c2="#2a9d8f"){
     const lbl = esc(String(d.label).slice(0,12));
     out += `<text x="${x0+bw}" y="${m.t+ih+12}" text-anchor="middle" fill="#475569" font-size="10" transform="rotate(24 ${x0+bw},${m.t+ih+12})">${lbl}</text>`;
   });
-  out += `<text x="${m.l+4}" y="14" fill="${c1}" font-size="11" font-weight="600">Riesgo</text>`;
-  out += `<text x="${m.l+60}" y="14" fill="${c2}" font-size="11" font-weight="600">Salud</text>`;
   svg.innerHTML = out;
   bindSvgTooltip(svg);
 }
@@ -905,8 +1052,6 @@ function drawLine(containerId, xVals, y1, y2, c1="#bc4749", c2="#1d4e89"){
   y2.forEach((v,i)=>{ out += `<circle cx="${scaleX(i)}" cy="${scaleY(v)}" r="3" fill="${c2}" data-tip="Ventana ${esc(xVals[i])}d · Indisponibilidad: ${fmt1(v)}"/>`; });
   const tickStep = Math.max(1, Math.ceil(xVals.length / 6));
   xVals.forEach((x,i)=>{ if(i%tickStep===0 || i===xVals.length-1){ out += `<text x="${scaleX(i)}" y="${m.t+ih+12}" text-anchor="middle" fill="#475569" font-size="10">${esc(x)}</text>`; }});
-  out += `<text x="${m.l+4}" y="${m.t+12}" fill="${c1}" font-size="10">Coste</text>`;
-  out += `<text x="${m.l+48}" y="${m.t+12}" fill="${c2}" font-size="10">Indisponibilidad</text>`;
   svg.innerHTML = out;
   bindSvgTooltip(svg);
 }
@@ -914,23 +1059,21 @@ function drawLine(containerId, xVals, y1, y2, c1="#bc4749", c2="#1d4e89"){
 function renderDecision(d){
   const box = document.getElementById("decisionBox");
   const insight = document.getElementById("dynamicInsight");
+  const readout = document.getElementById("decision_readout");
+  const note = document.getElementById("decision_note");
   if(!d.rows.length){
     insight.textContent = "Sin registros para filtros seleccionados.";
-    box.innerHTML = "<p><strong>Unidad que debe entrar primero:</strong> n/a</p><p><strong>Componente que debe sustituirse primero:</strong> n/a</p><p><strong>Impacto operativo de intervenir ahora:</strong> sem dados</p>";
+    if(readout) readout.textContent = "Sin decisión activa";
+    if(note) note.textContent = "Ajusta filtros para recuperar una recomendación operativa.";
     return;
   }
   const top = d.rows.slice().sort((a,b)=>toNum(b.intervention_priority_score)-toNum(a.intervention_priority_score))[0];
   const dep = d.depotSlice.find(x => String(x.deposito_id) === String(top.deposito_recomendado));
   const sat = dep ? toNum(dep.saturation_ratio)*100 : 0;
   const backlog = dep ? toNum(dep.backlog_critical_items) : 0;
-  insight.textContent = `Insight automático: ${d.highRiskUnits.size} unidades de alto riesgo; decisión top ${top.unidad_id}/${top.componente_id} con prioridad ${fmt1(top.intervention_priority_score)} y diferimiento ${fmt1(top.deferral_risk_score)}.`;
-  box.innerHTML = `
-    <p><strong>Unidad que debe entrar primero:</strong> ${esc(top.unidad_id)} (score ${fmt1(top.intervention_priority_score)})</p>
-    <p><strong>Componente que debe sustituirse primero:</strong> ${esc(top.componente_id)} (${esc(top.component_family)})</p>
-    <p><strong>Impacto operativo de intervenir ahora:</strong> reducir exposición de servicio (${fmt1(top.service_impact_score)}) y evitar escalada de riesgo a corto plazo.</p>
-    <p><strong>Riesgo de retraso:</strong> score de diferimiento ${fmt1(top.deferral_risk_score)} con saturación local ${fmt1(sat)}% y backlog crítico ${fmt0(backlog)}.</p>
-    <p><strong>Dónde aporta más CBM:</strong> familias con mayor riesgo medio filtrado y señal pre-falla útil de inspección automática.</p>
-  `;
+  insight.textContent = `Acción prioritaria: intervenir ${top.unidad_id}/${top.componente_id} con score ${fmt1(top.intervention_priority_score)}. El diferimiento ya expone ${fmt1(top.deferral_risk_score)} puntos de riesgo y el depósito asociado opera al ${fmt1(sat)}% de saturación.`;
+  if(readout) readout.textContent = `${esc(top.decision_type)} · score ${fmt1(top.intervention_priority_score)}`;
+  if(note) note.textContent = `Impacto en servicio ${fmt1(top.service_impact_score)}, riesgo de diferimiento ${fmt1(top.deferral_risk_score)} y backlog crítico local ${fmt0(backlog)}.`;
 }
 
 function renderInsights(d){
@@ -941,9 +1084,9 @@ function renderInsights(d){
   const rmin = cbm ? toNum(cbm.rango_plausible_valor_min)/1e6 : 0;
   const rmax = cbm ? toNum(cbm.rango_plausible_valor_max)/1e6 : 0;
   document.getElementById("strategyInsight").textContent =
-    `Trade-off estratégico: CBM vs reactiva ahorra ~${fmt0(savings)} EUR en escenario base, con robustez ${fmt1(prob)}% y rango plausible ${fmt2(rmin)}M€ a ${fmt2(rmax)}M€.`;
+    `Lectura estratégica: CBM vs reactiva preserva valor por ~${fmt0(savings)} EUR en escenario base, con probabilidad de ahorro positivo del ${fmt1(prob)}% y rango plausible de ${fmt2(rmin)}M€ a ${fmt2(rmax)}M€.`;
   document.getElementById("headerInsight").textContent =
-    `Contexto filtrado: ${d.rows.length} componentes activos, ${d.uniqueUnits.size} unidades y ${d.highRiskUnits.size} unidades de alto riesgo.`;
+    `Resumen ejecutivo del recorte actual: ${d.rows.length} componentes, ${d.uniqueUnits.size} unidades y ${d.highRiskUnits.size} unidades de alto riesgo. El panel está diseñado para responder qué intervenir primero, dónde falta capacidad y cuánto valor protege el enfoque CBM.`;
 }
 
 function renderCharts(d){
@@ -1059,22 +1202,19 @@ window.addEventListener("resize", () => {
         .replace("__N_COMPONENTES__", str(int(float(metrics.get("n_componentes", componentes["componente_id"].nunique())))))
         .replace("__TOP_UNIT__", str(metrics.get("top_unit_by_priority", "n/a")))
         .replace("__TOP_COMPONENT__", str(metrics.get("top_component_by_priority", "n/a")))
-        .replace("__UPDATE_TS__", datetime.now().strftime("%Y-%m-%d %H:%M"))
         .replace("__DASHBOARD_VERSION__", dashboard_version)
         .replace("__PAYLOAD_SIGNATURE__", payload_signature)
     )
 
     branded_path = OUTPUTS_DASHBOARD_DIR / DASHBOARD_SLUG
     branded_path.write_text(html, encoding="utf-8")
-    docs_branded = DOCS_DIR / DASHBOARD_SLUG
-    docs_branded.write_text(html, encoding="utf-8")
     redirect_html = "\n".join(
         [
             "<!DOCTYPE html>",
             "<html lang=\"es\">",
             "<head>",
             "  <meta charset=\"UTF-8\" />",
-            f"  <meta http-equiv=\"refresh\" content=\"0; url={PAGES_BASE_URL}{DASHBOARD_SLUG}\" />",
+            f"  <meta http-equiv=\"refresh\" content=\"0; url={PAGES_BASE_URL}outputs/dashboard/{DASHBOARD_SLUG}\" />",
             "  <title>Dashboard Ejecutivo</title>",
             "</head>",
             "<body>",
@@ -1088,13 +1228,11 @@ window.addEventListener("resize", () => {
     root_index = ROOT_DIR / "index.html"
     root_index.write_text(
         redirect_html.replace(
-            f"{PAGES_BASE_URL}{DASHBOARD_SLUG}",
-            DASHBOARD_SLUG,
+            f"{PAGES_BASE_URL}outputs/dashboard/{DASHBOARD_SLUG}",
+            f"outputs/dashboard/{DASHBOARD_SLUG}",
         ),
         encoding="utf-8",
     )
-    root_branded = ROOT_DIR / DASHBOARD_SLUG
-    root_branded.write_text(html, encoding="utf-8")
     (DOCS_DIR / ".nojekyll").write_text("", encoding="utf-8")
     (ROOT_DIR / ".nojekyll").write_text("", encoding="utf-8")
     return str(branded_path)
