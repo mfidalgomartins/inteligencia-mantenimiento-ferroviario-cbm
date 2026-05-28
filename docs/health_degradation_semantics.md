@@ -72,7 +72,6 @@ La definición semántica oficial se consume en:
 - Python:
   - `src/feature_engineering.py`
   - `src/risk_scoring.py`
-  - `src/validation.py`
   - `src/build_dashboard.py`
 - Diccionarios/docs:
   - `docs/sql_metric_definitions.md`

@@ -57,44 +57,45 @@ La mayor parte de problemas de credibilidad no estarán en nulls/duplicados bás
         common_setup,
         _code(
             """
-summary = pd.read_csv(rep / "data_profile_summary.csv")
-quality = pd.read_csv(rep / "data_quality_checks.csv")
-val = pd.read_csv(rep / "validation_checks_detailed.csv")
-summary.head(20), quality.head(20), val.head(20)
+audit = rep / "explore_data"
+summary = pd.read_csv(audit / "table_profile_summary.csv")
+cols = pd.read_csv(audit / "column_profile_classification.csv")
+issues = pd.read_csv(audit / "issues_prioritized.csv")
+summary
             """
         ),
         _md(
             """
 ## Metodología
-1. Profiling estructural por tabla (grain, claves candidatas, cobertura temporal).
-2. Validaciones por capa (raw, marts, features, scores, recomendaciones, dashboard, narrativa).
-3. Priorización por severidad con bloqueadores de publicación.
+1. Profiling estructural por tabla (grain, clave candidata, cobertura temporal, null rate).
+2. Clasificación de columnas y perfil de distribución de métricas.
+3. Validación de claves foráneas y chequeos de dominio específicos del negocio.
+4. Priorización de hallazgos por severidad (alta / media / baja).
             """
         ),
         _code(
             """
-issues = pd.read_csv(rep / "issues_found.csv")
-issues.sort_values(["publish_blocker", "severity"], ascending=[False, True]).head(30)
+orden = {"alta": 0, "media": 1, "baja": 2}
+issues.assign(_o=issues["severidad"].map(orden)).sort_values(["_o", "tabla"]).drop(columns="_o").head(30)
             """
         ),
         _code(
             """
-controls = pd.read_csv(rep / "validation_control_matrix.csv")
-controls
+cols.groupby("clasificacion", observed=True).size().reset_index(name="n_columnas").sort_values("n_columnas", ascending=False)
             """
         ),
         _md(
             """
 ## Interpretación
-- Un control "OK" no implica valor operativo: se revisan saturación, entropía y colapso de clases.
-- Los checks críticos que fallen bloquean publicación.
+- Los hallazgos de severidad alta (duplicados o nulls en clave, orfandad de FK) condicionan la fiabilidad de marts y scoring.
+- La clasificación de columnas separa identificadores, métricas y temporales para enfocar dónde mirar.
 
 ## Limitaciones
-- Entorno sintético: coherencia estadística no equivale a causalidad real.
-- La validación no sustituye calibración con histórico contractual.
+- Entorno sintético: la coherencia estadística no equivale a causalidad real.
+- La auditoría no sustituye la calibración con histórico contractual.
 
 ## Decisión resultante
-Publicar únicamente si no hay bloqueadores críticos y la señal mantiene discriminación operativa.
+Avanzar a scoring solo si no quedan hallazgos de severidad alta sin mitigar.
             """
         ),
     ]
@@ -223,7 +224,7 @@ comp, ranges, defer
         ),
         _code(
             """
-sens.groupby(["escenario","estrategia"], observed=True)["ahorro_neto_vs_reactiva_eur"].median().reset_index().sort_values(["escenario","ahorro_neto_vs_reactiva_eur"], ascending=[True,False]).head(20)
+sens.groupby(["scenario_profile","estrategia"], observed=True)["ahorro_neto_vs_reactiva"].median().reset_index().sort_values(["scenario_profile","ahorro_neto_vs_reactiva"], ascending=[True,False]).head(20)
             """
         ),
         _code(
@@ -252,10 +253,6 @@ Escalar CBM donde el downside sea acotado y el upside operativo supere coste inc
     _build_notebook(nb2, "02_degradacion_riesgo_rul.ipynb")
     _build_notebook(nb3, "03_priorizacion_y_scheduling.ipynb")
     _build_notebook(nb4, "04_estrategias_y_diferimiento.ipynb")
-
-    # Compatibilidad con referencias previas
-    _build_notebook(nb2, "sistema_mantenimiento_ferroviario_principal.ipynb")
-    _build_notebook(nb3, "priorizacion_y_scheduling_taller.ipynb")
 
 
 if __name__ == "__main__":

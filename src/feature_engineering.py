@@ -276,20 +276,6 @@ def _build_component_day_features() -> pd.DataFrame:
     out = out.rename(columns={"alert_density_30d": "alert_density"})
     out.to_csv(DATA_PROCESSED_DIR / "component_day_features.csv", index=False)
 
-    # Compatibilidad con artefactos legacy
-    legacy = out.rename(
-        columns={
-            "fecha": "fecha",
-            "componente_id": "instancia_id",
-            "estimated_health_index": "health_proxy",
-            "degradation_velocity": "velocidad_degradacion_proxy",
-            "inspection_defect_score_recent": "desgaste_detectado_pct",
-            "alert_density": "alert_density_30d",
-            "rolling_slope": "delta_vibr_14d",
-        }
-    )
-    legacy.to_csv(DATA_PROCESSED_DIR / "features_componentes_diario.csv", index=False)
-
     return out
 
 
@@ -346,7 +332,7 @@ def _build_unit_day_features(component_day: pd.DataFrame) -> pd.DataFrame:
             * 28.0
         ).clip(0, 100)
 
-    # Compatibilidad legacy (mantener columnas históricas mientras migra consumo).
+    # Alias cortos usados como fallback aguas abajo (presión de depósito / dashboard).
     df["backlog_items"] = df["backlog_physical_items"]
     df["backlog_risk"] = df["backlog_physical_risk_accum"]
 
@@ -423,7 +409,7 @@ def _build_unit_day_features(component_day: pd.DataFrame) -> pd.DataFrame:
             "backlog_overdue_ratio",
             "backlog_critical_ratio",
             "backlog_exposure_adjusted_score",
-            # Compatibilidad legacy
+            # alias de fallback aguas abajo
             "backlog_items",
             "backlog_risk",
             "operating_stress_index",
@@ -512,7 +498,7 @@ def _build_workshop_priority_features(component_day: pd.DataFrame, unit_day: pd.
             "backlog_overdue_items",
             "backlog_critical_items",
             "backlog_exposure_adjusted_score",
-            # Compatibilidad legacy
+            # alias de fallback aguas abajo
             "backlog_items",
             "backlog_risk",
         ]
@@ -647,17 +633,6 @@ def _build_workshop_priority_features(component_day: pd.DataFrame, unit_day: pd.
     ].copy()
 
     out.to_csv(DATA_PROCESSED_DIR / "workshop_priority_features.csv", index=False)
-
-    # Compatibilidad con artefactos legacy para tests/reporting existente
-    legacy_instancia = out.rename(
-        columns={
-            "componente_id": "instancia_id",
-            "urgency_inputs": "riesgo_ajustado_negocio",
-            "service_impact_inputs": "impacto_operativo_score",
-            "technical_risk_inputs": "criticidad_operativa",
-        }
-    )
-    legacy_instancia.to_csv(DATA_PROCESSED_DIR / "features_instancia.csv", index=False)
 
     return out
 

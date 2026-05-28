@@ -8,7 +8,6 @@ import pandas as pd
 
 ROOT = Path(__file__).resolve().parents[1]
 PROCESSED = ROOT / "data" / "processed"
-REPORTS = ROOT / "outputs" / "reports"
 DOCS = ROOT / "docs"
 DASHBOARD = ROOT / "outputs" / "dashboard" / "centro-control-mantenimiento-ferroviario.html"
 
@@ -35,11 +34,6 @@ def _extract_token(text: str, pattern: str) -> str | None:
 def test_reporting_governance_artifacts_exist():
     expected = [
         PROCESSED / "narrative_metrics_official.csv",
-        REPORTS / "narrative_metrics_official.csv",
-        REPORTS / "narrative_artifact_mapping.csv",
-        REPORTS / "narrative_hardcoded_audit.csv",
-        REPORTS / "backlog_kpi_before_after.csv",
-        REPORTS / "backlog_metric_taxonomy.csv",
         DOCS / "gobierno_metricas.md",
         DOCS / "backlog_metric_governance.md",
         ROOT / "README.md",

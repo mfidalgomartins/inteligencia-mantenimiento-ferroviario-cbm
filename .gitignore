@@ -1,7 +1,8 @@
-# OS / editor
+# OS / editor / local tooling
 .DS_Store
 .idea/
 .vscode/
+.claude/
 
 # Python caches / env
 __pycache__/
@@ -26,6 +27,7 @@ venv/
 
 # Local databases and binary artifacts
 *.db
+*.duckdb
 *.sqlite
 *.sqlite3
 *.parquet
@@ -36,13 +38,10 @@ data/processed/*
 !data/raw/.gitkeep
 !data/processed/.gitkeep
 
-# Generated outputs (keep executive dashboard + reports CSV/MD)
-outputs/charts/*
-outputs/reports/*.parquet
-outputs/reports/**/*.parquet
-outputs/reports/*.xlsx
-outputs/reports/**/*.xlsx
-outputs/reports/*.db
-!outputs/reports/*.md
-!outputs/reports/**/*.md
-!outputs/dashboard/index.html
+# Generated exploratory outputs
+outputs/charts/
+outputs/reports/
+
+# Canonical dashboard is intentionally kept in version control
+!outputs/dashboard/
+!outputs/dashboard/centro-control-mantenimiento-ferroviario.html

@@ -2,4 +2,4 @@
 set -euo pipefail
 
 cd "$(dirname "$0")/.."
-./.venv/bin/pytest -q
+pytest -q

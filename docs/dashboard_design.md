@@ -53,7 +53,7 @@ Dashboard orientado a decisión para dirección de mantenimiento y operaciones, 
 - Consistencia de secciones obligatorias.
 - Integridad de métricas de backlog físico vs riesgo de diferimiento.
 - Coherencia texto de decisión con ranking filtrado.
-- Pruebas de integridad en `src/validation.py`.
+- Pruebas de integridad en `tests/test_dashboard_hardening.py`, `tests/test_dashboard_js_syntax.py` y `tests/test_reporting_consistency.py`.
 
 ## Before vs After (usabilidad decisional)
 - Antes: parte de filtros no recalculaba todos los componentes; dependencia de CDN externa.

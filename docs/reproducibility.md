@@ -1,42 +1,40 @@
-# Reproducibility Guide
+# Guía de Reproducibilidad
 
-## Objective
-Provide deterministic, clean-machine execution with explicit dependencies and hard governance gates.
+## Objetivo
+Ejecutar el proyecto de forma determinista en una máquina limpia y con gates de calidad activos.
 
-## Environment
-1. Create virtual environment:
-`python3 -m venv .venv`
-2. Activate:
-`source .venv/bin/activate`
-3. Install locked dependencies:
-`pip install -r requirements-lock.txt`
+## Entorno
+1. Crear entorno virtual:
+```bash
+python3 -m venv .venv
+```
+2. Activar:
+```bash
+source .venv/bin/activate
+```
+3. Instalar dependencias:
+```bash
+pip install -r requirements-lock.txt
+```
 
-If a lock refresh is needed, update `requirements-lock.txt` from a validated run.
+## Ejecución completa
+```bash
+python -m src.run_pipeline
+```
 
-## Full Pipeline
-`python -m src.run_pipeline`
+La pipeline genera datos sintéticos, marts procesados, scoring, RUL, priorización, scheduling y el dashboard final.
 
-Pipeline includes:
-- synthetic generation
-- SQL layer
-- features/scoring/RUL/recommendations
-- strategy and inspection modules
-- governance contracts (fail on blockers)
-- reporting/dashboard
-- validation
+## Verificaciones mínimas
+```bash
+pytest -q
+```
 
-## Quality Gates
-- Governance contracts with blocker policy: `outputs/reports/governance_contract_blockers.csv`
-- Validation blockers: `outputs/reports/publish_blockers.csv`
-- Tests: `pytest -q`
+Publicación recomendada solo si:
+1. `pytest -q` pasa completo.
+2. `outputs/dashboard/centro-control-mantenimiento-ferroviario.html` es el único HTML final.
+3. `data/processed/narrative_metrics_official.csv` está alineado con README, memo y dashboard.
 
-## Publish Criteria
-Minimum required:
-1. `governance_contract_blockers.csv` empty.
-2. `publish_blockers.csv` empty.
-3. `pytest -q` all green.
-
-## Remaining Caveats
-- Synthetic data: no direct causal claims to real fleets.
-- Economic values are proxy-level and scenario-sensitive.
-- Scheduling remains heuristic, not optimizer-grade.
+## Limitaciones conocidas
+- Dataset sintético: no permite inferencia causal de producción.
+- Capa económica basada en proxies de coste.
+- Scheduling heurístico, no optimización global matemática.

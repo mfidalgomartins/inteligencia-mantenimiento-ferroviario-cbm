@@ -360,27 +360,28 @@ def run_risk_scoring() -> pd.DataFrame:
     segmentacion.to_csv(DATA_PROCESSED_DIR / "risk_segmentation_component_family.csv", index=False)
     precision_df.to_csv(DATA_PROCESSED_DIR / "early_warning_practical_accuracy.csv", index=False)
 
-    # Compatibilidad con outputs legacy
-    legacy = out.merge(unit_score[["unidad_id", "unit_unavailability_risk_score"]], on="unidad_id", how="left")
-    legacy["health_score"] = legacy["component_health_score"]
-    legacy["prob_fallo_30d"] = legacy["component_failure_risk_score"]
-    legacy["riesgo_ajustado_negocio"] = (
-        legacy["prob_fallo_30d"] * 100 * 0.7
-        + (100 - legacy["health_score"]) * 0.2
-        + legacy["unit_unavailability_risk_score"].fillna(0) * 0.1
+    # Tabla de scoring consolidada por componente: combina riesgo de falla, salud y
+    # riesgo de unidad en un ranking de negocio único que consumen scheduling,
+    # priorización, gobernanza y dashboard.
+    ranked = out.merge(unit_score[["unidad_id", "unit_unavailability_risk_score"]], on="unidad_id", how="left")
+    ranked["health_score"] = ranked["component_health_score"]
+    ranked["prob_fallo_30d"] = ranked["component_failure_risk_score"]
+    ranked["riesgo_ajustado_negocio"] = (
+        ranked["prob_fallo_30d"] * 100 * 0.7
+        + (100 - ranked["health_score"]) * 0.2
+        + ranked["unit_unavailability_risk_score"].fillna(0) * 0.1
     ).clip(0, 100)
 
-    legacy = legacy.sort_values("riesgo_ajustado_negocio", ascending=False).reset_index(drop=True)
-    legacy["ranking_riesgo"] = np.arange(1, len(legacy) + 1)
-    legacy.to_csv(DATA_PROCESSED_DIR / "scoring_componentes.csv", index=False)
+    ranked = ranked.sort_values("riesgo_ajustado_negocio", ascending=False).reset_index(drop=True)
+    ranked["ranking_riesgo"] = np.arange(1, len(ranked) + 1)
+    ranked.to_csv(DATA_PROCESSED_DIR / "scoring_componentes.csv", index=False)
 
-    # Copias para reportes
     OUTPUTS_REPORTS_DIR.mkdir(parents=True, exist_ok=True)
-    legacy.head(40).to_csv(OUTPUTS_REPORTS_DIR / "scoring_componentes_top40.csv", index=False)
+    ranked.head(40).to_csv(OUTPUTS_REPORTS_DIR / "scoring_componentes_top40.csv", index=False)
     determinantes.to_csv(OUTPUTS_REPORTS_DIR / "drivers_principales_riesgo.csv", index=False)
 
     _build_modeling_framework_doc()
-    return legacy
+    return ranked
 
 
 if __name__ == "__main__":

@@ -8,7 +8,7 @@ from typing import Any
 import numpy as np
 import pandas as pd
 
-from src.config import DATA_PROCESSED_DIR, DATA_RAW_DIR, DOCS_DIR, OUTPUTS_REPORTS_DIR, ROOT_DIR
+from src.config import DATA_PROCESSED_DIR, DATA_RAW_DIR, DOCS_DIR, ROOT_DIR
 
 
 @dataclass(frozen=True)
@@ -60,9 +60,9 @@ NARRATIVE_METRIC_SPECS = [
         unit="count",
         source_of_truth="data/processed/unit_unavailability_risk_score.csv",
         window_definition="snapshot actual por unidad",
-        filter_definition="unit_unavailability_risk_score >= 70",
+        filter_definition="unit_unavailability_risk_score >= media_flota + 1.5·desv_est",
         aggregation_definition="count(*)",
-        definition="Número de unidades que superan umbral de riesgo alto.",
+        definition="Unidades en la cola de alto riesgo (outlier estadístico >1.5σ sobre la media de flota).",
     ),
     MetricSpec(
         metric_id="backlog_physical_items_count",
@@ -341,6 +341,14 @@ def _compute_metrics_values(inputs: dict[str, pd.DataFrame]) -> dict[str, Any]:
     depot_pressure["fecha"] = pd.to_datetime(depot_pressure["fecha"], errors="coerce")
     backlog_raw["fecha"] = pd.to_datetime(backlog_raw["fecha"], errors="coerce")
 
+    # Cohorte de alto riesgo por control estadístico de proceso: unidades cuyo
+    # riesgo de indisponibilidad supera la media de flota en más de 1.5 desviaciones
+    # estándar. Es un umbral relativo y auto-calibrado (no un corte arbitrario sobre
+    # una escala comprimida) que aísla la cola operativamente accionable.
+    unit_scores = unit_risk["unit_unavailability_risk_score"].astype(float)
+    high_risk_threshold = float(unit_scores.mean() + 1.5 * unit_scores.std())
+    high_risk_units_count = int((unit_scores >= high_risk_threshold).sum())
+
     react = _safe_strategy_row(strategy, "reactiva")
     cbm = _safe_strategy_row(strategy, "basada_en_condicion")
 
@@ -397,7 +405,7 @@ def _compute_metrics_values(inputs: dict[str, pd.DataFrame]) -> dict[str, Any]:
         "fleet_availability_pct": float(fleet_week["availability_rate"].mean() * 100),
         "mtbf_proxy_hours": float(fleet_week["mtbf_proxy"].mean()),
         "mttr_proxy_hours": float(fleet_week["mttr_proxy"].mean()),
-        "high_risk_units_count": int((unit_risk["unit_unavailability_risk_score"] >= 70).sum()),
+        "high_risk_units_count": high_risk_units_count,
         "backlog_physical_items_count": backlog_physical_items_count,
         "backlog_overdue_items_count": backlog_overdue_items_count,
         "backlog_critical_physical_count": backlog_critical_physical_count,
@@ -484,37 +492,8 @@ def load_or_compute_narrative_metrics(force_recompute: bool = False) -> dict[str
     df = _metrics_to_dataframe(values)
 
     DATA_PROCESSED_DIR.mkdir(parents=True, exist_ok=True)
-    OUTPUTS_REPORTS_DIR.mkdir(parents=True, exist_ok=True)
     df.to_csv(metrics_path, index=False)
-    df.to_csv(OUTPUTS_REPORTS_DIR / "narrative_metrics_official.csv", index=False)
     return values
-
-
-def _build_kpis_ejecutivos(metrics: dict[str, Any]) -> pd.DataFrame:
-    kpi_order = [
-        "fleet_availability_pct",
-        "mtbf_proxy_hours",
-        "mttr_proxy_hours",
-        "high_risk_units_count",
-        "backlog_physical_items_count",
-        "backlog_overdue_items_count",
-        "backlog_critical_physical_count",
-        "high_deferral_risk_cases_count",
-        "backlog_exposure_adjusted_mean",
-        "avoidable_downtime_hours_inspection",
-        "avoidable_correctives_inspection",
-        "cbm_operational_savings_eur",
-        "cbm_value_range_min_eur",
-        "cbm_value_range_max_eur",
-        "cbm_prob_positive_savings",
-        "mean_depot_saturation_pct",
-        "deferral_cost_delta_14d_eur",
-        "deferral_downtime_delta_14d_h",
-    ]
-    rows = []
-    for k in kpi_order:
-        rows.append({"kpi": k, "valor": metrics[k]})
-    return pd.DataFrame(rows)
 
 
 def _build_memo(metrics: dict[str, Any]) -> str:
@@ -613,17 +592,17 @@ def _build_readme(metrics: dict[str, Any]) -> str:
             "",
             "## Estructura del repositorio",
             "- `src/` lógica de datos, scoring y dashboard",
-            "- `sql/` capa SQL",
-            "- `data/` (raw/processed ignorado en GitHub)",
-            "- `outputs/` dashboard y reportes ejecutivos",
+            "- `sql/` capa SQL por capas (staging → marts → KPIs)",
+            "- `notebooks/` cuadernos de análisis por fase del pipeline",
+            "- `data/` raw/processed (generados, ignorados en GitHub)",
+            "- `outputs/` dashboard final",
             "- `docs/` documentación clave",
             "- `tests/` validación y QA",
+            "- `scripts/` atajos para correr pipeline y tests",
             "",
             "## Outputs clave",
             "- `outputs/dashboard/centro-control-mantenimiento-ferroviario.html`",
-            "- `outputs/reports/informe_analitico_avanzado.md`",
-            "- `outputs/reports/memo_ejecutivo_es.md`",
-            "- `outputs/reports/validation_report.md`",
+            "- `docs/memo_ejecutivo_es.md`",
             "- `docs/gobierno_metricas.md`",
             "",
             "## Por qué este proyecto es más sólido que un portfolio típico",
@@ -645,9 +624,11 @@ def _build_readme(metrics: dict[str, Any]) -> str:
             "",
             "## Cómo ejecutar",
             "```bash",
-            "python -m src.run_pipeline",
-            "python -m src.build_dashboard",
+            "pip install -r requirements.txt",
+            "python -m src.run_pipeline   # genera datos, modelos, métricas y dashboard",
+            "pytest -q                    # 50 checks de consistencia y QA",
             "```",
+            "El pipeline es determinista (semilla fija): la misma corrida reproduce datos, scores y cifras del dashboard.",
             "",
             "## Limitaciones",
             "- Datos sintéticos; requieren calibración real.",
@@ -655,92 +636,9 @@ def _build_readme(metrics: dict[str, Any]) -> str:
             "- Scheduling heurístico, no optimizador global.",
             "",
             "## Herramientas",
-            "Python, SQL, DuckDB, pandas, Chart.js.",
+            "Python, SQL, DuckDB, pandas, matplotlib.",
         ]
     )
-
-
-def _build_artifact_mapping() -> pd.DataFrame:
-    rows = [
-        ("README.md", "Key Findings", "fleet_availability_pct"),
-        ("README.md", "Key Findings", "high_risk_units_count"),
-        ("README.md", "Key Findings", "backlog_physical_items_count"),
-        ("README.md", "Key Findings", "backlog_overdue_items_count"),
-        ("README.md", "Key Findings", "backlog_critical_physical_count"),
-        ("README.md", "Key Findings", "high_deferral_risk_cases_count"),
-        ("README.md", "Key Findings", "cbm_vs_reactiva_availability_pp"),
-        ("README.md", "Key Findings", "cbm_operational_savings_eur"),
-        ("README.md", "Key Findings", "cbm_value_range_min_eur"),
-        ("README.md", "Key Findings", "cbm_value_range_max_eur"),
-        ("README.md", "Key Findings", "cbm_prob_positive_savings"),
-        ("README.md", "Key Findings", "avoidable_downtime_hours_inspection"),
-        ("README.md", "Decisión Final", "top_unit_by_priority"),
-        ("README.md", "Decisión Final", "top_component_by_priority"),
-        ("README.md", "Decisión Final", "top_component_family_by_priority"),
-        ("README.md", "Decisión Final", "deferral_cost_delta_14d_eur"),
-        ("README.md", "Decisión Final", "deferral_downtime_delta_14d_h"),
-        ("docs/memo_ejecutivo_es.md", "Hallazgos", "fleet_availability_pct"),
-        ("docs/memo_ejecutivo_es.md", "Hallazgos", "high_risk_units_count"),
-        ("docs/memo_ejecutivo_es.md", "Hallazgos", "backlog_physical_items_count"),
-        ("docs/memo_ejecutivo_es.md", "Hallazgos", "backlog_overdue_items_count"),
-        ("docs/memo_ejecutivo_es.md", "Hallazgos", "backlog_critical_physical_count"),
-        ("docs/memo_ejecutivo_es.md", "Hallazgos", "high_deferral_risk_cases_count"),
-        ("docs/memo_ejecutivo_es.md", "Implicaciones económicas", "cbm_operational_savings_eur"),
-        ("docs/memo_ejecutivo_es.md", "Implicaciones económicas", "cbm_value_range_min_eur"),
-        ("docs/memo_ejecutivo_es.md", "Implicaciones económicas", "cbm_value_range_max_eur"),
-        ("docs/memo_ejecutivo_es.md", "Implicaciones económicas", "cbm_prob_positive_savings"),
-        ("docs/memo_ejecutivo_es.md", "Trade-offs", "deferral_cost_delta_14d_eur"),
-        ("docs/memo_ejecutivo_es.md", "Trade-offs", "deferral_downtime_delta_14d_h"),
-        ("docs/memo_ejecutivo_es.md", "Prioridades", "top_unit_by_priority"),
-        ("docs/memo_ejecutivo_es.md", "Prioridades", "top_component_by_priority"),
-        ("outputs/dashboard/centro-control-mantenimiento-ferroviario.html", "KPI Cards", "fleet_availability_pct"),
-        ("outputs/dashboard/centro-control-mantenimiento-ferroviario.html", "KPI Cards", "mtbf_proxy_hours"),
-        ("outputs/dashboard/centro-control-mantenimiento-ferroviario.html", "KPI Cards", "mttr_proxy_hours"),
-        ("outputs/dashboard/centro-control-mantenimiento-ferroviario.html", "KPI Cards", "high_risk_units_count"),
-        ("outputs/dashboard/centro-control-mantenimiento-ferroviario.html", "KPI Cards", "backlog_physical_items_count"),
-        ("outputs/dashboard/centro-control-mantenimiento-ferroviario.html", "KPI Cards", "backlog_overdue_items_count"),
-        ("outputs/dashboard/centro-control-mantenimiento-ferroviario.html", "KPI Cards", "backlog_critical_physical_count"),
-        ("outputs/dashboard/centro-control-mantenimiento-ferroviario.html", "KPI Cards", "high_deferral_risk_cases_count"),
-        ("outputs/dashboard/centro-control-mantenimiento-ferroviario.html", "KPI Cards", "cbm_operational_savings_eur"),
-        ("outputs/dashboard/centro-control-mantenimiento-ferroviario.html", "KPI Cards", "cbm_value_range_min_eur"),
-        ("outputs/dashboard/centro-control-mantenimiento-ferroviario.html", "KPI Cards", "cbm_value_range_max_eur"),
-        ("outputs/dashboard/centro-control-mantenimiento-ferroviario.html", "KPI Cards", "cbm_prob_positive_savings"),
-        ("outputs/dashboard/centro-control-mantenimiento-ferroviario.html", "KPI Cards", "mean_depot_saturation_pct"),
-        ("outputs/dashboard/centro-control-mantenimiento-ferroviario.html", "Decisión Ejecutiva", "top_unit_by_priority"),
-        ("outputs/dashboard/centro-control-mantenimiento-ferroviario.html", "Decisión Ejecutiva", "top_component_by_priority"),
-        ("outputs/dashboard/centro-control-mantenimiento-ferroviario.html", "Decisión Ejecutiva", "top_deferral_risk_score"),
-    ]
-    return pd.DataFrame(rows, columns=["artifact", "block", "metric_id"])
-
-
-def _build_hardcoded_audit() -> pd.DataFrame:
-    rows = [
-        {
-            "artifact": "README.md",
-            "previous_status": "hardcoded_metrics_and_decision",
-            "current_status": "rendered_from_ssot_metrics",
-            "risk_level": "mitigated",
-        },
-        {
-            "artifact": "docs/memo_ejecutivo_es.md",
-            "previous_status": "partial_dynamic_non_ssot",
-            "current_status": "rendered_from_ssot_metrics",
-            "risk_level": "mitigated",
-        },
-        {
-            "artifact": "outputs/reports/informe_analitico_avanzado.md",
-            "previous_status": "dynamic_but_independent_calcs",
-            "current_status": "summary_block_synced_from_ssot",
-            "risk_level": "controlled",
-        },
-        {
-            "artifact": "outputs/dashboard/centro-control-mantenimiento-ferroviario.html",
-            "previous_status": "dynamic_with_local_formulas",
-            "current_status": "kpis_and_decision_from_ssot_metrics",
-            "risk_level": "mitigated",
-        },
-    ]
-    return pd.DataFrame(rows)
 
 
 def _build_backlog_kpi_before_after(metrics: dict[str, Any]) -> pd.DataFrame:
@@ -898,7 +796,6 @@ def write_reporting_governance_doc(metrics_df: pd.DataFrame, mapping_df: pd.Data
         "## Artefactos narrativos bajo gobierno",
         "- README.md",
         "- docs/memo_ejecutivo_es.md",
-        "- outputs/reports/memo_ejecutivo_es.md",
         "- outputs/dashboard/centro-control-mantenimiento-ferroviario.html (KPIs + bloque de decisión)",
         "",
         "## Single Source of Truth",
@@ -937,27 +834,13 @@ def write_reporting_governance_doc(metrics_df: pd.DataFrame, mapping_df: pd.Data
 
 def sync_narrative_artifacts(force_recompute: bool = True) -> dict[str, Path]:
     metrics = load_or_compute_narrative_metrics(force_recompute=force_recompute)
-    metrics_df = pd.read_csv(DATA_PROCESSED_DIR / "narrative_metrics_official.csv")
-    mapping_df = _build_artifact_mapping()
-    hardcoded_df = _build_hardcoded_audit()
     backlog_before_after_df = _build_backlog_kpi_before_after(metrics)
     backlog_taxonomy_df = _build_backlog_metric_taxonomy(metrics)
 
-    OUTPUTS_REPORTS_DIR.mkdir(parents=True, exist_ok=True)
     DOCS_DIR.mkdir(parents=True, exist_ok=True)
-
-    metrics_df.to_csv(OUTPUTS_REPORTS_DIR / "narrative_metrics_official.csv", index=False)
-    mapping_df.to_csv(OUTPUTS_REPORTS_DIR / "narrative_artifact_mapping.csv", index=False)
-    hardcoded_df.to_csv(OUTPUTS_REPORTS_DIR / "narrative_hardcoded_audit.csv", index=False)
-    backlog_before_after_df.to_csv(OUTPUTS_REPORTS_DIR / "backlog_kpi_before_after.csv", index=False)
-    backlog_taxonomy_df.to_csv(OUTPUTS_REPORTS_DIR / "backlog_metric_taxonomy.csv", index=False)
-
-    kpis_df = _build_kpis_ejecutivos(metrics)
-    kpis_df.to_csv(OUTPUTS_REPORTS_DIR / "kpis_ejecutivos.csv", index=False)
 
     memo = _build_memo(metrics)
     (DOCS_DIR / "memo_ejecutivo_es.md").write_text(memo, encoding="utf-8")
-    (OUTPUTS_REPORTS_DIR / "memo_ejecutivo_es.md").write_text(memo, encoding="utf-8")
 
     readme = _build_readme(metrics)
     (ROOT_DIR / "README.md").write_text(readme, encoding="utf-8")
@@ -968,14 +851,9 @@ def sync_narrative_artifacts(force_recompute: bool = True) -> dict[str, Path]:
     )
     return {
         "metrics": DATA_PROCESSED_DIR / "narrative_metrics_official.csv",
-        "kpis": OUTPUTS_REPORTS_DIR / "kpis_ejecutivos.csv",
         "memo": DOCS_DIR / "memo_ejecutivo_es.md",
         "readme": ROOT_DIR / "README.md",
         "backlog_governance_doc": backlog_governance_doc,
-        "mapping": OUTPUTS_REPORTS_DIR / "narrative_artifact_mapping.csv",
-        "hardcoded_audit": OUTPUTS_REPORTS_DIR / "narrative_hardcoded_audit.csv",
-        "backlog_before_after": OUTPUTS_REPORTS_DIR / "backlog_kpi_before_after.csv",
-        "backlog_taxonomy": OUTPUTS_REPORTS_DIR / "backlog_metric_taxonomy.csv",
     }
 
 

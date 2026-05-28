@@ -1,0 +1,49 @@
+# Comparación de Estrategias de Mantenimiento
+
+## Metodología rediseñada
+- Separación explícita entre evidencia observada, supuestos estructurales y proxies económicos.
+- Escenarios operativos: conservador, base y agresivo.
+- Sensibilidad multidimensional: coste de indisponibilidad, tasa de fallo, capacidad de taller, detección temprana, costes correctivo/preventivo.
+
+## Resultado base (punto central)
+| estrategia          |   fleet_availability |   mtbf |   mttr |   backlog_critico_fisico |   riesgo_diferimiento_alto |   correctivas_evitables |   fallas_repetitivas |   horas_indisponibilidad |   impacto_servicio_proxy |   utilizacion_taller |   intervencion_temprana_ratio |   intervencion_tardia_ratio |   coste_tecnico_proxy |   coste_economico_proxy |   coste_operativo_proxy |   coste_total_esperado |   service_hours_preserved |   ahorro_neto_vs_reactiva |   horas_servicio_preservadas_vs_reactiva |   ahorro_neto_p50_vs_reactiva |   ahorro_neto_p10_vs_reactiva |   ahorro_neto_p90_vs_reactiva |   downside_case |   prob_ahorro_positivo |   downside_case_ahorro_vs_reactiva |   rango_plausible_valor_min |   rango_plausible_valor_max |
+|:--------------------|---------------------:|-------:|-------:|-------------------------:|---------------------------:|------------------------:|---------------------:|-------------------------:|-------------------------:|---------------------:|------------------------------:|----------------------------:|----------------------:|------------------------:|------------------------:|-----------------------:|--------------------------:|--------------------------:|-----------------------------------------:|------------------------------:|------------------------------:|------------------------------:|----------------:|-----------------------:|-----------------------------------:|----------------------------:|----------------------------:|
+| basada_en_condicion |                92.84 |  19.35 |   6.32 |                 1,511.29 |                     132.65 |                1,809.71 |             1,373.31 |               143,821.96 |                    36.40 |                65.70 |                          0.42 |                        0.58 |        252,435,263.88 |          188,497,398.64 |          440,932,662.52 |         440,932,662.52 |                 46,187.04 |             20,764,476.44 |                                41,744.72 |                 17,269,169.29 |                   -628,417.60 |                 40,297,095.49 |  -22,192,890.11 |                   0.89 |                        -628,417.60 |                 -628,417.60 |               40,297,095.49 |
+| preventiva_rigida   |                92.59 |  19.51 |   6.60 |                 1,564.67 |                     132.15 |                1,446.50 |             1,497.35 |               148,864.51 |                    36.83 |                76.23 |                          0.47 |                        0.53 |        213,872,824.10 |          195,070,693.65 |          408,943,517.74 |         408,943,517.74 |                 41,144.49 |             52,753,621.22 |                                36,702.17 |                 55,009,681.91 |                 32,816,004.51 |                 92,810,122.57 |   14,591,666.54 |                   1.00 |                      32,816,004.51 |               32,816,004.51 |               92,810,122.57 |
+| reactiva            |                90.77 |  16.84 |   7.10 |                 2,050.70 |                     141.99 |                    0.00 |             1,887.71 |               185,566.68 |                    39.94 |                63.66 |                          0.23 |                        0.77 |        218,782,777.33 |          242,914,361.63 |          461,697,138.96 |         461,697,138.96 |                  4,442.32 |                      0.00 |                                     0.00 |                          0.00 |                          0.00 |                          0.00 |            0.00 |                   0.00 |                               0.00 |                        0.00 |                        0.00 |
+
+## Sensibilidad por escenario (P10/P50/P90)
+| scenario_profile   | estrategia          |   coste_total_p10 |   coste_total_p50 |   coste_total_p90 |   downtime_p50 |   correctivas_evitables_p50 |   horas_servicio_preservadas_p50 |   ahorro_neto_p50_vs_reactiva |   downside_ahorro_p10_vs_reactiva |   upside_ahorro_p90_vs_reactiva |   prob_ahorro_positivo |
+|:-------------------|:--------------------|------------------:|------------------:|------------------:|---------------:|----------------------------:|---------------------------------:|------------------------------:|----------------------------------:|--------------------------------:|-----------------------:|
+| agresivo           | basada_en_condicion |    331,705,859.87 |    377,470,828.39 |    432,152,590.92 |     123,921.39 |                    2,424.56 |                        66,087.62 |                 12,206,853.98 |                     -2,524,895.55 |                   29,102,809.99 |                   0.85 |
+| agresivo           | preventiva_rigida   |    302,650,099.17 |    350,139,130.22 |    407,677,231.72 |     128,265.93 |                    2,086.47 |                        61,743.08 |                 39,829,481.30 |                     26,750,461.42 |                   54,840,602.82 |                   1.00 |
+| agresivo           | reactiva            |    331,804,676.49 |    389,973,539.27 |    461,169,549.50 |     159,821.48 |                        0.00 |                        30,187.52 |                          0.00 |                              0.00 |                            0.00 |                   0.00 |
+| base               | basada_en_condicion |    390,206,727.36 |    447,096,996.95 |    514,526,421.76 |     144,082.53 |                    1,809.71 |                        45,926.47 |                 18,900,374.66 |                      1,860,651.37 |                   39,066,039.48 |                   0.92 |
+| base               | preventiva_rigida   |    356,092,180.84 |    412,800,775.30 |    481,566,123.96 |     149,144.10 |                    1,446.50 |                        40,864.91 |                 53,112,115.34 |                     37,555,253.61 |                   71,456,922.72 |                   1.00 |
+| base               | reactiva            |    395,566,373.37 |    465,628,786.98 |    553,893,299.71 |     185,668.12 |                        0.00 |                         4,340.88 |                          0.00 |                              0.00 |                            0.00 |                   0.00 |
+| conservador        | basada_en_condicion |    534,417,166.41 |    615,069,222.86 |    709,251,092.10 |     179,473.89 |                      761.32 |                        10,535.12 |                 22,548,327.53 |                       -465,268.93 |                   49,133,079.61 |                   0.89 |
+| conservador        | preventiva_rigida   |    473,822,236.77 |    554,712,197.32 |    652,722,154.50 |     185,804.25 |                      353.28 |                         4,204.75 |                 82,624,481.94 |                     61,335,938.69 |                  107,636,336.97 |                   1.00 |
+| conservador        | reactiva            |    539,197,060.04 |    637,427,255.31 |    759,786,159.71 |     231,127.20 |                        0.00 |                             0.00 |                          0.00 |                              0.00 |                            0.00 |                   0.00 |
+
+## Rango plausible de valor
+| estrategia          |   coste_total_p10 |   coste_total_p50 |   coste_total_p90 |   ahorro_neto_p10_vs_reactiva |   ahorro_neto_p50_vs_reactiva |   ahorro_neto_p90_vs_reactiva |   downside_case |    upside_case |   prob_ahorro_positivo |
+|:--------------------|------------------:|------------------:|------------------:|------------------------------:|------------------------------:|------------------------------:|----------------:|---------------:|-----------------------:|
+| basada_en_condicion |    356,034,632.19 |    452,217,580.36 |    651,965,111.22 |                   -628,417.60 |                 17,269,169.29 |                 40,297,095.49 |  -22,192,890.11 |  74,807,910.20 |                   0.89 |
+| preventiva_rigida   |    327,810,182.54 |    418,928,589.21 |    591,512,109.14 |                 32,816,004.51 |                 55,009,681.91 |                 92,810,122.57 |   14,591,666.54 | 135,214,560.77 |                   1.00 |
+| reactiva            |    361,063,492.70 |    473,978,736.33 |    683,753,764.92 |                          0.00 |                          0.00 |                          0.00 |            0.00 |           0.00 |                   0.00 |
+
+## Lectura ejecutiva defendible
+- En el punto base, CBM vs reactiva: disponibilidad +2.08 p.p.
+- En el punto base, ahorro neto CBM vs reactiva: 20764476 EUR.
+- Mejor estrategia por coste esperado (P50) en conservador: preventiva_rigida.
+- Mejor estrategia por coste esperado (P50) en base: preventiva_rigida.
+- Mejor estrategia por coste esperado (P50) en agresivo: preventiva_rigida.
+
+## Caveats económicos (anti-overclaim)
+- El ahorro es proxy y depende de costes unitarios asumidos.
+- El desempeño de CBM es sensible a la calidad de detección temprana y a la capacidad efectiva de taller.
+- En escenarios conservadores, CBM puede perder ventaja frente a preventiva rígida si el coste de habilitación domina.
+
+## Recomendación estratégica
+Usar CBM donde la señal temprana y la capacidad de ejecución estén maduras; en contexto de baja madurez operativa,
+aplicar transición híbrida con preventiva dirigida antes de escalar plenamente CBM.

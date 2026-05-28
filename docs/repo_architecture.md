@@ -20,21 +20,18 @@ Eliminar arquitectura paralela y dejar una única ruta activa por capa.
 4. Dashboard
 - Generador único: `src/build_dashboard.py`.
 - Output final: `outputs/dashboard/centro-control-mantenimiento-ferroviario.html`.
-- Publicación GitHub Pages: `docs/index.html` (redirige al dashboard).
+- Publicación GitHub Pages: `index.html` y `docs/index.html` redirigen al output canónico en `outputs/dashboard/`.
 
-5. Reporting
+5. Métricas y narrativa
 - Governance de narrativa: `src/reporting_governance.py`.
-- Artefactos ejecutivos: `src/reporting.py`.
+- Memo ejecutivo: `docs/memo_ejecutivo_es.md`.
 
 ## Activos clave
-- `src/explore_data_audit.py`
 - `src/run_sql_layer.py`
-- `src/validation.py`
 - `src/build_dashboard.py`
 
 ## Convenciones
 - Gobierno de métricas y datos en `docs/gobierno_metricas.md`.
-- Validación publish-blocker en `outputs/reports/publish_blockers.csv`.
 - Entrypoints de ejecución para reviewers: `scripts/run_pipeline.sh` y `scripts/run_tests.sh`.
 - Configuración operativa viva en `src/config.py`; carpeta `configs/` reservada para futura externalización declarativa.
 

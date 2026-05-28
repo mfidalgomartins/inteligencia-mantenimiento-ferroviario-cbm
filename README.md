@@ -24,17 +24,17 @@ Integra operación, sensores, inspección automática y mantenimiento para const
 
 ## Estructura del repositorio
 - `src/` lógica de datos, scoring y dashboard
-- `sql/` capa SQL
-- `data/` (raw/processed ignorado en GitHub)
-- `outputs/` dashboard y reportes ejecutivos
+- `sql/` capa SQL por capas (staging → marts → KPIs)
+- `notebooks/` cuadernos de análisis por fase del pipeline
+- `data/` raw/processed (generados, ignorados en GitHub)
+- `outputs/` dashboard final
 - `docs/` documentación clave
 - `tests/` validación y QA
+- `scripts/` atajos para correr pipeline y tests
 
 ## Outputs clave
 - `outputs/dashboard/centro-control-mantenimiento-ferroviario.html`
-- `outputs/reports/informe_analitico_avanzado.md`
-- `outputs/reports/memo_ejecutivo_es.md`
-- `outputs/reports/validation_report.md`
+- `docs/memo_ejecutivo_es.md`
 - `docs/gobierno_metricas.md`
 
 ## Por qué este proyecto es más sólido que un portfolio típico
@@ -44,7 +44,7 @@ Integra operación, sensores, inspección automática y mantenimiento para const
 
 ## Resultados clave (SSOT)
 - disponibilidad media de flota: **90.45%**
-- unidades de alto riesgo: **0**
+- unidades de alto riesgo: **11**
 - backlog físico: **2054 pendientes**
 - backlog vencido: **2000 pendientes**
 - backlog crítico físico: **1957 pendientes**
@@ -56,9 +56,11 @@ Integra operación, sensores, inspección automática y mantenimiento para const
 
 ## Cómo ejecutar
 ```bash
-python -m src.run_pipeline
-python -m src.build_dashboard
+pip install -r requirements.txt
+python -m src.run_pipeline   # genera datos, modelos, métricas y dashboard
+pytest -q                    # 50 checks de consistencia y QA
 ```
+El pipeline es determinista (semilla fija): la misma corrida reproduce datos, scores y cifras del dashboard.
 
 ## Limitaciones
 - Datos sintéticos; requieren calibración real.
@@ -66,4 +68,4 @@ python -m src.build_dashboard
 - Scheduling heurístico, no optimizador global.
 
 ## Herramientas
-Python, SQL, DuckDB, pandas, Chart.js.
+Python, SQL, DuckDB, pandas, matplotlib.

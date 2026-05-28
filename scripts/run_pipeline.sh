@@ -2,4 +2,4 @@
 set -euo pipefail
 
 cd "$(dirname "$0")/.."
-./.venv/bin/python -m src.run_pipeline
+python -m src.run_pipeline

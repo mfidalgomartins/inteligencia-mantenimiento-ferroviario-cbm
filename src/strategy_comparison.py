@@ -5,7 +5,7 @@ from itertools import product
 import numpy as np
 import pandas as pd
 
-from src.config import DATA_PROCESSED_DIR, DATA_RAW_DIR, DOCS_DIR, OUTPUTS_REPORTS_DIR
+from src.config import DATA_PROCESSED_DIR, DATA_RAW_DIR, DOCS_DIR
 
 
 STRATEGIES = ["reactiva", "preventiva_rigida", "basada_en_condicion"]
@@ -504,22 +504,22 @@ def _write_framework_doc(
         "Comparar estrategias de mantenimiento con separación explícita entre evidencia observada, hipótesis operativas y proxies económicos.",
         "",
         "## 1) Outputs observados",
-        observed_table[observed_table["tipo"] == "observado"].to_markdown(index=False),
+        observed_table[observed_table["tipo"] == "observado"].to_markdown(index=False, floatfmt=",.2f"),
         "",
         "## 2) Supuestos estructurales por estrategia",
-        strategy_assumptions.to_markdown(index=False),
+        strategy_assumptions.to_markdown(index=False, floatfmt=",.2f"),
         "",
         "## 3) Hipótesis operativas por escenario",
-        scenario_assumptions.to_markdown(index=False),
+        scenario_assumptions.to_markdown(index=False, floatfmt=",.2f"),
         "",
         "## 4) Proxies económicos",
-        observed_table[observed_table["tipo"] == "proxy_economico"].to_markdown(index=False),
+        observed_table[observed_table["tipo"] == "proxy_economico"].to_markdown(index=False, floatfmt=",.2f"),
         "",
         "## 5) Resultados por escenario (P10/P50/P90)",
-        summary.to_markdown(index=False),
+        summary.to_markdown(index=False, floatfmt=",.2f"),
         "",
         "## 6) Rango plausible de valor",
-        value_ranges.to_markdown(index=False),
+        value_ranges.to_markdown(index=False, floatfmt=",.2f"),
         "",
         "## 7) Reglas de interpretación",
         "- `ahorro_neto_vs_reactiva > 0`: mejora económica frente a reactiva en ese escenario/sensibilidad.",
@@ -557,13 +557,13 @@ def _write_strategy_doc(
         "- Sensibilidad multidimensional: coste de indisponibilidad, tasa de fallo, capacidad de taller, detección temprana, costes correctivo/preventivo.",
         "",
         "## Resultado base (punto central)",
-        base.to_markdown(index=False),
+        base.to_markdown(index=False, floatfmt=",.2f"),
         "",
         "## Sensibilidad por escenario (P10/P50/P90)",
-        summary.to_markdown(index=False),
+        summary.to_markdown(index=False, floatfmt=",.2f"),
         "",
         "## Rango plausible de valor",
-        value_ranges.to_markdown(index=False),
+        value_ranges.to_markdown(index=False, floatfmt=",.2f"),
         "",
         "## Lectura ejecutiva defendible",
         f"- En el punto base, CBM vs reactiva: disponibilidad +{cbm_base['fleet_availability'] - react_base['fleet_availability']:.2f} p.p.",
@@ -644,7 +644,6 @@ def run_strategy_comparison() -> pd.DataFrame:
         before_after = pd.DataFrame()
 
     DATA_PROCESSED_DIR.mkdir(parents=True, exist_ok=True)
-    OUTPUTS_REPORTS_DIR.mkdir(parents=True, exist_ok=True)
     DOCS_DIR.mkdir(parents=True, exist_ok=True)
 
     base.to_csv(DATA_PROCESSED_DIR / "comparativo_estrategias.csv", index=False)
@@ -658,14 +657,6 @@ def run_strategy_comparison() -> pd.DataFrame:
     sensitivity_definition.to_csv(DATA_PROCESSED_DIR / "maintenance_strategy_sensitivity_definition.csv", index=False)
     if not before_after.empty:
         before_after.to_csv(DATA_PROCESSED_DIR / "strategy_comparison_before_after.csv", index=False)
-
-    base.to_csv(OUTPUTS_REPORTS_DIR / "comparativo_estrategias.csv", index=False)
-    sim.to_csv(OUTPUTS_REPORTS_DIR / "comparativo_estrategias_sensibilidad.csv", index=False)
-    summary.to_csv(OUTPUTS_REPORTS_DIR / "comparativo_estrategias_escenarios.csv", index=False)
-    value_ranges.to_csv(OUTPUTS_REPORTS_DIR / "comparativo_estrategias_value_ranges.csv", index=False)
-    ofat.to_csv(OUTPUTS_REPORTS_DIR / "comparativo_estrategias_ofat.csv", index=False)
-    if not before_after.empty:
-        before_after.to_csv(OUTPUTS_REPORTS_DIR / "strategy_comparison_before_after.csv", index=False)
 
     _write_framework_doc(
         observed_table=observed_table,

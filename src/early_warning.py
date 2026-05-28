@@ -3,7 +3,7 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 
-from src.config import DATA_PROCESSED_DIR, OUTPUTS_REPORTS_DIR
+from src.config import DATA_PROCESSED_DIR
 
 
 def run_early_warning_rules() -> pd.DataFrame:
@@ -90,19 +90,6 @@ def run_early_warning_rules() -> pd.DataFrame:
     ].sort_values(["nivel_alerta", "riesgo_ajustado_negocio"], ascending=[True, False])
 
     out.to_csv(DATA_PROCESSED_DIR / "alertas_tempranas.csv", index=False)
-
-    # resumen para reporte
-    summary = (
-        out.groupby("nivel_alerta", as_index=False)
-        .agg(
-            n_componentes=("componente_id", "nunique"),
-            riesgo_medio=("prob_fallo_30d", "mean"),
-            rul_medio=("component_rul_estimate", "mean"),
-        )
-        .sort_values("n_componentes", ascending=False)
-    )
-    OUTPUTS_REPORTS_DIR.mkdir(parents=True, exist_ok=True)
-    summary.to_csv(OUTPUTS_REPORTS_DIR / "early_warning_summary.csv", index=False)
 
     return out
 

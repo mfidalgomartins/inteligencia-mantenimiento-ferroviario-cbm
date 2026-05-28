@@ -5,7 +5,7 @@ from dataclasses import dataclass
 import numpy as np
 import pandas as pd
 
-from src.config import DATA_PROCESSED_DIR, DATA_RAW_DIR, DOCS_DIR, OUTPUTS_REPORTS_DIR
+from src.config import DATA_PROCESSED_DIR, DATA_RAW_DIR, DOCS_DIR
 
 
 TARGET_FAMILIES = ("wheel", "brake", "bogie", "pantograph")
@@ -541,60 +541,8 @@ def _write_framework_doc(family_perf: pd.DataFrame, checks_df: pd.DataFrame) -> 
     (DOCS_DIR / "inspection_analytics_framework.md").write_text("\n".join(lines), encoding="utf-8")
 
 
-def _write_consistency_report(family_perf: pd.DataFrame, checks_df: pd.DataFrame, before_after: pd.DataFrame | None) -> None:
-    OUTPUTS_REPORTS_DIR.mkdir(parents=True, exist_ok=True)
-    lines = [
-        "# Informe de Consistencia Técnica del Módulo de Inspección",
-        "",
-        "## Estado de checks",
-        checks_df.to_markdown(index=False),
-        "",
-        "## Métricas por familia",
-        family_perf.to_markdown(index=False),
-    ]
-    if before_after is not None and not before_after.empty:
-        lines.extend(["", "## Comparación Before/After", before_after.to_markdown(index=False)])
-    (OUTPUTS_REPORTS_DIR / "inspection_module_consistency_report.md").write_text("\n".join(lines), encoding="utf-8")
-
-
 def _build_before_after_comparison(family_perf: pd.DataFrame, value: pd.DataFrame) -> pd.DataFrame:
-    before_perf_path = OUTPUTS_REPORTS_DIR / "inspection_module_before_family_performance.csv"
-    before_value_path = OUTPUTS_REPORTS_DIR / "inspection_module_before_value_comparison.csv"
-    if not before_perf_path.exists():
-        return pd.DataFrame()
-
-    before_perf = pd.read_csv(before_perf_path)
-    before = before_perf[["family", "coverage_pre_falla"]].rename(columns={"coverage_pre_falla": "pre_failure_detection_rate_before"})
-    after = family_perf[["family", "pre_failure_detection_rate", "false_alert_proxy", "confidence_adjusted_detection_value"]].rename(
-        columns={"pre_failure_detection_rate": "pre_failure_detection_rate_after"}
-    )
-    cmp = before.merge(after, on="family", how="outer")
-    cmp["delta_pre_failure_detection_rate"] = cmp["pre_failure_detection_rate_after"] - cmp["pre_failure_detection_rate_before"]
-
-    if before_value_path.exists():
-        before_val = pd.read_csv(before_value_path)
-        after_val = value.copy()
-        b = before_val[before_val["scenario"] == "con_inspeccion_automatica"].iloc[0]
-        a = after_val[after_val["scenario"] == "con_inspeccion_automatica"].iloc[0]
-        summary = pd.DataFrame(
-            [
-                {
-                    "family": "ALL",
-                    "pre_failure_detection_rate_before": np.nan,
-                    "pre_failure_detection_rate_after": np.nan,
-                    "delta_pre_failure_detection_rate": np.nan,
-                    "delta_correctivas_estimadas": float(a["correctivas_estimadas"] - b["correctivas_estimadas"]),
-                    "delta_horas_indisponibilidad_estimadas": float(
-                        a["horas_indisponibilidad_estimadas"] - b["horas_indisponibilidad_estimadas"]
-                    ),
-                    "delta_riesgo_promedio_componente": float(a["riesgo_promedio_componente"] - b["riesgo_promedio_componente"]),
-                }
-            ]
-        )
-        cmp = pd.concat([cmp, summary], ignore_index=True)
-
-    cmp.to_csv(DATA_PROCESSED_DIR / "inspection_module_before_after_comparison.csv", index=False)
-    return cmp
+    return pd.DataFrame()
 
 
 def run_inspection_module() -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
@@ -619,15 +567,7 @@ def run_inspection_module() -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
     linkage.to_csv(DATA_PROCESSED_DIR / "inspection_module_failure_linkage.csv", index=False)
     checks_df.to_csv(DATA_PROCESSED_DIR / "inspection_module_consistency_checks.csv", index=False)
 
-    # Reportes ejecutivos/QA
-    OUTPUTS_REPORTS_DIR.mkdir(parents=True, exist_ok=True)
-    family_perf.to_csv(OUTPUTS_REPORTS_DIR / "inspection_module_family_performance.csv", index=False)
-    checks_df.to_csv(OUTPUTS_REPORTS_DIR / "inspection_module_consistency_checks.csv", index=False)
-    if not before_after.empty:
-        before_after.to_csv(OUTPUTS_REPORTS_DIR / "inspection_module_before_after_comparison.csv", index=False)
-
     _write_framework_doc(family_perf, checks_df)
-    _write_consistency_report(family_perf, checks_df, before_after)
 
     return component_signals, family_perf, value
 

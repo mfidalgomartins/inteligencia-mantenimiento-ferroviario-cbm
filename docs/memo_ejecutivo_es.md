@@ -12,7 +12,7 @@ evitando divergencias entre README, dashboard y reportes de resultados.
 
 ## 4. Hallazgos principales
 - Disponibilidad media de flota: 90.45%.
-- Unidades de alto riesgo: 0.
+- Unidades de alto riesgo: 11.
 - Backlog físico: 2054 pendientes.
 - Backlog vencido: 2000 pendientes.
 - Backlog crítico físico: 1957 pendientes.

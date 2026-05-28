@@ -7,7 +7,6 @@ import pandas as pd
 
 ROOT = Path(__file__).resolve().parents[1]
 PROCESSED = ROOT / "data" / "processed"
-REPORTS = ROOT / "outputs" / "reports"
 DOCS = ROOT / "docs"
 
 
@@ -19,9 +18,6 @@ def test_scheduling_artifacts_exist():
         PROCESSED / "scheduling_before_after_deltas.csv",
         PROCESSED / "scheduling_status_distribution.csv",
         PROCESSED / "scheduling_bottleneck_diagnosis.csv",
-        REPORTS / "scheduling_before_after_metrics.csv",
-        REPORTS / "scheduling_before_after_deltas.csv",
-        REPORTS / "scheduling_status_distribution.csv",
         DOCS / "scheduling_framework.md",
     ]
     for path in expected:
