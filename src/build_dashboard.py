@@ -884,14 +884,14 @@ const tableLabels = {
 
 function toNum(v){ const n = Number(v); return Number.isFinite(n) ? n : 0; }
 function uniq(vals){ return ["Todos", ...Array.from(new Set(vals.filter(v => String(v).trim() !== ""))).sort()]; }
-function fmt1(n){ return Number(n).toFixed(1); }
-function fmt2(n){ return Number(n).toFixed(2); }
+function fmt1(n){ return Number(n).toLocaleString("es-ES", {minimumFractionDigits:1, maximumFractionDigits:1}); }
+function fmt2(n){ return Number(n).toLocaleString("es-ES", {minimumFractionDigits:2, maximumFractionDigits:2}); }
 function fmt0(n){ return Math.round(Number(n)).toLocaleString("es-ES"); }
 function fmtMoneyCompact(n){
   const value = Number(n);
   if(!Number.isFinite(value)) return "€0";
-  if(Math.abs(value) >= 1_000_000) return `€${(value/1_000_000).toFixed(1)}M`;
-  if(Math.abs(value) >= 1_000) return `€${(value/1_000).toFixed(0)}k`;
+  if(Math.abs(value) >= 1_000_000) return `€${fmt1(value/1_000_000)}M`;
+  if(Math.abs(value) >= 1_000) return `€${fmt0(value/1_000)}k`;
   return `€${fmt0(value)}`;
 }
 function mean(arr){ return arr.length ? arr.reduce((a,b)=>a+b,0)/arr.length : 0; }
