@@ -8,8 +8,8 @@
 ## Disponibilidad y fiabilidad
 - `availability_rate`: proporción de horas disponibles sobre horas planificadas (alto=mejor).
 - `fleet_availability`: disponibilidad agregada por estrategia (alto=mejor).
-- `mtbf_proxy`: tiempo medio entre fallas (alto=mejor).
-- `mttr_proxy`: tiempo medio de reparación (alto=peor).
+- `mtbf_proxy`: horas disponibles de flota / fallas por flota-semana (alto=mejor).
+- `mttr_proxy`: horas de indisponibilidad por fallo por flota-semana (alto=peor).
 
 ## Salud, deterioro y riesgo técnico
 - `component_health_score` (`health_score`): salud de componente (0-100, alto=mejor).

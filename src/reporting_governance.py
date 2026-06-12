@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime
 from pathlib import Path
 from typing import Any
 
@@ -65,6 +64,46 @@ NARRATIVE_METRIC_SPECS = [
         definition="Unidades en la cola de alto riesgo (outlier estadístico >1.5σ sobre la media de flota).",
     ),
     MetricSpec(
+        metric_id="n_flotas",
+        label="Flotas",
+        unit="count",
+        source_of_truth="data/raw/flotas.csv",
+        window_definition="catálogo completo",
+        filter_definition="identificadores válidos",
+        aggregation_definition="count(distinct flota_id)",
+        definition="Número de flotas sintéticas analizadas.",
+    ),
+    MetricSpec(
+        metric_id="n_unidades",
+        label="Unidades",
+        unit="count",
+        source_of_truth="data/raw/unidades.csv",
+        window_definition="catálogo completo",
+        filter_definition="identificadores válidos",
+        aggregation_definition="count(distinct unidad_id)",
+        definition="Número de unidades sintéticas analizadas.",
+    ),
+    MetricSpec(
+        metric_id="n_depositos",
+        label="Depósitos",
+        unit="count",
+        source_of_truth="data/raw/depositos.csv",
+        window_definition="catálogo completo",
+        filter_definition="identificadores válidos",
+        aggregation_definition="count(distinct deposito_id)",
+        definition="Número de depósitos sintéticos analizados.",
+    ),
+    MetricSpec(
+        metric_id="n_componentes",
+        label="Componentes críticos",
+        unit="count",
+        source_of_truth="data/raw/componentes_criticos.csv",
+        window_definition="catálogo completo",
+        filter_definition="identificadores válidos",
+        aggregation_definition="count(distinct componente_id)",
+        definition="Número de componentes críticos sintéticos analizados.",
+    ),
+    MetricSpec(
         metric_id="backlog_physical_items_count",
         label="Backlog físico",
         unit="count",
@@ -116,33 +155,33 @@ NARRATIVE_METRIC_SPECS = [
     ),
     MetricSpec(
         metric_id="cbm_operational_savings_eur",
-        label="Ahorro operativo CBM vs reactiva",
+        label="Diferencial operativo CBM vs reactiva",
         unit="eur",
         source_of_truth="data/processed/comparativo_estrategias.csv",
         window_definition="escenario comparativo de estrategia",
         filter_definition="estrategia in (reactiva, basada_en_condicion)",
         aggregation_definition="coste_operativo_proxy(reactiva) - coste_operativo_proxy(CBM)",
-        definition="Ahorro operativo proxy atribuible a estrategia CBM.",
+        definition="Diferencial operativo proxy firmado: positivo indica ahorro y negativo indica coste incremental.",
     ),
     MetricSpec(
         metric_id="cbm_value_range_min_eur",
-        label="CBM vs reactiva: ahorro neto mínimo plausible (P10)",
+        label="CBM vs reactiva: diferencial neto plausible P10",
         unit="eur",
         source_of_truth="data/processed/comparativo_estrategias.csv",
         window_definition="escenario comparativo de estrategia con sensibilidad",
         filter_definition="estrategia = basada_en_condicion",
         aggregation_definition="rango_plausible_valor_min(CBM)",
-        definition="Límite inferior plausible de ahorro CBM frente a reactiva bajo sensibilidad.",
+        definition="Límite inferior plausible del diferencial neto CBM frente a reactiva bajo sensibilidad.",
     ),
     MetricSpec(
         metric_id="cbm_value_range_max_eur",
-        label="CBM vs reactiva: ahorro neto máximo plausible (P90)",
+        label="CBM vs reactiva: diferencial neto plausible P90",
         unit="eur",
         source_of_truth="data/processed/comparativo_estrategias.csv",
         window_definition="escenario comparativo de estrategia con sensibilidad",
         filter_definition="estrategia = basada_en_condicion",
         aggregation_definition="rango_plausible_valor_max(CBM)",
-        definition="Límite superior plausible de ahorro CBM frente a reactiva bajo sensibilidad.",
+        definition="Límite superior plausible del diferencial neto CBM frente a reactiva bajo sensibilidad.",
     ),
     MetricSpec(
         metric_id="cbm_prob_positive_savings",
@@ -288,15 +327,16 @@ NARRATIVE_METRIC_SPECS = [
 
 
 def _format_float(value: float, digits: int = 2) -> str:
-    return f"{value:.{digits}f}"
+    return f"{value:.{digits}f}".replace(".", ",")
 
 
 def _format_int(value: float) -> str:
-    return str(int(round(value)))
+    return f"{int(round(value)):,}".replace(",", ".")
 
 
-def _format_million_eur(value: float, digits: int = 2) -> str:
-    return f"{value / 1_000_000:.{digits}f}"
+def _format_signed_eur(value: float) -> str:
+    sign = "-" if value < 0 else ""
+    return f"{sign}€ {_format_int(abs(value))}"
 
 
 def _load_inputs() -> dict[str, pd.DataFrame]:
@@ -397,11 +437,12 @@ def _compute_metrics_values(inputs: dict[str, pd.DataFrame]) -> dict[str, Any]:
 
     d0 = deferral.loc[deferral["defer_dias"] == 0].iloc[0]
     d14 = deferral.loc[deferral["defer_dias"] == 14].iloc[0]
+    coverage_start = fleet_week["week_start"].min().date().isoformat()
+    coverage_end = fleet_week["week_start"].max().date().isoformat()
 
     values = {
-        "as_of_ts": datetime.now().strftime("%Y-%m-%d %H:%M"),
-        "coverage_start": fleet_week["week_start"].min().date().isoformat(),
-        "coverage_end": fleet_week["week_start"].max().date().isoformat(),
+        "coverage_start": coverage_start,
+        "coverage_end": coverage_end,
         "fleet_availability_pct": float(fleet_week["availability_rate"].mean() * 100),
         "mtbf_proxy_hours": float(fleet_week["mtbf_proxy"].mean()),
         "mttr_proxy_hours": float(fleet_week["mttr_proxy"].mean()),
@@ -442,7 +483,7 @@ def _metrics_to_dataframe(values: dict[str, Any]) -> pd.DataFrame:
     specs_by_id = {x.metric_id: x for x in NARRATIVE_METRIC_SPECS}
     rows: list[dict[str, Any]] = []
     for metric_id, value in values.items():
-        if metric_id in {"as_of_ts", "coverage_start", "coverage_end", "n_flotas", "n_unidades", "n_depositos", "n_componentes"}:
+        if metric_id in {"coverage_start", "coverage_end"}:
             rows.append(
                 {
                     "metric_id": metric_id,
@@ -497,6 +538,12 @@ def load_or_compute_narrative_metrics(force_recompute: bool = False) -> dict[str
 
 
 def _build_memo(metrics: dict[str, Any]) -> str:
+    cbm_delta = float(metrics["cbm_operational_savings_eur"])
+    economic_result = (
+        f"Ahorro operativo proxy estimado CBM vs reactiva: {_format_signed_eur(cbm_delta)}."
+        if cbm_delta >= 0
+        else f"Coste incremental proxy estimado CBM vs reactiva: {_format_signed_eur(abs(cbm_delta))}."
+    )
     return "\n".join(
         [
             "# Memo Ejecutivo",
@@ -508,7 +555,7 @@ def _build_memo(metrics: dict[str, Any]) -> str:
             "Persisten fallas repetitivas y backlog técnico que elevan el riesgo de indisponibilidad y afectan servicio.",
             "",
             "## 3. Enfoque metodológico",
-            "La narrativa se alimenta automáticamente desde métricas oficiales versionadas (SSOT),",
+            "La narrativa se alimenta automáticamente desde el registro oficial de métricas,",
             "evitando divergencias entre README, dashboard y reportes de resultados.",
             "",
             "## 4. Hallazgos principales",
@@ -527,14 +574,14 @@ def _build_memo(metrics: dict[str, Any]) -> str:
             f"El depósito más saturado es {metrics['top_depot_by_saturation']} con {_format_float(float(metrics['top_depot_saturation_pct']), 1)}% de ocupación.",
             "",
             "## 7. Implicaciones económicas",
-            f"Ahorro operativo proxy estimado CBM vs reactiva: {_format_int(float(metrics['cbm_operational_savings_eur']))} EUR.",
+            economic_result,
             (
-                "Rango plausible de ahorro CBM vs reactiva: "
-                f"{_format_int(float(metrics['cbm_value_range_min_eur']))} a "
-                f"{_format_int(float(metrics['cbm_value_range_max_eur']))} EUR."
+                "Rango plausible del diferencial CBM vs reactiva: "
+                f"{_format_signed_eur(float(metrics['cbm_value_range_min_eur']))} a "
+                f"{_format_signed_eur(float(metrics['cbm_value_range_max_eur']))}."
             ),
             (
-                "Robustez del ahorro CBM (escenarios+sensitivity): "
+                "Robustez del ahorro CBM en escenarios y sensibilidades: "
                 f"{_format_float(float(metrics['cbm_prob_positive_savings']) * 100, 1)}% de casos con ahorro positivo."
             ),
             "",
@@ -558,150 +605,133 @@ def _build_memo(metrics: dict[str, Any]) -> str:
             "Datos sintéticos y costes proxy; los resultados no sustituyen calibración con datos reales de operación.",
             "",
             "## 11. Próximos pasos",
-            "Validar umbrales con histórico real, incorporar optimización matemática de scheduling y cerrar loop con órdenes ejecutadas.",
+            "Validar umbrales con histórico real, incorporar optimización matemática del scheduling y retroalimentar el modelo con órdenes ejecutadas.",
         ]
     )
 
 
 def _build_readme(metrics: dict[str, Any]) -> str:
+    cbm_delta = float(metrics["cbm_operational_savings_eur"])
+    cbm_delta_label = "Ahorro operativo proxy CBM vs reactiva" if cbm_delta >= 0 else "Coste incremental proxy CBM vs reactiva"
     return "\n".join(
         [
-            "# Sistema de Inteligencia de Mantenimiento Basado en Condición para Flota Ferroviaria",
+            "# Inteligencia de Mantenimiento Ferroviario - CBM",
             "",
-            "Plataforma de decisión para mantenimiento ferroviario: identifica riesgo de indisponibilidad, prioriza entrada a taller y cuantifica el valor operativo del CBM con scoring interpretable.",
+            "Plataforma de decisión para flotas ferroviarias: prioriza intervenciones de taller, cuantifica el riesgo de diferir cada decisión y mide el valor del mantenimiento basado en condición frente a una estrategia reactiva.",
             "",
-            "## El reto real",
-            "La flota pierde disponibilidad por degradación, fallas repetitivas y backlog. La decisión crítica es **qué intervenir primero, qué pasa si se difiere y dónde el CBM aporta valor real**.",
+            "**[Dashboard en vivo](https://mfidalgomartins.github.io/inteligencia-mantenimiento-ferroviario-cbm/)** · Python · SQL · DuckDB · HTML offline",
             "",
-            "## Lo que entrega",
-            "Integra operación, sensores, inspección automática y mantenimiento para construir señales de salud, riesgo y RUL operativo. Con esas señales, ordena la cola de taller, estima el impacto de diferir y compara estrategias con sensibilidad.",
+            f"## Resultados - flota sintética de {_format_int(float(metrics['n_unidades']))} unidades",
             "",
-            "## Decisiones que habilita",
-            "- Orden de entrada a taller por unidad y componente.",
-            "- Intervenir ahora vs diferir con riesgo controlado.",
-            "- Dónde escalar CBM y dónde el impacto es marginal.",
-            "- Qué depósitos están saturados y requieren rebalanceo.",
+            "| Métrica | Valor |",
+            "|---------|------:|",
+            f"| Disponibilidad media de flota | **{_format_float(float(metrics['fleet_availability_pct']), 2)} %** |",
+            f"| Unidades de alto riesgo (≥ media + 1,5σ) | **{_format_int(float(metrics['high_risk_units_count']))}** |",
+            f"| Backlog físico | **{_format_int(float(metrics['backlog_physical_items_count']))} pendientes** |",
+            f"| Backlog vencido | **{_format_int(float(metrics['backlog_overdue_items_count']))} pendientes** |",
+            f"| Backlog crítico físico | **{_format_int(float(metrics['backlog_critical_physical_count']))} pendientes** |",
+            f"| Casos de alto riesgo de diferimiento | **{_format_int(float(metrics['high_deferral_risk_cases_count']))}** |",
+            f"| {cbm_delta_label} | **{_format_signed_eur(abs(cbm_delta) if cbm_delta < 0 else cbm_delta)}** |",
+            f"| Mejora de disponibilidad CBM vs reactiva | **+{_format_float(float(metrics['cbm_vs_reactiva_availability_pp']), 2)} p.p.** |",
             "",
-            "## Arquitectura (en seis capas)",
-            "1) Datos sintéticos realistas y modelo ferroviario.",
-            "2) SQL por capas (staging → marts → KPIs).",
-            "3) Feature engineering + scoring interpretable.",
-            "4) Priorización y scheduling heurístico.",
-            "5) Comparativa estratégica y análisis de diferimiento.",
-            "6) Dashboard ejecutivo autocontenido.",
+            f"**Decisión actual:** intervenir primero la unidad `{metrics['top_unit_by_priority']}`, componente `{metrics['top_component_by_priority']}`.",
             "",
-            "## Estructura del repositorio",
-            "- `src/` lógica de datos, scoring y dashboard",
-            "- `sql/` capa SQL por capas (staging → marts → KPIs)",
-            "- `notebooks/` cuadernos de análisis por fase del pipeline",
-            "- `data/` raw/processed (generados, ignorados en GitHub)",
-            "- `outputs/` dashboard final",
-            "- `docs/` documentación clave",
-            "- `tests/` validación y QA",
-            "- `scripts/` atajos para correr pipeline y tests",
+            "## Qué resuelve",
             "",
-            "## Outputs clave",
-            "- `outputs/dashboard/centro-control-mantenimiento-ferroviario.html`",
-            "- `docs/memo_ejecutivo_es.md`",
-            "- `docs/gobierno_metricas.md`",
+            f"- Integra sensores, inspección automática, fallos y mantenimiento para puntuar {_format_int(float(metrics['n_componentes']))} componentes.",
+            "- Ordena y secuencia la cola de taller según riesgo técnico, impacto de servicio, capacidad y ventana operativa.",
+            "- Compara CBM, preventiva rígida y reactiva con supuestos económicos explícitos y análisis de sensibilidad.",
+            "- Mantiene trazabilidad desde los datos hasta las métricas ejecutivas y bloquea la pipeline ante validaciones críticas.",
             "",
-            "## Por qué este proyecto es más sólido que un portfolio típico",
-            "- Trazabilidad real desde señal técnica → score → decisión.",
-            "- Gobernanza de métricas con contratos y checks publish‑blocker.",
-            "- Enfoque operativo: priorización y secuenciación, no solo reporting.",
+            "## Análisis",
             "",
-            "## Resultados clave (SSOT)",
-            f"- disponibilidad media de flota: **{_format_float(float(metrics['fleet_availability_pct']), 2)}%**",
-            f"- unidades de alto riesgo: **{_format_int(float(metrics['high_risk_units_count']))}**",
-            f"- backlog físico: **{_format_int(float(metrics['backlog_physical_items_count']))} pendientes**",
-            f"- backlog vencido: **{_format_int(float(metrics['backlog_overdue_items_count']))} pendientes**",
-            f"- backlog crítico físico: **{_format_int(float(metrics['backlog_critical_physical_count']))} pendientes**",
-            f"- casos alto riesgo de diferimiento: **{_format_int(float(metrics['high_deferral_risk_cases_count']))}**",
+            "<table>",
+            "<tr>",
+            '<td width="50%">',
             "",
-            "## Decisión actual (SSOT)",
-            f"- **Unidad que debe entrar primero:** `{metrics['top_unit_by_priority']}`",
-            f"- **Componente que debe sustituirse primero:** `{metrics['top_component_by_priority']}`",
+            "![Valor estratégico CBM vs reactiva](outputs/graphs/02_valor_estrategias.png)",
             "",
-            "## Cómo ejecutar",
-            "```bash",
-            "pip install -r requirements.txt",
-            "python -m src.run_pipeline   # genera datos, modelos, métricas y dashboard",
-            "pytest -q                    # 50 checks de consistencia y QA",
+            "</td>",
+            '<td width="50%">',
+            "",
+            "![Distribución de riesgo de flota](outputs/graphs/06_distribucion_riesgo_unidades.png)",
+            "",
+            "</td>",
+            "</tr>",
+            "<tr>",
+            "<td>",
+            "",
+            "![Cola de taller por riesgo](outputs/graphs/04_ranking_intervenciones.png)",
+            "",
+            "</td>",
+            "<td>",
+            "",
+            "![Saturación de depósitos](outputs/graphs/05_saturacion_depositos.png)",
+            "",
+            "</td>",
+            "</tr>",
+            "</table>",
+            "",
+            "## Dashboard",
+            "",
+            "HTML autocontenido sin dependencias externas. Funciona offline e incluye filtros por flota, depósito, familia, sistema, riesgo e intervención.",
+            "",
+            "**[Abrir dashboard en vivo](https://mfidalgomartins.github.io/inteligencia-mantenimiento-ferroviario-cbm/)**",
+            "",
+            "**[Descargar informe analítico (PDF)](outputs/reports/informe_analitico_cbm_ferroviario.pdf)**",
+            "",
+            "## Arquitectura",
+            "",
             "```",
-            "El pipeline es determinista (semilla fija): la misma corrida reproduce datos, scores y cifras del dashboard.",
+            "datos sintéticos → staging SQL → marts → scoring → priorización → dashboard",
+            "```",
+            "",
+            "1. Datos sintéticos deterministas de operación, sensores, fallos, inspección y mantenimiento.",
+            "2. Capa SQL DuckDB por etapas: staging, integración, marts y KPIs.",
+            "3. Feature engineering para salud de componente, RUL operativo y score de prioridad.",
+            "4. Priorización y scheduling heurístico con capacidad de taller.",
+            "5. Comparativa estratégica y análisis de diferimiento.",
+            "6. Dashboard offline alimentado por el registro oficial de métricas.",
+            "",
+            "## Reproducir",
+            "Requiere Python 3.12 o superior.",
+            "",
+            "```bash",
+            "python3 -m venv .venv",
+            "source .venv/bin/activate",
+            "python -m pip install -r requirements-lock.txt",
+            "./scripts/run_pipeline.sh",
+            "./scripts/run_tests.sh",
+            "```",
+            "La pipeline usa semilla fija y regenera datos, métricas, documentación derivada y dashboard.",
+            "",
+            "## Estructura",
+            "",
+            "```",
+            "src/          lógica de datos, scoring y generador del dashboard",
+            "sql/          capa SQL por etapas (staging → integración → marts → KPIs)",
+            "notebooks/    análisis exploratorio por fase del pipeline",
+            "scripts/      ejecución del pipeline, tests y publicación",
+            "outputs/      dashboard, gráficos PNG e informe PDF",
+            "tests/        validaciones de QA, métricas y consistencia",
+            "docs/         reproducibilidad, supuestos y contratos de métricas",
+            "```",
+            "",
+            "Documentación técnica: [`reproducibility`](docs/reproducibility.md) · [`repo_architecture`](docs/repo_architecture.md) · [`rul_framework`](docs/rul_framework.md) · [`gobierno_metricas`](docs/gobierno_metricas.md)",
             "",
             "## Limitaciones",
-            "- Datos sintéticos; requieren calibración real.",
-            "- Costes económicos en proxy.",
-            "- Scheduling heurístico, no optimizador global.",
+            "- Todos los datos son sintéticos; los umbrales requieren calibración antes de uso operacional.",
+            "- Los costes y ahorros son proxies de escenario, no estimaciones financieras contratuales.",
+            "- El RUL sirve como ventana relativa de intervención; su asociación con fallo a 30 días es débil y no representa una fecha de fallo calibrada.",
+            "- El scheduling es heurístico y no garantiza una solución global óptima.",
             "",
-            "## Herramientas",
-            "Python, SQL, DuckDB, pandas, matplotlib.",
+            "## Stack",
+            "Python · SQL · DuckDB · pandas · matplotlib · pytest · HTML/CSS/JavaScript",
+            "",
+            "## Licencia",
+            "MIT.",
         ]
     )
-
-
-def _build_backlog_kpi_before_after(metrics: dict[str, Any]) -> pd.DataFrame:
-    before_def = {
-        "backlog_critico_reportado": {
-            "definition_before": "conteo de componentes con deferral_risk_score >= 70 (mezclado con diferimiento)",
-            "value_before": int(float(metrics["high_deferral_risk_cases_count"])),
-            "source_before": "data/processed/workshop_priority_table.csv",
-        }
-    }
-    rows = [
-        {
-            "kpi_name": "backlog_fisico",
-            "definition_before": "n/a",
-            "value_before": None,
-            "source_before": None,
-            "definition_after": "pendientes reales abiertos de mantenimiento",
-            "value_after": int(float(metrics["backlog_physical_items_count"])),
-            "source_after": "data/raw/backlog_mantenimiento.csv",
-            "decision_supported": "dimensionar carga real de taller",
-        },
-        {
-            "kpi_name": "backlog_vencido",
-            "definition_before": "n/a",
-            "value_before": None,
-            "source_before": None,
-            "definition_after": "pendientes físicos con antigüedad >= 14 días",
-            "value_after": int(float(metrics["backlog_overdue_items_count"])),
-            "source_after": "data/raw/backlog_mantenimiento.csv",
-            "decision_supported": "acelerar cola vencida y proteger SLA",
-        },
-        {
-            "kpi_name": "backlog_critico_fisico",
-            "definition_before": before_def["backlog_critico_reportado"]["definition_before"],
-            "value_before": before_def["backlog_critico_reportado"]["value_before"],
-            "source_before": before_def["backlog_critico_reportado"]["source_before"],
-            "definition_after": "pendientes físicos críticos por edad/severidad o riesgo acumulado alto",
-            "value_after": int(float(metrics["backlog_critical_physical_count"])),
-            "source_after": "data/raw/backlog_mantenimiento.csv",
-            "decision_supported": "qué pendientes físicos deben intervenirse antes",
-        },
-        {
-            "kpi_name": "riesgo_diferimiento_alto",
-            "definition_before": "implícitamente mezclado con backlog crítico",
-            "value_before": int(float(metrics["high_deferral_risk_cases_count"])),
-            "source_before": "data/processed/workshop_priority_table.csv",
-            "definition_after": "casos con deferral_risk_score >= 70 (riesgo de aplazar, no backlog físico)",
-            "value_after": int(float(metrics["high_deferral_risk_cases_count"])),
-            "source_after": "data/processed/workshop_priority_table.csv",
-            "decision_supported": "qué no debe diferirse por impacto operacional",
-        },
-        {
-            "kpi_name": "exposure_backlog_adjusted",
-            "definition_before": "n/a",
-            "value_before": None,
-            "source_before": None,
-            "definition_after": "score compuesto 0-100 de exposición de backlog físico",
-            "value_after": round(float(metrics["backlog_exposure_adjusted_mean"]), 2),
-            "source_after": "data/processed/vw_depot_maintenance_pressure.csv",
-            "decision_supported": "priorizar depósitos por exposición estructural de backlog",
-        },
-    ]
-    return pd.DataFrame(rows)
 
 
 def _build_backlog_metric_taxonomy(metrics: dict[str, Any]) -> pd.DataFrame:
@@ -750,10 +780,10 @@ def _build_backlog_metric_taxonomy(metrics: dict[str, Any]) -> pd.DataFrame:
     return pd.DataFrame(rows)
 
 
-def write_backlog_metric_governance_doc(before_after_df: pd.DataFrame, taxonomy_df: pd.DataFrame) -> Path:
+def write_backlog_metric_governance_doc(taxonomy_df: pd.DataFrame) -> Path:
     DOCS_DIR.mkdir(parents=True, exist_ok=True)
     lines = [
-        "# Backlog Metric Governance",
+        "# Gobierno de Métricas de Backlog",
         "",
         "## Objetivo",
         "Separar formalmente backlog físico y riesgo de diferimiento para evitar KPIs híbridos mal rotulados.",
@@ -769,9 +799,6 @@ def write_backlog_metric_governance_doc(before_after_df: pd.DataFrame, taxonomy_
         "- Nunca usar `deferral_risk_score` para reportar backlog físico.",
         "- Nunca usar backlog físico para inferir automáticamente riesgo de diferimiento sin score explícito.",
         "",
-        "## Tabla Before/After",
-        before_after_df.to_markdown(index=False),
-        "",
         "## KPI oficial por decisión",
         taxonomy_df.to_markdown(index=False),
         "",
@@ -781,74 +808,23 @@ def write_backlog_metric_governance_doc(before_after_df: pd.DataFrame, taxonomy_
         "- Dirección de mantenimiento: combinación de ambos para secuencia de intervención.",
     ]
     out = DOCS_DIR / "backlog_metric_governance.md"
-    out.write_text("\n".join(lines), encoding="utf-8")
-    return out
-
-
-def write_reporting_governance_doc(metrics_df: pd.DataFrame, mapping_df: pd.DataFrame) -> Path:
-    DOCS_DIR.mkdir(parents=True, exist_ok=True)
-    lines = [
-        "# Reporting Governance",
-        "",
-        "## Objetivo",
-        "Evitar desincronización entre narrativa y resultados: todas las cifras ejecutivas se generan desde métricas oficiales (SSOT).",
-        "",
-        "## Artefactos narrativos bajo gobierno",
-        "- README.md",
-        "- docs/memo_ejecutivo_es.md",
-        "- outputs/dashboard/centro-control-mantenimiento-ferroviario.html (KPIs + bloque de decisión)",
-        "",
-        "## Single Source of Truth",
-        "Archivo oficial: `data/processed/narrative_metrics_official.csv`",
-        "",
-        "## Métricas Narrativas Oficializadas",
-        metrics_df[
-            [
-                "metric_id",
-                "label",
-                "unit",
-                "source_of_truth",
-                "window_definition",
-                "filter_definition",
-                "aggregation_definition",
-            ]
-        ].to_markdown(index=False),
-        "",
-        "## Mapeo métrica -> artefacto narrativo",
-        mapping_df.to_markdown(index=False),
-        "",
-        "## Reglas de consistencia",
-        "- Misma definición de métrica para README, memo, dashboard y summaries.",
-        "- Misma ventana temporal para narrativa ejecutiva (`histórico completo` o `última fecha`, según métrica).",
-        "- Misma unidad de medida y formato de presentación.",
-        "- Si el output de datos cambia, la narrativa se regenera automáticamente en el pipeline.",
-        "",
-        "## Publicación",
-        "- Bloquear publicación cuando los tests de consistencia interartefactos fallen.",
-        "- No editar manualmente cifras en README/memo/dashboard.",
-    ]
-    out = DOCS_DIR / "reporting_governance.md"
-    out.write_text("\n".join(lines), encoding="utf-8")
+    out.write_text("\n".join(lines) + "\n", encoding="utf-8")
     return out
 
 
 def sync_narrative_artifacts(force_recompute: bool = True) -> dict[str, Path]:
     metrics = load_or_compute_narrative_metrics(force_recompute=force_recompute)
-    backlog_before_after_df = _build_backlog_kpi_before_after(metrics)
     backlog_taxonomy_df = _build_backlog_metric_taxonomy(metrics)
 
     DOCS_DIR.mkdir(parents=True, exist_ok=True)
 
     memo = _build_memo(metrics)
-    (DOCS_DIR / "memo_ejecutivo_es.md").write_text(memo, encoding="utf-8")
+    (DOCS_DIR / "memo_ejecutivo_es.md").write_text(memo + "\n", encoding="utf-8")
 
     readme = _build_readme(metrics)
-    (ROOT_DIR / "README.md").write_text(readme, encoding="utf-8")
+    (ROOT_DIR / "README.md").write_text(readme + "\n", encoding="utf-8")
 
-    backlog_governance_doc = write_backlog_metric_governance_doc(
-        before_after_df=backlog_before_after_df,
-        taxonomy_df=backlog_taxonomy_df,
-    )
+    backlog_governance_doc = write_backlog_metric_governance_doc(taxonomy_df=backlog_taxonomy_df)
     return {
         "metrics": DATA_PROCESSED_DIR / "narrative_metrics_official.csv",
         "memo": DOCS_DIR / "memo_ejecutivo_es.md",

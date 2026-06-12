@@ -7,7 +7,6 @@ import pandas as pd
 
 from src.config import DATA_PROCESSED_DIR, DATA_RAW_DIR, DOCS_DIR
 
-
 STRATEGIES = ["reactiva", "preventiva_rigida", "basada_en_condicion"]
 SCENARIOS = ["conservador", "base", "agresivo"]
 
@@ -356,7 +355,7 @@ def _run_sensitivity_simulation(
         scenario_row = pd.Series(scen._asdict())
         for combo in grid:
             sensitivity_id += 1
-            sens = {k: float(v) for k, v in zip(sens_keys, combo)}
+            sens = {k: float(v) for k, v in zip(sens_keys, combo, strict=True)}
             for _, strat in strategy_assumptions.iterrows():
                 rows.append(
                     _evaluate_strategy(
@@ -478,17 +477,6 @@ def _build_sensitivity_outputs(sim: pd.DataFrame) -> tuple[pd.DataFrame, pd.Data
     return summary, value_ranges, ofat
 
 
-def _build_before_after(legacy: pd.DataFrame, redesigned_base: pd.DataFrame) -> pd.DataFrame:
-    cols = ["estrategia", "fleet_availability", "horas_indisponibilidad", "coste_operativo_proxy"]
-    old = legacy[cols].copy().rename(columns={c: f"{c}_before" for c in cols if c != "estrategia"})
-    new = redesigned_base[cols].copy().rename(columns={c: f"{c}_after" for c in cols if c != "estrategia"})
-    out = old.merge(new, on="estrategia", how="outer")
-    out["delta_fleet_availability_pp"] = out["fleet_availability_after"] - out["fleet_availability_before"]
-    out["delta_horas_indisponibilidad"] = out["horas_indisponibilidad_after"] - out["horas_indisponibilidad_before"]
-    out["delta_coste_operativo_proxy"] = out["coste_operativo_proxy_after"] - out["coste_operativo_proxy_before"]
-    return out
-
-
 def _write_framework_doc(
     *,
     observed_table: pd.DataFrame,
@@ -498,12 +486,12 @@ def _write_framework_doc(
     value_ranges: pd.DataFrame,
 ) -> None:
     lines = [
-        "# Maintenance Strategy Comparison Framework",
+        "# Marco de Comparación de Estrategias de Mantenimiento",
         "",
         "## Objetivo",
         "Comparar estrategias de mantenimiento con separación explícita entre evidencia observada, hipótesis operativas y proxies económicos.",
         "",
-        "## 1) Outputs observados",
+        "## 1) Datos observados",
         observed_table[observed_table["tipo"] == "observado"].to_markdown(index=False, floatfmt=",.2f"),
         "",
         "## 2) Supuestos estructurales por estrategia",
@@ -529,7 +517,7 @@ def _write_framework_doc(
         "## 8) Nota metodológica",
         "No se afirma ganador universal: el resultado depende de capacidad, calidad de detección temprana y estructura de costes.",
     ]
-    (DOCS_DIR / "maintenance_strategy_comparison_framework.md").write_text("\n".join(lines), encoding="utf-8")
+    (DOCS_DIR / "maintenance_strategy_comparison_framework.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
 def _write_strategy_doc(
@@ -551,7 +539,7 @@ def _write_strategy_doc(
     lines = [
         "# Comparación de Estrategias de Mantenimiento",
         "",
-        "## Metodología rediseñada",
+        "## Método",
         "- Separación explícita entre evidencia observada, supuestos estructurales y proxies económicos.",
         "- Escenarios operativos: conservador, base y agresivo.",
         "- Sensibilidad multidimensional: coste de indisponibilidad, tasa de fallo, capacidad de taller, detección temprana, costes correctivo/preventivo.",
@@ -565,14 +553,14 @@ def _write_strategy_doc(
         "## Rango plausible de valor",
         value_ranges.to_markdown(index=False, floatfmt=",.2f"),
         "",
-        "## Lectura ejecutiva defendible",
+        "## Lectura ejecutiva",
         f"- En el punto base, CBM vs reactiva: disponibilidad +{cbm_base['fleet_availability'] - react_base['fleet_availability']:.2f} p.p.",
-        f"- En el punto base, ahorro neto CBM vs reactiva: {cbm_base['ahorro_neto_vs_reactiva']:.0f} EUR.",
+        f"- En el punto base, diferencial neto CBM vs reactiva: {cbm_base['ahorro_neto_vs_reactiva']:.0f} EUR.",
         f"- Mejor estrategia por coste esperado (P50) en conservador: {best_cons}.",
         f"- Mejor estrategia por coste esperado (P50) en base: {best_base}.",
         f"- Mejor estrategia por coste esperado (P50) en agresivo: {best_aggr}.",
         "",
-        "## Caveats económicos (anti-overclaim)",
+        "## Limitaciones económicas",
         "- El ahorro es proxy y depende de costes unitarios asumidos.",
         "- El desempeño de CBM es sensible a la calidad de detección temprana y a la capacidad efectiva de taller.",
         "- En escenarios conservadores, CBM puede perder ventaja frente a preventiva rígida si el coste de habilitación domina.",
@@ -581,13 +569,10 @@ def _write_strategy_doc(
         "Usar CBM donde la señal temprana y la capacidad de ejecución estén maduras; en contexto de baja madurez operativa,",
         "aplicar transición híbrida con preventiva dirigida antes de escalar plenamente CBM.",
     ]
-    (DOCS_DIR / "maintenance_strategy_comparison.md").write_text("\n".join(lines), encoding="utf-8")
+    (DOCS_DIR / "maintenance_strategy_comparison.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
 def run_strategy_comparison() -> pd.DataFrame:
-    legacy_path = DATA_PROCESSED_DIR / "comparativo_estrategias.csv"
-    legacy = pd.read_csv(legacy_path) if legacy_path.exists() else pd.DataFrame()
-
     fleet_week = pd.read_csv(DATA_PROCESSED_DIR / "fleet_week_features.csv")
     unit_day = pd.read_csv(DATA_PROCESSED_DIR / "unit_day_features.csv")
     priorities = pd.read_csv(DATA_PROCESSED_DIR / "workshop_priority_table.csv")
@@ -628,7 +613,7 @@ def run_strategy_comparison() -> pd.DataFrame:
     base = _build_base_comparison(sim)
     summary, value_ranges, ofat = _build_sensitivity_outputs(sim)
 
-    # Merge de robustez al comparativo base (sin romper columnas legacy).
+    # Incorpora la distribución de sensibilidad al comparativo base.
     robust_cols = value_ranges[
         ["estrategia", "ahorro_neto_p50_vs_reactiva", "ahorro_neto_p10_vs_reactiva", "ahorro_neto_p90_vs_reactiva", "downside_case", "prob_ahorro_positivo"]
     ].copy()
@@ -636,12 +621,6 @@ def run_strategy_comparison() -> pd.DataFrame:
     base["downside_case_ahorro_vs_reactiva"] = base["ahorro_neto_p10_vs_reactiva"]
     base["rango_plausible_valor_min"] = base["ahorro_neto_p10_vs_reactiva"]
     base["rango_plausible_valor_max"] = base["ahorro_neto_p90_vs_reactiva"]
-
-    # Before/after si existía versión previa.
-    if not legacy.empty and {"estrategia", "fleet_availability", "horas_indisponibilidad", "coste_operativo_proxy"}.issubset(legacy.columns):
-        before_after = _build_before_after(legacy=legacy, redesigned_base=base)
-    else:
-        before_after = pd.DataFrame()
 
     DATA_PROCESSED_DIR.mkdir(parents=True, exist_ok=True)
     DOCS_DIR.mkdir(parents=True, exist_ok=True)
@@ -655,9 +634,6 @@ def run_strategy_comparison() -> pd.DataFrame:
     strategy_assumptions.to_csv(DATA_PROCESSED_DIR / "maintenance_strategy_structural_assumptions.csv", index=False)
     scenario_assumptions.to_csv(DATA_PROCESSED_DIR / "maintenance_strategy_scenario_assumptions.csv", index=False)
     sensitivity_definition.to_csv(DATA_PROCESSED_DIR / "maintenance_strategy_sensitivity_definition.csv", index=False)
-    if not before_after.empty:
-        before_after.to_csv(DATA_PROCESSED_DIR / "strategy_comparison_before_after.csv", index=False)
-
     _write_framework_doc(
         observed_table=observed_table,
         strategy_assumptions=strategy_assumptions,

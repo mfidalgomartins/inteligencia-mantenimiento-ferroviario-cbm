@@ -75,7 +75,7 @@
 - `servicio_planificado`, `servicio_realizado`, `reserva_flag`, `sustitucion_requerida_flag`.
 
 ### `backlog_mantenimiento`
-- `fecha`, `deposito_id`, `unidad_id`, `componente_id`.
+- `fecha`, `backlog_id`, `deposito_id`, `unidad_id`, `componente_id`.
 - `tipo_pendencia`, `antiguedad_backlog_dias`, `severidad_pendiente`, `riesgo_acumulado`.
 
 ### `parametros_operativos_contexto`

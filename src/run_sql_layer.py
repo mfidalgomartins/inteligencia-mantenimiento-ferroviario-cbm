@@ -1,12 +1,9 @@
 from __future__ import annotations
 
-from pathlib import Path
-
 import duckdb
 import pandas as pd
 
 from src.config import DATA_PROCESSED_DIR, DATA_RAW_DIR, OUTPUTS_REPORTS_DIR, SQL_DIR
-
 
 DUCKDB_PATH = DATA_PROCESSED_DIR / "railway_cbm.duckdb"
 
@@ -79,6 +76,7 @@ def run_sql_layer() -> None:
         _load_raw_tables(con)
         _run_sql_scripts(con)
         _export_objects(con)
+        _assert_sql_validations(con)
     finally:
         con.close()
 
@@ -99,6 +97,39 @@ def _run_sql_scripts(con: duckdb.DuckDBPyConnection) -> None:
         sql_path = SQL_DIR / sql_file
         script = sql_path.read_text(encoding="utf-8")
         con.execute(script)
+
+
+def _assert_sql_validations(con: duckdb.DuckDBPyConnection) -> None:
+    row_counts = con.execute("SELECT * FROM val_row_counts").df()
+    if row_counts.empty or (row_counts["n_rows"] <= 0).any():
+        raise RuntimeError(f"Validación SQL sin filas en marts: {row_counts.to_dict(orient='records')}")
+
+    zero_views = [
+        "val_null_rates_critical",
+        "val_sensor_ranges",
+        "val_temporal_coherence",
+        "val_backlog_semantic_consistency",
+    ]
+    failures: dict[str, dict[str, float]] = {}
+    for view in zero_views:
+        df = con.execute(f"SELECT * FROM {view}").df()
+        numeric = df.select_dtypes(include="number")
+        non_zero = {col: float(numeric[col].max()) for col in numeric if float(numeric[col].max()) != 0.0}
+        if non_zero:
+            failures[view] = non_zero
+
+    semantics = con.execute("SELECT * FROM val_semantic_health_deterioration").df().iloc[0]
+    semantic_failures = {
+        "health_deterioration_balance_mae": float(semantics["health_deterioration_balance_mae"]),
+        "health_out_of_range": float(semantics["health_out_of_range"]),
+        "deterioration_out_of_range": float(semantics["deterioration_out_of_range"]),
+    }
+    semantic_failures = {key: value for key, value in semantic_failures.items() if value > 1e-6}
+    if semantic_failures:
+        failures["val_semantic_health_deterioration"] = semantic_failures
+
+    if failures:
+        raise RuntimeError(f"Validaciones SQL fallidas: {failures}")
 
 
 def _export_objects(con: duckdb.DuckDBPyConnection) -> None:

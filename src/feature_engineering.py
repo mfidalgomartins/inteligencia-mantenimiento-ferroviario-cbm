@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Dict, Iterable
 
 import numpy as np
 import pandas as pd
@@ -560,7 +559,6 @@ def _build_workshop_priority_features(component_day: pd.DataFrame, unit_day: pd.
 
     def _spec_match(row: pd.Series) -> float:
         spec = str(deposito_specs.get(row["deposito_id"], "")).lower()
-        target = f"{row['subsistema']}_{row['tipo_componente']}".lower()
         if row["subsistema"].lower() in spec or row["tipo_componente"].lower() in spec:
             return 1.0
         if "bogie" in spec and row["subsistema"].lower() in {"wheelset", "bogie", "brake"}:
@@ -688,11 +686,11 @@ def _write_feature_dictionary() -> None:
         "- `deferral_risk_inputs`: riesgo agregado de diferimiento para decisión táctica.",
         "",
         "## Utilidad para CAF / entorno industrial ferroviario",
-        "Estas señales permiten pasar de una lógica de OTs aisladas a un esquema de priorización defendible en operación,",
+        "Estas señales permiten pasar de una lógica de OTs aisladas a un esquema de priorización trazable en operación,",
         "alineando salud de activo, disponibilidad de flota y saturación de taller con decisiones diarias de entrada a depósito.",
     ]
 
-    (DOCS_DIR / "feature_dictionary.md").write_text("\n".join(lines), encoding="utf-8")
+    (DOCS_DIR / "feature_dictionary.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
 def build_feature_tables() -> FeatureOutputs:

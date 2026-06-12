@@ -2,7 +2,6 @@ from pathlib import Path
 
 import pandas as pd
 
-
 ROOT = Path(__file__).resolve().parents[1]
 PROCESSED = ROOT / "data" / "processed"
 
@@ -33,10 +32,10 @@ def test_no_action_has_low_average_risk():
     assert float(subset["prob_fallo_30d"].mean()) <= 0.30
 
 
-def test_escalation_has_lower_confidence_profile():
+def test_escalation_is_traceable_to_conflict_rule():
     score = pd.read_csv(PROCESSED / "scoring_componentes.csv")
     escalated = score[score["recommended_action_initial"] == "escalado_tecnico_manual_review"]
     if escalated.empty:
         return
-    share_low = float((escalated["confidence_flag"] == "baja").mean())
-    assert share_low >= 0.30
+    assert escalated["recommendation_conflict_flag"].eq(1).all()
+    assert escalated["recommendation_rule_id"].eq("R07_escalado_conflicto").all()

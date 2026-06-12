@@ -1,16 +1,8 @@
 from __future__ import annotations
 
-from pathlib import Path
-
-import matplotlib
-import matplotlib.pyplot as plt
-import numpy as np
 import pandas as pd
 
-from src.config import DOCS_DIR, OUTPUTS_CHARTS_DIR, OUTPUTS_REPORTS_DIR
-
-matplotlib.use("Agg")
-
+from src.config import DOCS_DIR, OUTPUTS_REPORTS_DIR
 
 COMPONENT_ACTIONS = [
     "intervencion_inmediata",
@@ -307,77 +299,16 @@ def assign_operational_decisions(df: pd.DataFrame) -> pd.DataFrame:
     return out
 
 
-def build_recommendation_before_after_outputs(score_after: pd.DataFrame, priorities_after: pd.DataFrame) -> None:
+def write_recommendation_distribution_reports(score: pd.DataFrame, priorities: pd.DataFrame) -> None:
     OUTPUTS_REPORTS_DIR.mkdir(parents=True, exist_ok=True)
-    OUTPUTS_CHARTS_DIR.mkdir(parents=True, exist_ok=True)
 
-    after_comp = score_after["recommended_action_initial"].value_counts(dropna=False).rename_axis("action").reset_index(name="count")
-    after_comp["share"] = after_comp["count"] / after_comp["count"].sum()
-    after_comp.to_csv(OUTPUTS_REPORTS_DIR / "recommendation_action_distribution_after.csv", index=False)
+    action_dist = score["recommended_action_initial"].value_counts(dropna=False).rename_axis("action").reset_index(name="count")
+    action_dist["share"] = action_dist["count"] / action_dist["count"].sum()
+    action_dist.to_csv(OUTPUTS_REPORTS_DIR / "recommendation_action_distribution.csv", index=False)
 
-    after_dec = priorities_after["decision_type"].value_counts(dropna=False).rename_axis("decision").reset_index(name="count")
-    after_dec["share"] = after_dec["count"] / after_dec["count"].sum()
-    after_dec.to_csv(OUTPUTS_REPORTS_DIR / "recommendation_decision_distribution_after.csv", index=False)
-
-    before_comp_path = OUTPUTS_REPORTS_DIR / "recommendation_action_distribution_before.csv"
-    before_dec_path = OUTPUTS_REPORTS_DIR / "recommendation_decision_distribution_before.csv"
-    if not before_comp_path.exists():
-        after_comp.to_csv(before_comp_path, index=False)
-    if not before_dec_path.exists():
-        after_dec.to_csv(before_dec_path, index=False)
-
-    before_comp = pd.read_csv(before_comp_path)
-    before_dec = pd.read_csv(before_dec_path)
-
-    cmp_comp = before_comp.merge(
-        after_comp[["action", "share"]].rename(columns={"share": "share_after"}),
-        on="action",
-        how="outer",
-    ).rename(columns={"share": "share_before"})
-    cmp_comp["share_before"] = cmp_comp["share_before"].fillna(0.0)
-    cmp_comp["share_after"] = cmp_comp["share_after"].fillna(0.0)
-    cmp_comp["delta_share"] = cmp_comp["share_after"] - cmp_comp["share_before"]
-    cmp_comp.to_csv(OUTPUTS_REPORTS_DIR / "recommendation_action_distribution_before_after.csv", index=False)
-
-    cmp_dec = before_dec.merge(
-        after_dec[["decision", "share"]].rename(columns={"share": "share_after"}),
-        on="decision",
-        how="outer",
-    ).rename(columns={"share": "share_before"})
-    cmp_dec["share_before"] = cmp_dec["share_before"].fillna(0.0)
-    cmp_dec["share_after"] = cmp_dec["share_after"].fillna(0.0)
-    cmp_dec["delta_share"] = cmp_dec["share_after"] - cmp_dec["share_before"]
-    cmp_dec.to_csv(OUTPUTS_REPORTS_DIR / "recommendation_decision_distribution_before_after.csv", index=False)
-
-    fig, axes = plt.subplots(1, 2, figsize=(13.4, 4.8))
-    comp_order = sorted(set(cmp_comp["action"]))
-    dec_order = sorted(set(cmp_dec["decision"]))
-
-    c_before = cmp_comp.set_index("action")["share_before"].to_dict()
-    c_after = cmp_comp.set_index("action")["share_after"].to_dict()
-    d_before = cmp_dec.set_index("decision")["share_before"].to_dict()
-    d_after = cmp_dec.set_index("decision")["share_after"].to_dict()
-
-    x0 = np.arange(len(comp_order))
-    axes[0].bar(x0 - 0.18, [c_before.get(k, 0) for k in comp_order], width=0.35, label="before", color="#8d99ae")
-    axes[0].bar(x0 + 0.18, [c_after.get(k, 0) for k in comp_order], width=0.35, label="after", color="#2a9d8f")
-    axes[0].set_xticks(x0)
-    axes[0].set_xticklabels(comp_order, rotation=35, ha="right")
-    axes[0].set_ylim(0, 1)
-    axes[0].set_title("Recommended Action Initial | Before vs After")
-    axes[0].legend()
-
-    x1 = np.arange(len(dec_order))
-    axes[1].bar(x1 - 0.18, [d_before.get(k, 0) for k in dec_order], width=0.35, label="before", color="#8d99ae")
-    axes[1].bar(x1 + 0.18, [d_after.get(k, 0) for k in dec_order], width=0.35, label="after", color="#e76f51")
-    axes[1].set_xticks(x1)
-    axes[1].set_xticklabels(dec_order, rotation=35, ha="right")
-    axes[1].set_ylim(0, 1)
-    axes[1].set_title("Decision Type | Before vs After")
-    axes[1].legend()
-    fig.tight_layout()
-    fig.savefig(OUTPUTS_CHARTS_DIR / "16_recommendation_distribution_before_after.png", dpi=170, bbox_inches="tight")
-    plt.close(fig)
+    decision_dist = priorities["decision_type"].value_counts(dropna=False).rename_axis("decision").reset_index(name="count")
+    decision_dist["share"] = decision_dist["count"] / decision_dist["count"].sum()
+    decision_dist.to_csv(OUTPUTS_REPORTS_DIR / "recommendation_decision_distribution.csv", index=False)
 
 
 def write_recommendation_logic_doc(examples_df: pd.DataFrame) -> None:
@@ -412,7 +343,7 @@ def write_recommendation_logic_doc(examples_df: pd.DataFrame) -> None:
     rules_operational.to_csv(OUTPUTS_REPORTS_DIR / "recommendation_rules_operational.csv", index=False)
 
     lines = [
-        "# Recommendation Decision Logic",
+        "# Lógica de Recomendación Operativa",
         "",
         "## Objetivo",
         "Evitar colapso en una acción dominante y forzar una lógica jerárquica interpretable para operación ferroviaria.",
@@ -458,4 +389,4 @@ def write_recommendation_logic_doc(examples_df: pd.DataFrame) -> None:
     else:
         lines.append("Sin ejemplos disponibles en ejecución actual.")
 
-    (DOCS_DIR / "recommendation_decision_logic.md").write_text("\n".join(lines), encoding="utf-8")
+    (DOCS_DIR / "recommendation_decision_logic.md").write_text("\n".join(lines) + "\n", encoding="utf-8")

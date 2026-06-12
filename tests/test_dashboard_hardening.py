@@ -3,7 +3,6 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
-
 ROOT = Path(__file__).resolve().parents[1]
 DASHBOARD = ROOT / "outputs" / "dashboard" / "centro-control-mantenimiento-ferroviario.html"
 
@@ -27,7 +26,7 @@ def test_dashboard_offline_no_cdn_refs():
 
 def test_dashboard_meta_stamp_present():
     html = _html()
-    assert 'name="dashboard-version"' in html
+    assert re.search(r'name="dashboard-version" content="\d{8}-[0-9a-f]{4}"', html)
     assert 'name="dashboard-signature"' in html
 
 

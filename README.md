@@ -1,33 +1,30 @@
-# Inteligencia de Mantenimiento Ferroviario — CBM
+# Inteligencia de Mantenimiento Ferroviario - CBM
 
 Plataforma de decisión para flotas ferroviarias: prioriza intervenciones de taller, cuantifica el riesgo de diferir cada decisión y mide el valor del mantenimiento basado en condición frente a una estrategia reactiva.
 
-**[→ Dashboard en vivo](https://mfidalgomartins.github.io/inteligencia-mantenimiento-ferroviario-cbm/)** &nbsp;·&nbsp; Python · SQL · DuckDB · HTML offline
+**[Dashboard en vivo](https://mfidalgomartins.github.io/inteligencia-mantenimiento-ferroviario-cbm/)** · Python · SQL · DuckDB · HTML offline
 
----
-
-## Resultados — flota de 144 unidades
+## Resultados - flota sintética de 144 unidades
 
 | Métrica | Valor |
 |---------|------:|
-| Disponibilidad media de flota | **90,45 %** |
-| Unidades de alto riesgo (≥ media + 1,5σ) | **11** |
-| Backlog crítico físico | **1.957 órdenes** |
-| Ahorro operativo proxy CBM vs reactiva | **€ 20.764.476** |
-| Mejora de disponibilidad CBM vs reactiva | **+2,08 p.p.** |
-| Casos de alto riesgo de diferimiento | **64** |
+| Disponibilidad media de flota | **95,75 %** |
+| Unidades de alto riesgo (≥ media + 1,5σ) | **9** |
+| Backlog físico | **2.056 pendientes** |
+| Backlog vencido | **2.011 pendientes** |
+| Backlog crítico físico | **1.955 pendientes** |
+| Casos de alto riesgo de diferimiento | **43** |
+| Coste incremental proxy CBM vs reactiva | **€ 48.700.525** |
+| Mejora de disponibilidad CBM vs reactiva | **+0,93 p.p.** |
 
-Unidad prioritaria: `UNI0057` &nbsp;·&nbsp; Componente prioritario: `COMP000454`
+**Decisión actual:** intervenir primero la unidad `UNI0055`, componente `COMP000438`.
 
----
+## Qué resuelve
 
-## Qué hace
-
-- **Scoring de riesgo sobre 1.152 componentes**, integrado desde señales de sensor, inspección automática y registros de mantenimiento. Identifica las 11 unidades en umbral crítico y las ordena por urgencia de intervención.
-- **Cola de taller priorizada y secuenciada**: ordena las intervenciones por score de riesgo, ventana operativa y capacidad de depósito. Calcula el coste incremental de diferir cada decisión.
-- **Comparativa estratégica CBM vs reactiva**: cuantifica el valor operativo del CBM con análisis de sensibilidad e intervalo plausible de ahorro (de −€628k a +€40,3M según parámetros de coste).
-
----
+- Integra sensores, inspección automática, fallos y mantenimiento para puntuar 1.152 componentes.
+- Ordena y secuencia la cola de taller según riesgo técnico, impacto de servicio, capacidad y ventana operativa.
+- Compara CBM, preventiva rígida y reactiva con supuestos económicos explícitos y análisis de sensibilidad.
+- Mantiene trazabilidad desde los datos hasta las métricas ejecutivas y bloquea la pipeline ante validaciones críticas.
 
 ## Análisis
 
@@ -35,88 +32,84 @@ Unidad prioritaria: `UNI0057` &nbsp;·&nbsp; Componente prioritario: `COMP000454
 <tr>
 <td width="50%">
 
-![Valor estratégico CBM vs reactiva](outputs/Graphs/01_valor_estrategia.png)
+![Valor estratégico CBM vs reactiva](outputs/graphs/02_valor_estrategias.png)
 
 </td>
 <td width="50%">
 
-![Distribución de riesgo de flota](outputs/Graphs/05_distribucion_riesgo_flota.png)
+![Distribución de riesgo de flota](outputs/graphs/06_distribucion_riesgo_unidades.png)
 
 </td>
 </tr>
 <tr>
 <td>
 
-![Cola de taller por riesgo](outputs/Graphs/03_cola_taller_riesgo.png)
+![Cola de taller por riesgo](outputs/graphs/04_ranking_intervenciones.png)
 
 </td>
 <td>
 
-![Saturación de depósitos](outputs/Graphs/04_saturacion_depositos.png)
+![Saturación de depósitos](outputs/graphs/05_saturacion_depositos.png)
 
 </td>
 </tr>
 </table>
 
----
-
 ## Dashboard
 
-HTML autocontenido sin dependencias externas. Funciona offline y reproduce los mismos resultados con semilla fija. Incluye filtros por flota, depósito, familia y sistema; paginación; y modo claro/oscuro. 50 tests de QA automatizados validan estructura, métricas y rendimiento antes de cada publicación.
+HTML autocontenido sin dependencias externas. Funciona offline e incluye filtros por flota, depósito, familia, sistema, riesgo e intervención.
 
-**→ [Abrir dashboard en vivo](https://mfidalgomartins.github.io/inteligencia-mantenimiento-ferroviario-cbm/)**
+**[Abrir dashboard en vivo](https://mfidalgomartins.github.io/inteligencia-mantenimiento-ferroviario-cbm/)**
 
----
+**[Descargar informe analítico (PDF)](outputs/reports/informe_analitico_cbm_ferroviario.pdf)**
 
 ## Arquitectura
 
 ```
-datos sintéticos → staging SQL → marts → KPIs → scoring → priorización → dashboard
+datos sintéticos → staging SQL → marts → scoring → priorización → dashboard
 ```
 
-1. **Datos** — flota sintética con señales de sensor, fallos, inspección y registro de mantenimiento (semilla fija, pipeline determinista).
-2. **SQL por capas** — staging → marts → KPIs con DuckDB; trazabilidad completa desde señal técnica hasta indicador.
-3. **Feature engineering** — índice de salud de componente, RUL operativo, score de prioridad interpretable.
-4. **Priorización** — cola de taller con scheduling heurístico y análisis de diferimiento por unidad.
-5. **Comparativa estratégica** — CBM vs reactiva con sensibilidad de costes e intervalo de confianza.
-6. **Dashboard** — HTML offline, light + dark mode, KPIs gobernados por SSOT versionado.
+1. Datos sintéticos deterministas de operación, sensores, fallos, inspección y mantenimiento.
+2. Capa SQL DuckDB por etapas: staging, integración, marts y KPIs.
+3. Feature engineering para salud de componente, RUL operativo y score de prioridad.
+4. Priorización y scheduling heurístico con capacidad de taller.
+5. Comparativa estratégica y análisis de diferimiento.
+6. Dashboard offline alimentado por el registro oficial de métricas.
 
----
-
-## Ejecución
+## Reproducir
+Requiere Python 3.12 o superior.
 
 ```bash
-pip install -r requirements.txt
-python -m src.run_pipeline   # genera datos, modelos, métricas y dashboard
-pytest -q                    # 50 checks de consistencia y QA
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install -r requirements-lock.txt
+./scripts/run_pipeline.sh
+./scripts/run_tests.sh
 ```
-
-El pipeline es determinista: la misma semilla reproduce exactamente los mismos datos, scores y cifras del dashboard.
-
----
+La pipeline usa semilla fija y regenera datos, métricas, documentación derivada y dashboard.
 
 ## Estructura
 
 ```
 src/          lógica de datos, scoring y generador del dashboard
-sql/          capa SQL por capas (staging → marts → KPIs)
+sql/          capa SQL por etapas (staging → integración → marts → KPIs)
 notebooks/    análisis exploratorio por fase del pipeline
-scripts/      ejecución del pipeline y generación de charts
-outputs/      dashboard HTML y gráficos PNG para publicación
-tests/        50 validaciones de QA (estructura, métricas, rendimiento)
-docs/         memo ejecutivo y contratos de métricas (SSOT)
+scripts/      ejecución del pipeline, tests y publicación
+outputs/      dashboard, gráficos PNG e informe PDF
+tests/        validaciones de QA, métricas y consistencia
+docs/         reproducibilidad, supuestos y contratos de métricas
 ```
 
----
+Documentación técnica: [`reproducibility`](docs/reproducibility.md) · [`repo_architecture`](docs/repo_architecture.md) · [`rul_framework`](docs/rul_framework.md) · [`gobierno_metricas`](docs/gobierno_metricas.md)
 
 ## Limitaciones
-
-- Datos sintéticos; requieren calibración con históricos reales de operaciones.
-- Costes económicos en proxy; no reflejan contratos de taller ni tarifas reales.
-- Scheduling heurístico, no optimizador global (sin ILP ni programación entera).
-
----
+- Todos los datos son sintéticos; los umbrales requieren calibración antes de uso operacional.
+- Los costes y ahorros son proxies de escenario, no estimaciones financieras contratuales.
+- El RUL sirve como ventana relativa de intervención; su asociación con fallo a 30 días es débil y no representa una fecha de fallo calibrada.
+- El scheduling es heurístico y no garantiza una solución global óptima.
 
 ## Stack
-
 Python · SQL · DuckDB · pandas · matplotlib · pytest · HTML/CSS/JavaScript
+
+## Licencia
+MIT.

@@ -1,14 +1,12 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from pathlib import Path
-from typing import Dict, List, Tuple
+from typing import Dict, List
 
 import numpy as np
 import pandas as pd
 
 from src.config import DATA_RAW_DIR, OUTPUTS_REPORTS_DIR
-
 
 REPORT_DIR = OUTPUTS_REPORTS_DIR / "explore_data"
 
@@ -90,11 +88,11 @@ TABLE_META: Dict[str, TableMeta] = {
         expected_fks={"unidad_id": "unidades.unidad_id"},
     ),
     "backlog_mantenimiento": TableMeta(
-        grain="1 fila por snapshot fecha-depósito-unidad-componente",
-        candidate_key=["fecha", "deposito_id", "unidad_id", "componente_id"],
+        grain="1 fila por orden pendiente y fecha de snapshot",
+        candidate_key=["fecha", "backlog_id"],
         expected_fks={
             "unidad_id": "unidades.unidad_id",
-            "component_id": "componentes_criticos.componente_id",
+            "componente_id": "componentes_criticos.componente_id",
             "deposito_id": "depositos.deposito_id",
         },
     ),
@@ -365,6 +363,9 @@ def run_explore_data_audit() -> None:
     report_md = _build_markdown_report(summary_df, issues_df, joins_df, marts_df)
     (REPORT_DIR / "explore_data_report.md").write_text(report_md, encoding="utf-8")
     (REPORT_DIR / "explore_data_report.html").write_text(_markdown_to_html(report_md), encoding="utf-8")
+    if not issues_df.empty:
+        detail = issues_df[["severidad", "issue", "tabla", "detalle"]].head(10).to_dict(orient="records")
+        raise RuntimeError(f"Auditoría raw con issues abiertos: {detail}")
 
 
 def _validate_foreign_keys(tables: Dict[str, pd.DataFrame]) -> List[dict]:
@@ -433,10 +434,10 @@ def _build_markdown_report(
     marts_df: pd.DataFrame,
 ) -> str:
     lines: List[str] = []
-    lines.append("# Explore-Data Audit | Railway CBM")
+    lines.append("# Auditoría de Datos | CBM Ferroviario")
     lines.append("")
     lines.append("## Objetivo")
-    lines.append("Auditoría formal de calidad y readiness de datos previa a modelado, scoring, RUL, priorización y dashboard.")
+    lines.append("Auditoría de calidad y preparación de datos previa a modelado, scoring, RUL, priorización y dashboard.")
     lines.append("")
     lines.append("## Resumen por dataset")
     lines.append(summary_df.to_markdown(index=False))

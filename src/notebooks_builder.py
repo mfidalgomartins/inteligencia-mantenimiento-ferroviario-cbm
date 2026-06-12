@@ -229,8 +229,7 @@ sens.groupby(["scenario_profile","estrategia"], observed=True)["ahorro_neto_vs_r
         ),
         _code(
             """
-before_after = pd.read_csv(proc / "strategy_comparison_before_after.csv")
-before_after
+sens.groupby("estrategia", observed=True)["ahorro_neto_vs_reactiva"].agg(["median","min","max"])
             """
         ),
         _md(

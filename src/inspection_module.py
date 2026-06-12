@@ -7,7 +7,6 @@ import pandas as pd
 
 from src.config import DATA_PROCESSED_DIR, DATA_RAW_DIR, DOCS_DIR
 
-
 TARGET_FAMILIES = ("wheel", "brake", "bogie", "pantograph")
 PRE_FAILURE_WINDOW_DAYS = 30
 FALSE_ALERT_HORIZON_DAYS = 30
@@ -494,6 +493,21 @@ def _consistency_checks(
             "detail": "chain/followthrough rates in [0,1]",
         }
     )
+    checks.append(
+        {
+            "check": "synthetic_detection_rates_plausible",
+            "result": bool(
+                family_perf["defect_detection_rate"].between(0.03, 0.85).all()
+                and family_perf["pre_failure_detection_rate"].between(0.03, 0.90).all()
+            ),
+            "detail": (
+                f"defect_rate_range={family_perf['defect_detection_rate'].min():.4f}-"
+                f"{family_perf['defect_detection_rate'].max():.4f}; "
+                f"pre_failure_range={family_perf['pre_failure_detection_rate'].min():.4f}-"
+                f"{family_perf['pre_failure_detection_rate'].max():.4f}"
+            ),
+        }
+    )
 
     out = pd.DataFrame(checks)
     return out
@@ -502,7 +516,7 @@ def _consistency_checks(
 def _write_framework_doc(family_perf: pd.DataFrame, checks_df: pd.DataFrame) -> None:
     DOCS_DIR.mkdir(parents=True, exist_ok=True)
     lines = [
-        "# Inspection Analytics Framework",
+        "# Marco Analítico de Inspección Automática",
         "",
         "## Taxonomía técnica",
         "- Familias objetivo: `wheel`, `brake`, `bogie`, `pantograph`.",
@@ -521,6 +535,8 @@ def _write_framework_doc(family_perf: pd.DataFrame, checks_df: pd.DataFrame) -> 
         "",
         "## Limitaciones sintéticas",
         "- La distribución de severidad/defectos depende del generador sintético y puede estar sesgada respecto a operación real.",
+        "- La cobertura del parque refleja una política de inspección programada; no equivale a una tasa de detección perfecta.",
+        "- `alert_chain_rate` mide trazabilidad del flujo sintético inspección-alerta, no precisión predictiva.",
         "- Las tasas representan plausibilidad analítica y trazabilidad, no performance contractual real.",
         "",
         "## Resultado agregado por familia",
@@ -538,11 +554,15 @@ def _write_framework_doc(family_perf: pd.DataFrame, checks_df: pd.DataFrame) -> 
         "## Checks de consistencia técnica",
         checks_df.to_markdown(index=False),
     ]
-    (DOCS_DIR / "inspection_analytics_framework.md").write_text("\n".join(lines), encoding="utf-8")
+    (DOCS_DIR / "inspection_analytics_framework.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
-def _build_before_after_comparison(family_perf: pd.DataFrame, value: pd.DataFrame) -> pd.DataFrame:
-    return pd.DataFrame()
+def _assert_consistency_checks(checks_df: pd.DataFrame) -> None:
+    failed = checks_df[~checks_df["result"].astype(bool)]
+    if failed.empty:
+        return
+    detail = failed[["check", "detail"]].to_dict(orient="records")
+    raise RuntimeError(f"Validaciones de inspección automática fallidas: {detail}")
 
 
 def run_inspection_module() -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
@@ -558,7 +578,6 @@ def run_inspection_module() -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
     value = _build_value_comparison(family_perf, failures, scoring, priorities)
 
     checks_df = _consistency_checks(family_perf, linkage, chain, severe_follow)
-    before_after = _build_before_after_comparison(family_perf, value)
 
     # Export tablas del módulo
     component_signals.to_csv(DATA_PROCESSED_DIR / "inspection_module_component_signals.csv", index=False)
@@ -568,6 +587,7 @@ def run_inspection_module() -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
     checks_df.to_csv(DATA_PROCESSED_DIR / "inspection_module_consistency_checks.csv", index=False)
 
     _write_framework_doc(family_perf, checks_df)
+    _assert_consistency_checks(checks_df)
 
     return component_signals, family_perf, value
 

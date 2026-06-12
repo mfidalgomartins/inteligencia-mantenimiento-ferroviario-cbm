@@ -6,6 +6,7 @@ WITH weekly AS (
         DATE_TRUNC('week', u.fecha) AS week_start,
         u.flota_id,
         AVG(u.availability_rate) AS availability_rate,
+        SUM(u.horas_disponibles) AS available_hours,
         SUM(u.failures_count) AS failures_count,
         SUM(u.failure_downtime_h) AS downtime_h,
         SUM(u.maintenance_hours) AS maintenance_hours,
@@ -36,8 +37,8 @@ SELECT
     w.flota_id,
     w.availability_rate,
     CASE
-        WHEN w.failures_count > 0 THEN (7 * 24) / w.failures_count
-        ELSE 7 * 24
+        WHEN w.failures_count > 0 THEN w.available_hours / w.failures_count
+        ELSE w.available_hours
     END AS mtbf_proxy,
     CASE
         WHEN w.failures_count > 0 THEN w.downtime_h / w.failures_count

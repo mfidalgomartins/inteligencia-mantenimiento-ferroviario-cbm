@@ -57,9 +57,11 @@ Frecuencia de mantenimiento por componente en 180 días.
 
 ### `mtbf_proxy`
 Tiempo medio entre fallas por flota-semana (alto=mejor).
+- Fórmula: `sum(horas_disponibles) / sum(failures_count)`; si no hay fallas, se reportan las horas disponibles observadas.
 
 ### `mttr_proxy`
 Tiempo medio de reparación por flota-semana (alto=peor).
+- Fórmula: `sum(failure_downtime_h) / sum(failures_count)`.
 
 ### `backlog_risk` (alias legacy)
 Alias de compatibilidad para `backlog_physical_risk_accum`.

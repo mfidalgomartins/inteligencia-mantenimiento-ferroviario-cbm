@@ -1,4 +1,4 @@
-# Modeling Framework | Salud, Riesgo y RUL
+# Modelado de Salud, Riesgo y RUL
 
 ## 1) Degradation scoring basado en reglas
 - Inputs: `deterioration_index`, `degradation_velocity`, `inspection_defect_score_recent`, `critical_alerts_count`, `backlog_exposure_flag`.
@@ -21,10 +21,10 @@
 - Limitación: trade-off precision/recall depende de ventanas de alerta elegidas.
 
 ## 4) RUL proxy
-- Inputs: tendencia de salud 60 días + distancia a umbral técnico.
-- Lógica: extrapolación lineal con tope de 365 días y banda de confianza.
-- Supuesto: degradación localmente cuasi-lineal en ventana corta.
-- Limitación: puede infraestimar mejoras tras mantenimiento mayor.
+- Inputs: salud actual, deterioro, velocidad, estrés, restauración, repetitividad y alertas.
+- Lógica: daño diario efectivo no lineal y umbrales específicos por familia técnica.
+- Supuesto: las señales observadas resumen la trayectoria de degradación relevante.
+- Limitación: ventana relativa de intervención; no estima una fecha física de fallo calibrada.
 
 ## 5) Riesgo de indisponibilidad por unidad
 - Inputs: riesgo de componentes, criticidad de servicio, backlog, impacto de servicio y sustitución requerida.

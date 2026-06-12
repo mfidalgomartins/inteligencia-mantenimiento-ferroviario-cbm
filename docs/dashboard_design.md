@@ -10,7 +10,7 @@ Dashboard orientado a decisión para dirección de mantenimiento y operaciones, 
 
 ## Decisiones de diseño implementadas
 1. Motor de filtros globales único.
-- Los filtros gobiernan KPIs, gráficos, ranking, narrativa e tabla final.
+- Los filtros gobiernan KPIs, gráficos, ranking, narrativa y tabla final.
 - Dimensiones: flota, unidad, depósito, familia, sistema, nivel de riesgo, tipo de intervención, ventana y estrategia.
 
 2. Narrativa orientada a decisión.
@@ -25,12 +25,12 @@ Dashboard orientado a decisión para dirección de mantenimiento y operaciones, 
 - Sin CDN.
 - HTML único con CSS/JS embebido.
 - Render de charts con SVG inline.
-- Version stamping visible (`YYYYMMDD-HHMM` + firma corta de payload) para trazabilidad de release.
+- Versión determinista (`YYYYMMDD-firma`) derivada de la cobertura temporal y del contenido.
 
 4. Métricas gobernadas.
 - Todas las cifras consumen salidas oficiales (`data/processed/` + `narrative_metrics_official.csv`).
 - Se evita hardcoding de insights.
-- KPIs estructurales (disponibilidad, MTBF/MTTR, ahorro CBM, diferimiento) usan `metric_snapshot` SSOT.
+- KPIs estructurales (disponibilidad, MTBF/MTTR, diferencial CBM, diferimiento) usan el `metric_snapshot` oficial.
 
 5. Robustez UX/Frontend.
 - Layout seguro sin solapes (grid con `minmax(0,1fr)`, overflow controlado, media queries robustas).
@@ -54,11 +54,3 @@ Dashboard orientado a decisión para dirección de mantenimiento y operaciones, 
 - Integridad de métricas de backlog físico vs riesgo de diferimiento.
 - Coherencia texto de decisión con ranking filtrado.
 - Pruebas de integridad en `tests/test_dashboard_hardening.py`, `tests/test_dashboard_js_syntax.py` y `tests/test_reporting_consistency.py`.
-
-## Before vs After (usabilidad decisional)
-- Antes: parte de filtros no recalculaba todos los componentes; dependencia de CDN externa.
-- Después: recalculo integral por filtro y ejecución offline.
-- Antes: dashboards con mezcla de métricas legacy.
-- Después: semántica alineada con contratos y taxonomía oficial.
-- Antes: render de tabla sin paginación y riesgo de densidad visual.
-- Después: paginación + guardas de legibilidad (densidad de labels adaptativa).

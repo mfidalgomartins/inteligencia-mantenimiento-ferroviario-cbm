@@ -1,22 +1,22 @@
-# Maintenance Strategy Comparison Framework
+# Marco de Comparación de Estrategias de Mantenimiento
 
 ## Objetivo
 Comparar estrategias de mantenimiento con separación explícita entre evidencia observada, hipótesis operativas y proxies económicos.
 
-## 1) Outputs observados
-| variable                 |      valor | tipo      | fuente                               |
-|:-------------------------|-----------:|:----------|:-------------------------------------|
-| availability_pct_base    |      90.45 | observado | fleet_week_features                  |
-| mtbf_base                |      16.10 | observado | fleet_week_features                  |
-| mttr_base                |       6.95 | observado | fleet_week_features                  |
-| downtime_h_base          | 190,009.00 | observado | disponibilidad_servicio              |
-| backlog_critical_base    |   1,957.00 | observado | backlog_mantenimiento                |
-| deferral_high_observed   |      64.00 | observado | workshop_priority_table              |
-| failures_total           |  10,427.00 | observado | fallas_historicas                    |
-| corrective_events_base   |  10,410.00 | observado | eventos_mantenimiento                |
-| preventive_events_base   |   6,561.00 | observado | eventos_mantenimiento                |
-| inspection_quality_index |       0.33 | observado | inspection_module_family_performance |
-| ew_precision             |       0.41 | observado | early_warning_practical_accuracy     |
+## 1) Datos observados
+| variable                 |     valor | tipo      | fuente                               |
+|:-------------------------|----------:|:----------|:-------------------------------------|
+| availability_pct_base    |     95.75 | observado | fleet_week_features                  |
+| mtbf_base                |  1,046.81 | observado | fleet_week_features                  |
+| mttr_base                |      5.18 | observado | fleet_week_features                  |
+| downtime_h_base          | 85,158.59 | observado | disponibilidad_servicio              |
+| backlog_critical_base    |  1,955.00 | observado | backlog_mantenimiento                |
+| deferral_high_observed   |     43.00 | observado | workshop_priority_table              |
+| failures_total           |  3,021.00 | observado | fallas_historicas                    |
+| corrective_events_base   |  3,016.00 | observado | eventos_mantenimiento                |
+| preventive_events_base   |  6,568.00 | observado | eventos_mantenimiento                |
+| inspection_quality_index |      0.09 | observado | inspection_module_family_performance |
+| ew_precision             |      0.14 | observado | early_warning_practical_accuracy     |
 
 ## 2) Supuestos estructurales por estrategia
 | estrategia          |   proactive_factor |   predictive_leverage |   preventive_intensity |   corrective_dependence |   enablement_cost_eur | hipotesis_operativa                                   |
@@ -45,22 +45,22 @@ Comparar estrategias de mantenimiento con separación explícita entre evidencia
 ## 5) Resultados por escenario (P10/P50/P90)
 | scenario_profile   | estrategia          |   coste_total_p10 |   coste_total_p50 |   coste_total_p90 |   downtime_p50 |   correctivas_evitables_p50 |   horas_servicio_preservadas_p50 |   ahorro_neto_p50_vs_reactiva |   downside_ahorro_p10_vs_reactiva |   upside_ahorro_p90_vs_reactiva |   prob_ahorro_positivo |
 |:-------------------|:--------------------|------------------:|------------------:|------------------:|---------------:|----------------------------:|---------------------------------:|------------------------------:|----------------------------------:|--------------------------------:|-----------------------:|
-| agresivo           | basada_en_condicion |    331,705,859.87 |    377,470,828.39 |    432,152,590.92 |     123,921.39 |                    2,424.56 |                        66,087.62 |                 12,206,853.98 |                     -2,524,895.55 |                   29,102,809.99 |                   0.85 |
-| agresivo           | preventiva_rigida   |    302,650,099.17 |    350,139,130.22 |    407,677,231.72 |     128,265.93 |                    2,086.47 |                        61,743.08 |                 39,829,481.30 |                     26,750,461.42 |                   54,840,602.82 |                   1.00 |
-| agresivo           | reactiva            |    331,804,676.49 |    389,973,539.27 |    461,169,549.50 |     159,821.48 |                        0.00 |                        30,187.52 |                          0.00 |                              0.00 |                            0.00 |                   0.00 |
-| base               | basada_en_condicion |    390,206,727.36 |    447,096,996.95 |    514,526,421.76 |     144,082.53 |                    1,809.71 |                        45,926.47 |                 18,900,374.66 |                      1,860,651.37 |                   39,066,039.48 |                   0.92 |
-| base               | preventiva_rigida   |    356,092,180.84 |    412,800,775.30 |    481,566,123.96 |     149,144.10 |                    1,446.50 |                        40,864.91 |                 53,112,115.34 |                     37,555,253.61 |                   71,456,922.72 |                   1.00 |
-| base               | reactiva            |    395,566,373.37 |    465,628,786.98 |    553,893,299.71 |     185,668.12 |                        0.00 |                         4,340.88 |                          0.00 |                              0.00 |                            0.00 |                   0.00 |
-| conservador        | basada_en_condicion |    534,417,166.41 |    615,069,222.86 |    709,251,092.10 |     179,473.89 |                      761.32 |                        10,535.12 |                 22,548,327.53 |                       -465,268.93 |                   49,133,079.61 |                   0.89 |
-| conservador        | preventiva_rigida   |    473,822,236.77 |    554,712,197.32 |    652,722,154.50 |     185,804.25 |                      353.28 |                         4,204.75 |                 82,624,481.94 |                     61,335,938.69 |                  107,636,336.97 |                   1.00 |
-| conservador        | reactiva            |    539,197,060.04 |    637,427,255.31 |    759,786,159.71 |     231,127.20 |                        0.00 |                             0.00 |                          0.00 |                              0.00 |                            0.00 |                   0.00 |
+| agresivo           | basada_en_condicion |    198,712,654.59 |    217,674,704.42 |    240,336,553.77 |      55,659.49 |                      692.32 |                        29,499.10 |                -49,858,715.32 |                    -55,578,344.04 |                  -43,646,189.70 |                   0.00 |
+| agresivo           | preventiva_rigida   |    155,634,880.91 |    176,286,068.36 |    198,955,847.64 |      57,622.70 |                      593.69 |                        27,535.89 |                 -7,612,021.61 |                    -14,450,958.44 |                     -934,745.86 |                   0.08 |
+| agresivo           | reactiva            |    143,750,115.47 |    167,996,915.22 |    194,782,895.45 |      71,678.52 |                        0.00 |                        13,480.07 |                          0.00 |                              0.00 |                            0.00 |                   0.00 |
+| base               | basada_en_condicion |    226,186,565.93 |    250,619,377.74 |    279,777,809.18 |      64,636.83 |                      517.41 |                        20,521.76 |                -51,151,906.00 |                    -59,033,496.00 |                  -42,934,014.18 |                   0.00 |
+| base               | preventiva_rigida   |    178,693,785.56 |    203,300,626.46 |    231,286,128.11 |      66,916.69 |                      411.36 |                        18,241.90 |                 -3,319,766.29 |                    -11,319,180.53 |                    4,480,014.83 |                   0.30 |
+| base               | reactiva            |    170,388,593.75 |    199,151,074.46 |    232,660,702.06 |      83,239.58 |                        0.00 |                         1,919.02 |                          0.00 |                              0.00 |                            0.00 |                   0.00 |
+| conservador        | basada_en_condicion |    302,206,093.66 |    339,725,096.08 |    382,564,561.87 |      80,436.95 |                      217.58 |                         4,721.65 |                -68,893,342.65 |                    -80,935,577.28 |                  -56,881,823.51 |                   0.00 |
+| conservador        | preventiva_rigida   |    230,728,566.11 |    263,869,055.48 |    303,039,917.78 |      83,274.10 |                       98.81 |                         1,884.49 |                  6,056,240.16 |                     -3,784,449.59 |                   16,748,805.71 |                   0.78 |
+| conservador        | reactiva            |    228,043,951.99 |    270,421,423.59 |    318,050,330.37 |     103,587.03 |                        0.00 |                             0.00 |                          0.00 |                              0.00 |                            0.00 |                   0.00 |
 
 ## 6) Rango plausible de valor
 | estrategia          |   coste_total_p10 |   coste_total_p50 |   coste_total_p90 |   ahorro_neto_p10_vs_reactiva |   ahorro_neto_p50_vs_reactiva |   ahorro_neto_p90_vs_reactiva |   downside_case |    upside_case |   prob_ahorro_positivo |
 |:--------------------|------------------:|------------------:|------------------:|------------------------------:|------------------------------:|------------------------------:|----------------:|---------------:|-----------------------:|
-| basada_en_condicion |    356,034,632.19 |    452,217,580.36 |    651,965,111.22 |                   -628,417.60 |                 17,269,169.29 |                 40,297,095.49 |  -22,192,890.11 |  74,807,910.20 |                   0.89 |
-| preventiva_rigida   |    327,810,182.54 |    418,928,589.21 |    591,512,109.14 |                 32,816,004.51 |                 55,009,681.91 |                 92,810,122.57 |   14,591,666.54 | 135,214,560.77 |                   1.00 |
-| reactiva            |    361,063,492.70 |    473,978,736.33 |    683,753,764.92 |                          0.00 |                          0.00 |                          0.00 |            0.00 |           0.00 |                   0.00 |
+| basada_en_condicion |    209,322,168.02 |    252,594,604.49 |    356,084,798.44 |                -74,235,937.98 |                -53,777,290.47 |                -44,730,808.85 |  -92,226,128.76 | -34,808,335.85 |                   0.00 |
+| preventiva_rigida   |    166,089,047.04 |    205,295,274.39 |    280,298,641.74 |                -11,923,746.49 |                 -2,940,648.66 |                 10,592,811.53 |  -19,817,978.96 |  28,579,053.19 |                   0.38 |
+| reactiva            |    156,470,159.64 |    202,036,273.27 |    289,037,624.08 |                          0.00 |                          0.00 |                          0.00 |            0.00 |           0.00 |                   0.00 |
 
 ## 7) Reglas de interpretación
 - `ahorro_neto_vs_reactiva > 0`: mejora económica frente a reactiva en ese escenario/sensibilidad.

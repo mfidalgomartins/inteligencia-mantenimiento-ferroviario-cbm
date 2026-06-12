@@ -1,4 +1,4 @@
-# SQL Architecture
+# Arquitectura SQL
 
 ## Dialecto elegido
 Se utiliza **DuckDB SQL** por su capacidad analítica local, soporte de window functions, CTEs avanzados y ejecución reproducible sobre CSV/Parquet sin infraestructura adicional.
@@ -37,7 +37,7 @@ Se utiliza **DuckDB SQL** por su capacidad analítica local, soporte de window f
 5. validaciones (`11`)
 
 ## Runner
-La ejecución está centralizada en [run_sql_layer.py](/Users/miguelfidalgo/Documents/sistema-inteligencia-mantenimiento-ferroviario/src/run_sql_layer.py), que:
+La ejecución está centralizada en `src/run_sql_layer.py`, que:
 - carga `data/raw/*.csv` en tablas `raw_*`
 - ejecuta scripts en orden
 - exporta marts, vistas KPI y validaciones a `data/processed/`

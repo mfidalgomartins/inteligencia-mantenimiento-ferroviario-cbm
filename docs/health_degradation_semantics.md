@@ -1,7 +1,7 @@
 # Semántica Oficial de Salud, Deterioro y Degradación
 
 ## Objetivo
-Eliminar ambigüedad de signos entre SQL, Python, marts, scoring, dashboard y documentación.
+Mantener una convención de signos única entre SQL, Python, marts, scoring, dashboard y documentación.
 
 ## Taxonomía oficial
 
@@ -39,30 +39,14 @@ Eliminar ambigüedad de signos entre SQL, Python, marts, scoring, dashboard y do
 - `unit_unavailability_risk_score`, `intervention_priority_score`, `deferral_risk_score` en `[0,100]`, mayor = peor.
 - Balance SQL obligatorio: `estimated_health_input_index + deterioration_input_index = 100` (tolerancia numérica).
 
-## Variables corregidas (antes/después)
-- `estimated_health_input_index`:
-  - Antes: se consumía como “health” en unas capas y como “deterioro” en otras.
-  - Ahora: siempre health (alto=mejor); su complemento explícito es `deterioration_input_index`.
-- `critical_components_at_risk` (SQL unidad-día):
-  - Antes: contaba componentes con health alto.
-  - Ahora: cuenta componentes con health bajo (`<=35`).
-- `predicted_unavailability_risk` (SQL unidad-día):
-  - Antes: término de salud con signo invertido ambiguo.
-  - Ahora: usa explícitamente `100 - aggregated_health_input`.
-- `degradation_velocity` (features):
-  - Antes: fórmula con doble ponderación accidental de `sensor_std`.
-  - Ahora: fórmula corregida y estable, alineada con deterioro.
-- `impact_on_service_proxy` (features unidad):
-  - Antes: saturación artificial masiva en 100.
-  - Ahora: normalización por percentiles (hours/cancelaciones/puntualidad) para evitar clipping degenerado.
-- `component_health_score` (scoring):
-  - Antes: mezcla parcial de health/degradation con semántica no explícita.
-  - Ahora: health consolidado con penalización por deterioro/degradación y mitigación por `maintenance_restoration_index`.
-- `component_failure_risk_score` (scoring):
-  - Antes: dominado por degradación sin controles semánticos suficientes.
-  - Ahora: logit con contribuciones explícitas de deterioro, estrés, anomalías, backlog, repetitividad y restauración (signo negativo).
+## Reglas de cálculo clave
+- `estimated_health_input_index` siempre representa salud; su complemento explícito es `deterioration_input_index`.
+- `critical_components_at_risk` cuenta componentes con salud baja (`<=35`).
+- `predicted_unavailability_risk` usa explícitamente `100 - aggregated_health_input`.
+- `component_health_score` penaliza deterioro y degradación, y reconoce restauración reciente.
+- `component_failure_risk_score` combina deterioro, estrés, anomalías, backlog, repetitividad y restauración.
 
-## Single Source of Truth (SSOT)
+## Fuentes oficiales
 La definición semántica oficial se consume en:
 - SQL marts y validación:
   - `sql/07_analytical_mart_component_day.sql`
@@ -79,7 +63,7 @@ La definición semántica oficial se consume en:
   - `docs/diccionario_metricas.md`
   - `docs/modeling_framework.md`
 
-## Validaciones anti-regresión implementadas
+## Validaciones implementadas
 - Test SQL: `val_semantic_health_deterioration`:
   - balance health+deterioration y rangos.
 - Test de signos:

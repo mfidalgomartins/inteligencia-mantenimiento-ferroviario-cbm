@@ -6,11 +6,10 @@ from typing import Dict, List, Tuple
 import numpy as np
 import pandas as pd
 
-from src.config import DATA_RAW_DIR, RANDOM_SEED
+from src.config import DATA_RAW_DIR, END_DATE, RANDOM_SEED, START_DATE
 
-
-HISTORY_START = "2024-01-01"
-HISTORY_END = "2025-12-31"
+HISTORY_START = START_DATE
+HISTORY_END = END_DATE
 
 
 @dataclass
@@ -604,21 +603,14 @@ def _generate_fallas_historicas(
         + 0.95 * d["componente_repetitivo_base"].to_numpy()
         + 0.55 * np.clip(d["carga_operativa"].to_numpy() - 0.95, 0, None)
     )
-    prob = np.clip(_sigmoid(logit) * 0.028, 0.00001, 0.08)
+    prob = np.clip(_sigmoid(logit) * 0.008, 0.00001, 0.03)
     failures = rng.random(len(d)) < prob
 
     fallas = d.loc[failures, ["fecha", "unidad_id", "componente_id", "subsistema", "degradacion_acumulada", "componente_repetitivo_base"]].copy()
 
-    def _severity(w: float) -> int:
-        if w < 0.82:
-            return 1
-        if w < 0.98:
-            return 2
-        if w < 1.12:
-            return 3
-        if w < 1.28:
-            return 4
-        return 5
+    def _severity(w: float, repetitive_flag: int) -> int:
+        latent = 1.0 + 1.9 * np.clip(w / 1.42, 0, 1) + 0.55 * repetitive_flag + rng.normal(0, 0.55)
+        return int(np.clip(round(latent), 1, 5))
 
     mode_map = {
         "motor": ["sobrecalentamiento_estator", "fatiga_bobinado", "desbalance_rotor"],
@@ -650,7 +642,7 @@ def _generate_fallas_historicas(
 
     rows = []
     for i, row in enumerate(fallas.itertuples(index=False), start=1):
-        sev = _severity(float(row.degradacion_acumulada))
+        sev = _severity(float(row.degradacion_acumulada), int(row.componente_repetitivo_base))
         downtime = float(np.clip(rng.gamma(1.8 + sev * 0.5, 1.7), 0.5, 72))
         rows.append(
             (
@@ -658,7 +650,7 @@ def _generate_fallas_historicas(
                 row.unidad_id,
                 row.componente_id,
                 row.fecha,
-                rng.choice(mode_map.get(row.subsistema, ["falla_generica"])),
+                rng.choice(mode_map.get(row.subsistema, ["falla_no_clasificada"])),
                 sev,
                 impact_map[sev],
                 round(downtime, 3),
@@ -694,15 +686,15 @@ def _generate_inspecciones_automaticas(
     subset["fecha_dt"] = pd.to_datetime(subset["fecha"])
     subset["day_index"] = (subset["fecha_dt"] - subset["fecha_dt"].min()).dt.days
 
-    base_schedule = ((subset["day_index"] + subset["componente_id"].str[-2:].astype(int)) % 14 == 0)
-    risk_trigger = (subset["degradacion_acumulada"] > 0.78) & (rng.random(len(subset)) < 0.32)
+    base_schedule = ((subset["day_index"] + subset["componente_id"].str[-2:].astype(int)) % 42 == 0)
+    risk_trigger = (subset["degradacion_acumulada"] > 0.82) & (rng.random(len(subset)) < 0.04)
     inspect_mask = base_schedule | risk_trigger
 
     insp = subset.loc[inspect_mask].copy()
     insp = insp.sort_values(["componente_id", "fecha_dt"]).reset_index(drop=True)
 
-    score = np.clip(22 + insp["degradacion_acumulada"] * 72 + rng.normal(0, 9, len(insp)), 0, 100)
-    defect_prob = np.clip(_sigmoid((score - 55) / 9) * 0.95 + 0.03, 0.02, 0.99)
+    score = np.clip(15 + insp["degradacion_acumulada"] * 60 + rng.normal(0, 12, len(insp)), 0, 100)
+    defect_prob = np.clip(_sigmoid((score - 60) / 12) * 0.70 + 0.02, 0.02, 0.82)
     defect_flag = rng.random(len(insp)) < defect_prob
 
     severity = pd.cut(
@@ -743,7 +735,7 @@ def _generate_inspecciones_automaticas(
                 row.unidad_id,
                 row.componente_id,
                 row.familia_inspeccion,
-                detector_origen.get(row.familia_inspeccion, "vision_generic"),
+                detector_origen.get(row.familia_inspeccion, "vision_multisensor"),
                 sev,
                 round(float(score.iloc[i - 1]), 3),
                 int(defect_flag[i - 1]),
@@ -921,7 +913,6 @@ def _generate_eventos_mantenimiento(
         idx += 1
 
     # Preventivos periódicos y CBM
-    comp_meta = componentes.set_index("componente_id")
     early_alerts = alertas[(alertas["alerta_temprana_flag"] == 1) & (alertas["severidad"].isin(["alta", "critica"]))]
 
     for comp in componentes.itertuples(index=False):
@@ -1238,6 +1229,7 @@ def _generate_backlog_mantenimiento(
             rows.append(
                 (
                     snap.date().isoformat(),
+                    row.intervencion_id,
                     row.deposito_id,
                     row.unidad_id,
                     row.componente_id,
@@ -1252,6 +1244,7 @@ def _generate_backlog_mantenimiento(
         rows,
         columns=[
             "fecha",
+            "backlog_id",
             "deposito_id",
             "unidad_id",
             "componente_id",
@@ -1365,7 +1358,37 @@ def _build_plausibility_validations(
     fail_downtime_positive = (tables["fallas_historicas"]["tiempo_fuera_servicio_horas"] > 0).all()
     checks.append(("downtime_fallas_positivo", fail_downtime_positive, int((tables["fallas_historicas"]["tiempo_fuera_servicio_horas"] <= 0).sum()), "0_nonpositive"))
 
+    failures = tables["fallas_historicas"]
+    critical_failure_share = float(failures["severidad_falla"].ge(4).mean())
+    checks.append(
+        (
+            "severidad_fallas_no_saturada",
+            0.05 <= critical_failure_share <= 0.45,
+            round(critical_failure_share, 4),
+            "0.05-0.45_share_severidad_4_5",
+        )
+    )
+
+    unit_count = max(int(tables["unidades"]["unidad_id"].nunique()), 1)
+    failures_per_unit_year = float(len(failures) / unit_count / (history_days / 365.25))
+    checks.append(
+        (
+            "incidencia_fallas_plausible",
+            2.0 <= failures_per_unit_year <= 30.0,
+            round(failures_per_unit_year, 3),
+            "2-30_fallas_por_unidad_año",
+        )
+    )
+
     return pd.DataFrame(checks, columns=["check", "aprobado", "valor_observado", "umbral"])
+
+
+def _assert_plausibility_validations(validations: pd.DataFrame) -> None:
+    failed = validations[~validations["aprobado"].astype(bool)]
+    if failed.empty:
+        return
+    detail = failed[["check", "valor_observado", "umbral"]].to_dict(orient="records")
+    raise RuntimeError(f"Validaciones de plausibilidad sintética fallidas: {detail}")
 
 
 def _build_cardinality_summary(tables: Dict[str, pd.DataFrame]) -> pd.DataFrame:
@@ -1408,7 +1431,7 @@ def _write_generation_logic_summary(
         "# Resumen de Lógica Sintética",
         "",
         "## Diseño de simulación",
-        "- Historial completo de 24 meses (2024-01-01 a 2025-12-31).",
+        f"- Historial completo ({START_DATE} a {END_DATE}).",
         "- Múltiples flotas, líneas y depósitos con parámetros de operación heterogéneos.",
         "- Degradación acumulativa por componente con aceleración por carga, congestión y ambiente.",
         "- Sensores con ruido realista y comportamiento dependiente de desgaste.",
@@ -1520,6 +1543,7 @@ def generate_synthetic_data(seed: int = RANDOM_SEED) -> SyntheticRailwayData:
     validations.to_csv(DATA_RAW_DIR / "validaciones_plausibilidad.csv", index=False)
     summary.to_csv(DATA_RAW_DIR / "resumen_dimensiones_cardinalidades.csv", index=False)
     _write_generation_logic_summary(tables, validations, summary)
+    _assert_plausibility_validations(validations)
 
     return data
 

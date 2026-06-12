@@ -1,9 +1,9 @@
-# Arquitectura del Repositorio (Source of Truth)
+# Arquitectura del Repositorio
 
 ## Objetivo
-Eliminar arquitectura paralela y dejar una única ruta activa por capa.
+Definir la ruta de ejecución y los artefactos oficiales por capa.
 
-## Source of Truth oficial
+## Ruta oficial por capa
 1. Pipeline
 - Entrada única: `src/run_pipeline.py`.
 
@@ -20,7 +20,7 @@ Eliminar arquitectura paralela y dejar una única ruta activa por capa.
 4. Dashboard
 - Generador único: `src/build_dashboard.py`.
 - Output final: `outputs/dashboard/centro-control-mantenimiento-ferroviario.html`.
-- Publicación GitHub Pages: `index.html` y `docs/index.html` redirigen al output canónico en `outputs/dashboard/`.
+- Publicación GitHub Pages: `index.html` redirige al output canónico en `outputs/dashboard/`.
 
 5. Métricas y narrativa
 - Governance de narrativa: `src/reporting_governance.py`.
@@ -33,10 +33,9 @@ Eliminar arquitectura paralela y dejar una única ruta activa por capa.
 ## Convenciones
 - Gobierno de métricas y datos en `docs/gobierno_metricas.md`.
 - Entrypoints de ejecución para reviewers: `scripts/run_pipeline.sh` y `scripts/run_tests.sh`.
-- Configuración operativa viva en `src/config.py`; carpeta `configs/` reservada para futura externalización declarativa.
+- Configuración operativa centralizada en `src/config.py`.
 
-## Criterio de revisión externa
-Un reviewer debe poder entender el repo en <10 minutos siguiendo:
+## Ruta de lectura recomendada
 1) `README.md`
 2) `docs/repo_architecture.md`
 3) `src/run_pipeline.py`

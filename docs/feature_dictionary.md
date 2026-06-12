@@ -45,5 +45,5 @@
 - `deferral_risk_inputs`: riesgo agregado de diferimiento para decisión táctica.
 
 ## Utilidad para CAF / entorno industrial ferroviario
-Estas señales permiten pasar de una lógica de OTs aisladas a un esquema de priorización defendible en operación,
+Estas señales permiten pasar de una lógica de OTs aisladas a un esquema de priorización trazable en operación,
 alineando salud de activo, disponibilidad de flota y saturación de taller con decisiones diarias de entrada a depósito.

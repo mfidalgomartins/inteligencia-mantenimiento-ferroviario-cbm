@@ -1,4 +1,4 @@
-# Scheduling Framework
+# Marco de Scheduling de Taller
 
 ## Objetivo
 Reducir salida no ejecutable del plan de taller sin forzar programaciones irreales.
@@ -25,38 +25,38 @@ Reducir salida no ejecutable del plan de taller sin forzar programaciones irreal
 - `pendiente_conflicto_operativo`: no programable por ventana operativa/conflicto de servicio.
 - `escalar_decision`: requiere revisión técnica/manual (alto riesgo + conflicto/información insuficiente).
 
-## Métricas Before/After
+## Comparación de métricas
 | metric                            |   baseline_greedy_21d |   heuristica_redisenada_35d |   delta_after_minus_before |
 |:----------------------------------|----------------------:|----------------------------:|---------------------------:|
-| total_casos                       |        1152           |              1152           |                0           |
-| programadas_pct                   |          30.556       |                19.271       |              -11.285       |
-| programables_proxima_ventana_pct  |           0           |                31.684       |               31.684       |
-| pendientes_total_pct              |          69.444       |                49.045       |              -20.399       |
-| pendiente_capacidad_pct           |          69.444       |                44.965       |              -24.479       |
-| pendiente_repuesto_pct            |           0           |                 4.08        |                4.08        |
-| pendiente_conflicto_operativo_pct |           0           |                 0           |                0           |
-| escalar_decision_pct              |           0           |                 0           |                0           |
-| actionable_pct                    |          30.556       |                50.955       |               20.399       |
-| capacidad_utilizada_pct           |          17.471       |                46.748       |               29.277       |
-| horas_taller_usadas               |        1822.96        |              4003.55        |             2180.6         |
-| riesgo_residual_no_atendido_pct   |          66.915       |                44.253       |              -22.662       |
-| valor_capturado_proxy             |           6.78625e+06 |                 7.92745e+06 |                1.14121e+06 |
-| valor_no_capturado_proxy          |           8.99948e+06 |                 7.85827e+06 |               -1.14121e+06 |
+| total_casos                       |        1152           |              1152           |                 0          |
+| programadas_pct                   |          30.122       |                12.674       |               -17.448      |
+| programables_proxima_ventana_pct  |           0           |                37.76        |                37.76       |
+| pendientes_total_pct              |          69.878       |                49.566       |               -20.312      |
+| pendiente_capacidad_pct           |          69.878       |                46.615       |               -23.263      |
+| pendiente_repuesto_pct            |           0           |                 2.951       |                 2.951      |
+| pendiente_conflicto_operativo_pct |           0           |                 0           |                 0          |
+| escalar_decision_pct              |           0           |                 0           |                 0          |
+| actionable_pct                    |          30.122       |                50.434       |                20.312      |
+| capacidad_utilizada_pct           |          16.901       |                45.904       |                29.003      |
+| horas_taller_usadas               |        1763.46        |              3963.65        |              2200.19       |
+| riesgo_residual_no_atendido_pct   |          68.74        |                44.734       |               -24.006      |
+| valor_capturado_proxy             |           6.27269e+06 |                 7.28518e+06 |                 1.0125e+06 |
+| valor_no_capturado_proxy          |           8.73283e+06 |                 7.72033e+06 |                -1.0125e+06 |
 
 ## Cuellos de botella principales (baseline)
 | deposito_id   |   casos |   horas_requeridas |   pendientes_capacidad |   pending_rate_pct |
 |:--------------|--------:|-------------------:|-----------------------:|-------------------:|
-| DEP01         |     864 |           4572.9   |                    652 |              75.46 |
-| DEP10         |     144 |            882.446 |                     89 |              61.81 |
-| DEP08         |     144 |            752.034 |                     59 |              40.97 |
+| DEP01         |     864 |           4471.54  |                    658 |              76.16 |
+| DEP10         |     144 |            830.311 |                     87 |              60.42 |
+| DEP08         |     144 |            699.295 |                     60 |              41.67 |
 
-## Distribución de estados (after)
+## Distribución de estados del plan rediseñado
 | estado_intervencion         |   share_pct |
 |:----------------------------|------------:|
-| pendiente_capacidad         |      44.965 |
-| programable_proxima_ventana |      31.684 |
-| programada                  |      19.271 |
-| pendiente_repuesto          |       4.08  |
+| pendiente_capacidad         |      46.615 |
+| programable_proxima_ventana |      37.76  |
+| programada                  |      12.674 |
+| pendiente_repuesto          |       2.951 |
 
 ## Trade-offs introducidos
 - Mayor capacidad de ejecución mediante carry-over y flexibilidad controlada.

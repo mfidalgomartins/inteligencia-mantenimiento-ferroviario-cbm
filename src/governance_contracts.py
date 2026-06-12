@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+
 import pandas as pd
 
 from src.config import DATA_PROCESSED_DIR, DATA_RAW_DIR, DOCS_DIR, OUTPUTS_REPORTS_DIR
@@ -124,16 +125,16 @@ def _metric_contracts() -> list[MetricContract]:
             unit="pct",
             owner="Operations Analytics",
             consumers="Dirección Operaciones, Dirección Servicio",
-            aggregation_rule="Media ponderada por horas planificadas.",
+            aggregation_rule="Media simple por flota-semana.",
             mandatory_tests="range_0_100, denominator_non_zero, temporal_coverage_min",
             anti_interpretation="No comparar sin alinear periodo/filtro de servicio.",
             source_of_truth="data/processed/narrative_metrics_official.csv",
             maturity="alta",
         ),
         MetricContract(
-            business_name="Ahorro operativo CBM vs reactiva",
+            business_name="Diferencial operativo CBM vs reactiva",
             technical_name="cbm_operational_savings_eur",
-            definition="Diferencia de coste operativo proxy entre estrategia reactiva y CBM.",
+            definition="Diferencia firmada de coste operativo proxy entre estrategia reactiva y CBM.",
             formula="coste_operativo_proxy(reactiva) - coste_operativo_proxy(CBM).",
             valid_grain="estrategia_snapshot",
             unit="eur_proxy",
@@ -141,7 +142,7 @@ def _metric_contracts() -> list[MetricContract]:
             consumers="Comité de inversión, Dirección Mantenimiento",
             aggregation_rule="No agregar con otras métricas sin escenario explícito.",
             mandatory_tests="strategy_semantic_consistency, uncertainty_non_degenerate, value_range_monotonicity",
-            anti_interpretation="No tratar como P&L real; es proxy económico dependiente de supuestos.",
+            anti_interpretation="Positivo indica ahorro y negativo coste incremental; no tratar como P&L real.",
             source_of_truth="data/processed/comparativo_estrategias.csv",
             maturity="media",
         ),
@@ -169,7 +170,7 @@ def _metric_contracts() -> list[MetricContract]:
             unit="pct",
             owner="Workshop Planning",
             consumers="Dirección Mantenimiento, Scheduling",
-            aggregation_rule="Media por depósito; global ponderada por capacidad.",
+            aggregation_rule="Media simple por depósito en el snapshot.",
             mandatory_tests="non_negative, coherence_backlog_exposure, cap_overrun_sanity",
             anti_interpretation="No confundir con productividad técnica; mide tensión de capacidad.",
             source_of_truth="data/processed/narrative_metrics_official.csv",
@@ -180,6 +181,19 @@ def _metric_contracts() -> list[MetricContract]:
 
 def _data_contracts() -> list[DataContract]:
     return [
+        DataContract(
+            table_name="backlog_mantenimiento",
+            layer="raw_synthetic",
+            grain="orden_pendiente_snapshot",
+            primary_key="(fecha, backlog_id)",
+            source_of_truth="data/raw/backlog_mantenimiento.csv",
+            required_columns="fecha,backlog_id,deposito_id,unidad_id,componente_id,tipo_pendencia,antiguedad_backlog_dias,severidad_pendiente,riesgo_acumulado",
+            freshness_expectation="por corrida pipeline",
+            owner="Maintenance Planning",
+            consumers="SQL marts, estrategia, dashboard, reporting",
+            quality_rules="pk_unique; foreign_keys_valid; age_non_negative; risk_non_negative",
+            notes="Snapshot semanal de órdenes pendientes identificadas por intervención.",
+        ),
         DataContract(
             table_name="scoring_componentes",
             layer="processed",
@@ -230,7 +244,7 @@ def _data_contracts() -> list[DataContract]:
             owner="Maintenance Strategy + Finance Analytics",
             consumers="Dashboard estratégico, README, Memo",
             quality_rules="pk_unique; strategy_set_complete; savings_semantics_consistent",
-            notes="Comparativo robusto con sensibilidad y rango de valor.",
+            notes="Comparativo con sensibilidad y rango de valor.",
         ),
         DataContract(
             table_name="impacto_diferimiento_resumen",
@@ -269,7 +283,7 @@ def _data_contracts() -> list[DataContract]:
             owner="Analytics Governance",
             consumers="README, Memo, Dashboard, Reports",
             quality_rules="pk_unique; source_of_truth_exists; metric_value_not_null",
-            notes="Single Source of Truth narrativo.",
+            notes="Registro oficial de métricas narrativas.",
         ),
     ]
 
@@ -334,7 +348,7 @@ def _run_contract_checks(metric_df: pd.DataFrame, data_df: pd.DataFrame) -> pd.D
                 "contract_type": "data",
                 "severity": "critica",
                 "passed": bool(exists),
-                "detail": f"path={path}",
+                "detail": f"path={source}",
             }
         )
         if not exists:
@@ -433,7 +447,11 @@ def run_governance_contracts(*, fail_on_blocker: bool = False) -> dict[str, str]
     checks_df.to_csv(OUTPUTS_REPORTS_DIR / "governance_contract_checks.csv", index=False)
     checks_df.to_csv(DATA_PROCESSED_DIR / "governance_contract_checks.csv", index=False)
     blocker_df = checks_df[checks_df["publish_blocker"]].copy()
-    blocker_df.to_csv(OUTPUTS_REPORTS_DIR / "governance_contract_blockers.csv", index=False)
+    blocker_path = OUTPUTS_REPORTS_DIR / "governance_contract_blockers.csv"
+    if blocker_df.empty:
+        blocker_path.unlink(missing_ok=True)
+    else:
+        blocker_df.to_csv(blocker_path, index=False)
 
     governance_doc = "\n".join(
         [
@@ -451,7 +469,7 @@ def run_governance_contracts(*, fail_on_blocker: bool = False) -> dict[str, str]
             "## Lineage por Métrica",
             _to_markdown(lineage_df),
             "",
-            "## Source of Truth crítico",
+            "## Fuentes oficiales críticas",
             "- `health_score`, `prob_fallo_30d`: `data/processed/scoring_componentes.csv`",
             "- `component_rul_estimate`: `data/processed/component_rul_estimate.csv`",
             "- backlog físico: `data/raw/backlog_mantenimiento.csv`",
@@ -467,13 +485,13 @@ def run_governance_contracts(*, fail_on_blocker: bool = False) -> dict[str, str]
             "- `component_rul_estimate`: madurez media (proxy interpretable, no modelo físico de fabricante).",
             "",
             "## Reglas de gobernanza",
-            "- Sin PK única validada, la tabla no puede ser source‑of‑truth.",
+            "- Sin PK única validada, la tabla no puede considerarse fuente oficial.",
             "- No se permite usar tabla derivada en dashboard sin contrato activo.",
             "- Si falta columna requerida, el artefacto queda en estado `non‑compliant`.",
         ]
     )
 
-    (DOCS_DIR / "gobierno_metricas.md").write_text(governance_doc, encoding="utf-8")
+    (DOCS_DIR / "gobierno_metricas.md").write_text(governance_doc + "\n", encoding="utf-8")
 
     if fail_on_blocker:
         _assert_governance_compliance(checks_df)

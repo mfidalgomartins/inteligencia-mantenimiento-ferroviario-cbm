@@ -8,10 +8,9 @@ import pandas as pd
 from src.config import DATA_PROCESSED_DIR, DATA_RAW_DIR, DOCS_DIR, OUTPUTS_REPORTS_DIR
 from src.recommendation_engine import (
     assign_operational_decisions,
-    build_recommendation_before_after_outputs,
+    write_recommendation_distribution_reports,
     write_recommendation_logic_doc,
 )
-
 
 SCHED_STATUS_PROGRAMADA = "programada"
 SCHED_STATUS_PROGRAMABLE = "programable_proxima_ventana"
@@ -468,7 +467,7 @@ def _write_scheduling_framework_doc(
 ) -> None:
     DOCS_DIR.mkdir(parents=True, exist_ok=True)
     lines = [
-        "# Scheduling Framework",
+        "# Marco de Scheduling de Taller",
         "",
         "## Objetivo",
         "Reducir salida no ejecutable del plan de taller sin forzar programaciones irreales.",
@@ -495,13 +494,13 @@ def _write_scheduling_framework_doc(
         "- `pendiente_conflicto_operativo`: no programable por ventana operativa/conflicto de servicio.",
         "- `escalar_decision`: requiere revisión técnica/manual (alto riesgo + conflicto/información insuficiente).",
         "",
-        "## Métricas Before/After",
+        "## Comparación de métricas",
         before_after.to_markdown(index=False),
         "",
         "## Cuellos de botella principales (baseline)",
         bottlenecks.to_markdown(index=False),
         "",
-        "## Distribución de estados (after)",
+        "## Distribución de estados del plan rediseñado",
         statuses_after.to_markdown(index=False),
         "",
         "## Trade-offs introducidos",
@@ -520,7 +519,7 @@ def _write_scheduling_framework_doc(
         "- Si se necesita minimización explícita de coste+risk con constraints de recursos/repuestos.",
         "- Si se requiere plan robusto multi-semana con replanificación automática.",
     ]
-    (DOCS_DIR / "scheduling_framework.md").write_text("\n".join(lines), encoding="utf-8")
+    (DOCS_DIR / "scheduling_framework.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
 def run_workshop_prioritization() -> tuple[pd.DataFrame, pd.DataFrame]:
@@ -691,7 +690,7 @@ def run_workshop_prioritization() -> tuple[pd.DataFrame, pd.DataFrame]:
     latest_scen = escenarios[escenarios["fecha"] == escenarios["fecha"].max()].copy()
     resources_index = float(latest_scen["disponibilidad_recursos_indice"].mean()) if not latest_scen.empty else 0.55
 
-    # Baseline (before) para auditoría de mejora.
+    # Baseline para auditar la mejora.
     schedule_before, cap_before = _schedule_legacy(priorities=priorities, latest=pd.to_datetime(latest), depositos=depositos)
     metrics_before = _compute_schedule_metrics(
         schedule=schedule_before,
@@ -700,7 +699,7 @@ def run_workshop_prioritization() -> tuple[pd.DataFrame, pd.DataFrame]:
         label="baseline_greedy_21d",
     )
 
-    # Scheduling rediseñado (after).
+    # Scheduling rediseñado.
     scheduling, cap_after = _schedule_redesigned(
         priorities=priorities,
         latest=pd.to_datetime(latest),
@@ -750,7 +749,7 @@ def run_workshop_prioritization() -> tuple[pd.DataFrame, pd.DataFrame]:
             "heuristica_redisenada_35d": [redesign_row[c] for c in metric_cols],
             "delta_after_minus_before": [float(redesign_row[c]) - float(baseline_row[c]) for c in metric_cols],
         }
-    )
+    ).round(3)
     before_after_delta.to_csv(DATA_PROCESSED_DIR / "scheduling_before_after_deltas.csv", index=False)
 
     bottleneck = (
@@ -821,9 +820,9 @@ def run_workshop_prioritization() -> tuple[pd.DataFrame, pd.DataFrame]:
         ),
     )
 
-    # Artefactos de hardening de recomendación (before/after + reglas + ejemplos).
+    # Distribución de recomendaciones, reglas y ejemplos.
     score_after = pd.read_csv(DATA_PROCESSED_DIR / "scoring_componentes.csv")
-    build_recommendation_before_after_outputs(score_after=score_after, priorities_after=priorities)
+    write_recommendation_distribution_reports(score=score_after, priorities=priorities)
     examples = (
         base.sort_values("intervention_priority_score", ascending=False)
         .groupby("decision_type", as_index=False, sort=False)

@@ -2,7 +2,6 @@ from pathlib import Path
 
 import pandas as pd
 
-
 ROOT = Path(__file__).resolve().parents[1]
 PROCESSED = ROOT / "data" / "processed"
 TARGET_FAMILIES = {"wheel", "brake", "bogie", "pantograph"}
@@ -47,6 +46,12 @@ def test_inspection_numerators_denominators_are_coherent():
     assert (perf["detections"] <= perf["total_inspections"]).all()
     assert (perf["failures_with_pre_detection"] <= perf["total_failures"]).all()
     assert (perf["detections_with_future_failure"] <= perf["total_detections"]).all()
+
+
+def test_synthetic_inspection_rates_are_plausible():
+    perf = _load_family_perf()
+    assert perf["defect_detection_rate"].between(0.03, 0.85).all()
+    assert perf["pre_failure_detection_rate"].between(0.03, 0.90).all()
 
 
 def test_inspection_temporal_linkage_is_non_negative():

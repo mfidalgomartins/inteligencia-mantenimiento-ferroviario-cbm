@@ -3,16 +3,14 @@ from __future__ import annotations
 import base64
 import json
 from hashlib import sha1
-from datetime import datetime
 
 import numpy as np
 import pandas as pd
 
-from src.config import DATA_PROCESSED_DIR, DATA_RAW_DIR, OUTPUTS_DASHBOARD_DIR, DOCS_DIR, ROOT_DIR
+from src.config import DATA_PROCESSED_DIR, DATA_RAW_DIR, OUTPUTS_DASHBOARD_DIR, ROOT_DIR
 from src.reporting_governance import load_or_compute_narrative_metrics
 
 DASHBOARD_SLUG = "centro-control-mantenimiento-ferroviario.html"
-PAGES_BASE_URL = "https://mfidalgomartins.github.io/inteligencia-mantenimiento-ferroviario-cbm/"
 
 
 def _embedded_font_faces() -> str:
@@ -90,7 +88,6 @@ def _coalesce_columns(df: pd.DataFrame, canonical: str, candidates: list[str]) -
 
 def build_dashboard() -> str:
     OUTPUTS_DASHBOARD_DIR.mkdir(parents=True, exist_ok=True)
-    DOCS_DIR.mkdir(parents=True, exist_ok=True)
 
     flotas = pd.read_csv(DATA_RAW_DIR / "flotas.csv")
     unidades = pd.read_csv(DATA_RAW_DIR / "unidades.csv")
@@ -98,12 +95,11 @@ def build_dashboard() -> str:
     componentes = pd.read_csv(DATA_RAW_DIR / "componentes_criticos.csv")
     backlog_raw = pd.read_csv(
         DATA_RAW_DIR / "backlog_mantenimiento.csv",
-        usecols=["fecha", "deposito_id", "unidad_id", "componente_id"],
+        usecols=["fecha", "backlog_id", "deposito_id", "unidad_id", "componente_id"],
     )
 
     fleet_week = pd.read_csv(DATA_PROCESSED_DIR / "fleet_week_features.csv")
     unit_day = pd.read_csv(DATA_PROCESSED_DIR / "unit_day_features.csv")
-    unit_risk = pd.read_csv(DATA_PROCESSED_DIR / "unit_unavailability_risk_score.csv")
     scoring = pd.read_csv(DATA_PROCESSED_DIR / "scoring_componentes.csv")
     rul = pd.read_csv(DATA_PROCESSED_DIR / "component_rul_estimate.csv")
     priorities = pd.read_csv(DATA_PROCESSED_DIR / "workshop_priority_table.csv")
@@ -219,12 +215,23 @@ def build_dashboard() -> str:
     fleet_payload = fleet_week[["week_start", "flota_id", "availability_rate", "mtbf_proxy", "mttr_proxy"]].copy()
     fleet_payload["week_start"] = fleet_payload["week_start"].dt.strftime("%Y-%m-%d")
 
-    dashboard_version = datetime.now().strftime("%Y%m%d-%H%M")
+    signature_cols = [
+        "unidad_id",
+        "componente_id",
+        "intervention_priority_score",
+        "deferral_risk_score",
+        "health_score",
+        "prob_fallo_30d",
+        "component_rul_estimate",
+    ]
+    signature_input = (
+        base[signature_cols].sort_values(["unidad_id", "componente_id"]).to_csv(index=False)
+        + json.dumps(metrics, sort_keys=True, default=str)
+    )
     payload_signature = sha1(
-        f"{len(base)}|{coverage_start}|{coverage_end}|{base['unidad_id'].nunique()}|{base['componente_id'].nunique()}".encode(
-            "utf-8"
-        )
+        signature_input.encode("utf-8")
     ).hexdigest()[:10]
+    dashboard_version = f"{coverage_end.replace('-', '')}-{payload_signature[:4]}"
 
     priority_non_null_rate = float(
         base[
@@ -243,12 +250,12 @@ def build_dashboard() -> str:
         .mean()
         * 100
     )
-    backlog_key = ["fecha", "deposito_id", "unidad_id", "componente_id"]
+    backlog_key = ["fecha", "backlog_id"]
     backlog_duplicate_count = int(backlog_raw.duplicated(backlog_key).sum())
     duplicate_backlog_issue = (
-        f"{backlog_duplicate_count} duplicados sobre key={backlog_key}"
+        f"{backlog_duplicate_count} órdenes duplicadas sobre key={backlog_key}"
         if backlog_duplicate_count > 0
-        else "sin duplicados en la key operativa de backlog"
+        else "sin órdenes duplicadas en el snapshot de backlog"
     )
 
     anomalies = [
@@ -274,10 +281,10 @@ def build_dashboard() -> str:
             "description": "el calendario más reciente no trae backlog físico; el panel usa el último snapshot con carga real.",
         },
         {
-            "severity": "warning",
-            "title": "Calidad de datos",
+            "severity": "warning" if backlog_duplicate_count > 0 else "info",
+            "title": "Cobertura de priorización",
             "value": f"{priority_non_null_rate:.1f}%",
-            "description": duplicate_backlog_issue or "cobertura completa en campos críticos de priorización.",
+            "description": duplicate_backlog_issue,
         },
     ]
 
@@ -461,6 +468,7 @@ def build_dashboard() -> str:
     .top-nav a{font-size:.78rem;text-decoration:none;color:var(--muted);background:transparent;border:1px solid transparent;padding:6px 11px;border-radius:7px;font-weight:500;transition:background .14s ease,color .14s ease}
     .top-nav a:hover{background:var(--bg-soft);color:var(--ink)}
     .insight{margin-top:14px;padding:13px 15px;border-radius:var(--radius-md);background:var(--card);border:1px solid var(--line);border-left:3px solid var(--accent);font-size:.88rem;color:var(--ink-soft);font-weight:400;line-height:1.5}
+    .insight b{color:var(--ink);font-weight:600;font-family:var(--font-mono);font-size:.86rem}
     .filter-state{margin-top:12px;padding:9px 12px;border-radius:var(--radius-sm);background:var(--bg-soft);border:1px solid var(--line);font-size:.79rem;color:var(--muted);line-height:1.5}
     .cards{margin-top:18px;display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,200px),1fr));gap:12px;min-width:0}
     .cards.cards-primary{grid-template-columns:repeat(auto-fit,minmax(min(100%,232px),1fr));gap:12px}
@@ -469,13 +477,26 @@ def build_dashboard() -> str:
     .card.primary{padding:17px 17px 16px}
     .card .k{font-size:.7rem;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;font-weight:500}
     .card .v{margin-top:10px;font-family:var(--font-mono);font-size:1.6rem;font-weight:600;line-height:1;letter-spacing:-.02em;color:var(--ink)}
-    .card.primary .v{font-size:2.05rem}
+    .card.primary .v{font-size:2.15rem}
     .card.primary.risk .v{color:var(--critical)}
     .card.primary.capacity .v{color:var(--warning)}
-    .card.primary.value .v{color:var(--positive)}
+    .card.primary.value.pos .v{color:var(--positive)}
+    .card.primary.value.neg .v{color:var(--critical)}
+    .card .delta{display:inline-flex;align-items:center;gap:4px;margin-top:11px;font-family:var(--font-mono);font-size:.74rem;font-weight:600;padding:2px 7px;border-radius:999px;letter-spacing:.01em}
+    .card .delta.up{color:var(--positive);background:var(--positive-wash)}
+    .card .delta.down{color:var(--critical);background:var(--critical-wash)}
+    .card .delta.flat{color:var(--muted);background:var(--bg-soft)}
     .card .s{margin-top:9px;font-size:.79rem;color:var(--muted);line-height:1.45}
     .card .rule{margin-top:9px;padding-top:8px;border-top:1px solid var(--line);font-size:.71rem;color:var(--muted-soft);line-height:1.4;font-weight:400}
-    .section{margin-top:24px;background:transparent;border:none;border-radius:0;padding:0;min-width:0;scroll-margin-top:18px;content-visibility:auto;contain-intrinsic-size:760px}
+    .cards.cards-ribbon{margin-top:14px;grid-template-columns:repeat(4,minmax(0,1fr));gap:1px;background:var(--line);border:1px solid var(--line);border-radius:var(--radius-md);overflow:hidden;box-shadow:var(--shadow-soft)}
+    @media (min-width:1500px){.cards.cards-ribbon{grid-template-columns:repeat(8,minmax(0,1fr))}}
+    @media (max-width:760px){.cards.cards-ribbon{grid-template-columns:repeat(2,minmax(0,1fr))}}
+    .cards-ribbon .card{border:none;border-radius:0;box-shadow:none;padding:13px 15px 14px;background:var(--card)}
+    .cards-ribbon .card:hover{border:none;background:var(--card-soft)}
+    .cards-ribbon .card .k{font-size:.67rem;letter-spacing:.07em}
+    .cards-ribbon .card .v{font-size:1.34rem;margin-top:8px}
+    .cards-ribbon .card .s{margin-top:6px;font-size:.72rem;color:var(--muted-soft)}
+    .section{margin-top:30px;background:transparent;border:none;border-radius:0;padding:0;min-width:0;scroll-margin-top:18px}
     .section.priority-block{margin-top:28px}
     .section.detail-block{margin-top:28px}
     .section-head{display:flex;justify-content:space-between;gap:14px;align-items:flex-end;flex-wrap:wrap;margin-bottom:14px;padding-bottom:12px;border-bottom:1px solid var(--line)}
@@ -652,23 +673,21 @@ def build_dashboard() -> str:
     </section>
 
     <section class="cards cards-primary" id="kpiCardsPrimary">
-      <div class="card primary"><div class="k">Disponibilidad de flota</div><div class="v" id="k_avail">-</div><div class="s">Lectura agregada de continuidad operacional.</div><div class="rule">Regla: estable si >=90%; investigar si cae por debajo de 88%.</div></div>
-      <div class="card primary risk"><div class="k">Unidades prioridad >=70</div><div class="v" id="k_uhr">-</div><div class="s">Unidades que compiten por entrada prioritaria.</div><div class="rule">Regla: si >0, ordenar por score y ventana, no por promedio de flota.</div></div>
-      <div class="card primary capacity"><div class="k">Backlog crítico físico</div><div class="v" id="k_bcf">-</div><div class="s">Carga física prioritaria pendiente de taller.</div><div class="rule">Regla: crisis si críticos/físicos supera 80%.</div></div>
-      <div class="card primary value"><div class="k">Ahorro operativo proxy CBM</div><div class="v" id="k_ahorro">-</div><div class="s">Valor incremental frente al escenario reactivo.</div><div class="rule">Regla: defender CBM si probabilidad de ahorro positivo >=75%.</div></div>
+      <div class="card primary"><div class="k">Disponibilidad de flota</div><div class="v" id="k_avail">-</div><div class="delta flat" id="k_avail_delta">—</div></div>
+      <div class="card primary risk"><div class="k">Unidades prioridad ≥70</div><div class="v" id="k_uhr">-</div><div class="s">Compiten por entrada prioritaria a taller.</div></div>
+      <div class="card primary capacity"><div class="k">Backlog crítico físico</div><div class="v" id="k_bcf">-</div><div class="s" id="k_bcf_sub">Carga prioritaria pendiente.</div></div>
+      <div class="card primary value pos"><div class="k">Diferencial CBM vs reactivo</div><div class="v" id="k_ahorro">-</div><div class="s" id="k_ahorro_sub">Coste operativo proxy frente al escenario reactivo.</div></div>
     </section>
 
-    <section class="cards" id="kpiCards">
-      <div class="card"><div class="k">MTBF</div><div class="v" id="k_mtbf">-</div><div class="s">Fiabilidad media observada.</div><div class="rule">Interpretación: menor MTBF reduce margen para diferir intervención.</div></div>
-      <div class="card"><div class="k">MTTR</div><div class="v" id="k_mttr">-</div><div class="s">Recuperación media tras incidencia.</div><div class="rule">Interpretación: MTTR alto convierte fallos en pérdida directa de servicio.</div></div>
-      <div class="card"><div class="k">Backlog físico</div><div class="v" id="k_bf">-</div><div class="s">Órdenes reales aún abiertas.</div><div class="rule">Interpretación: volumen físico define capacidad necesaria, no solo riesgo.</div></div>
-      <div class="card"><div class="k">Backlog vencido</div><div class="v" id="k_bv">-</div><div class="s">Carga fuera de ventana objetivo.</div><div class="rule">Interpretación: vencimiento alto indica cola no absorbida.</div></div>
-      <div class="card"><div class="k">Riesgo diferimiento alto</div><div class="v" id="k_drh">-</div><div class="s">Casos donde aplazar destruye valor.</div><div class="rule">Regla: umbral operativo score >=70.</div></div>
-      <div class="card"><div class="k">Exposición backlog-ajustada</div><div class="v" id="k_bea">-</div><div class="s">Presión estructural combinada del backlog.</div><div class="rule">Interpretación: >80 exige decisión de capacidad o secuenciación.</div></div>
-      <div class="card"><div class="k">Downtime extra por diferir 14d</div><div class="v" id="k_he">-</div><div class="s">Indisponibilidad incremental si se aplaza la intervención.</div><div class="rule">Interpretación: horas que justifican actuar antes de la próxima ventana larga.</div></div>
-      <div class="card"><div class="k">Correctivas evitables</div><div class="v" id="k_ce">-</div><div class="s">Intervenciones reactivas que puede absorber CBM.</div><div class="rule">Interpretación: mide carga que debería migrar a planificación.</div></div>
-      <div class="card"><div class="k">Alertas tempranas activas</div><div class="v" id="k_alertas">-</div><div class="s">Señal de vigilancia activa en la cartera.</div><div class="rule">Regla: probabilidad de fallo a 30 días >=65%.</div></div>
-      <div class="card"><div class="k">Saturación media taller</div><div class="v" id="k_sat">-</div><div class="s">Presión media sobre capacidad disponible.</div><div class="rule">Interpretación: la media oculta depósitos críticos; revisar saturación máxima.</div></div>
+    <section class="cards cards-ribbon" id="kpiCards" aria-label="Métricas operativas de detalle">
+      <div class="card"><div class="k">MTBF</div><div class="v" id="k_mtbf">-</div><div class="s">horas</div></div>
+      <div class="card"><div class="k">MTTR</div><div class="v" id="k_mttr">-</div><div class="s">horas</div></div>
+      <div class="card"><div class="k">Backlog físico</div><div class="v" id="k_bf">-</div><div class="s">órdenes abiertas</div></div>
+      <div class="card"><div class="k">Backlog vencido</div><div class="v" id="k_bv">-</div><div class="s">fuera de ventana</div></div>
+      <div class="card"><div class="k">Riesgo diferir alto</div><div class="v" id="k_drh">-</div><div class="s">casos score ≥70</div></div>
+      <div class="card"><div class="k">Correctivas evitables</div><div class="v" id="k_ce">-</div><div class="s">migrables a plan</div></div>
+      <div class="card"><div class="k">Componentes riesgo ≥65%</div><div class="v" id="k_alertas">-</div><div class="s">fallo a 30 días</div></div>
+      <div class="card"><div class="k">Saturación media taller</div><div class="v" id="k_sat">-</div><div class="s" id="k_sat_sub">capacidad usada</div></div>
     </section>
     <section class="section explainer-block" id="sec_saude">
       <div class="section-head">
@@ -700,7 +719,7 @@ def build_dashboard() -> str:
         <div>
           <span class="eyebrow">Impacto operativo</span>
           <h3>La cola se ordena por urgencia y daño evitado al servicio</h3>
-          <p>Contrasta prioridad, riesgo de diferimiento e impacto operacional para confirmar que la primera acción es defendible.</p>
+          <p>Contrasta prioridad, riesgo de diferimiento e impacto operacional para confirmar que la primera acción es coherente.</p>
         </div>
       </div>
       <div class="grid2">
@@ -760,7 +779,7 @@ def build_dashboard() -> str:
           </div>
           <div hidden>
             <p><strong>Unidad que debe entrar primero:</strong> __TOP_UNIT__</p>
-            <p><strong>Componente que debe sustituirse primero:</strong> __TOP_COMPONENT__</p>
+            <p><strong>Componente prioritario:</strong> __TOP_COMPONENT__</p>
           </div>
           <div class="decision-steps">
             <div class="step"><b>1. Entrar</b><span id="exec_step_unit">-</span></div>
@@ -890,9 +909,11 @@ function fmt0(n){ return Math.round(Number(n)).toLocaleString("es-ES"); }
 function fmtMoneyCompact(n){
   const value = Number(n);
   if(!Number.isFinite(value)) return "€0";
-  if(Math.abs(value) >= 1_000_000) return `€${fmt1(value/1_000_000)}M`;
-  if(Math.abs(value) >= 1_000) return `€${fmt0(value/1_000)}k`;
-  return `€${fmt0(value)}`;
+  const sign = value < 0 ? "−" : "";
+  const abs = Math.abs(value);
+  if(abs >= 1_000_000) return `${sign}€${fmt1(abs/1_000_000)}M`;
+  if(abs >= 1_000) return `${sign}€${fmt0(abs/1_000)}k`;
+  return `${sign}€${fmt0(abs)}`;
 }
 function mean(arr){ return arr.length ? arr.reduce((a,b)=>a+b,0)/arr.length : 0; }
 function sum(arr){ return arr.reduce((a,b)=>a+b,0); }
@@ -946,9 +967,13 @@ function renderFilterState(){
   if(search){
     active.push(`Búsqueda: ${search}`);
   }
-  el.textContent = active.length
-    ? `Filtros activos: ${active.join(" · ")}`
-    : "Vista completa sin filtros activos.";
+  if(active.length){
+    el.textContent = `Filtros activos: ${active.join(" · ")}`;
+    el.hidden = false;
+  } else {
+    el.textContent = "";
+    el.hidden = true;
+  }
 }
 
 function initFilters(){
@@ -1159,9 +1184,9 @@ function renderKPIs(d){
   const topDepotSat = toNum(metricSnapshot.top_depot_saturation_pct);
   const probPositive = toNum(metricSnapshot.cbm_prob_positive_savings) * 100;
 
-  setText("k_avail", `${fmt2(avail)}%`);
-  setText("k_mtbf", fmt2(mtbf));
-  setText("k_mttr", fmt2(mttr));
+  setText("k_avail", `${fmt1(avail)}%`);
+  setText("k_mtbf", fmt0(mtbf));
+  setText("k_mttr", fmt1(mttr));
   setText("k_uhr", fmt0(highPriorityUnits));
   setText("k_bf", fmt0(backlogPhysical));
   setText("k_bv", fmt0(backlogOverdue));
@@ -1169,10 +1194,37 @@ function renderKPIs(d){
   setText("k_drh", fmt0(deferralHigh));
   setText("k_bea", fmt1(exposure));
   setText("k_he", `${fmt1(downtimeDeferral14d)} h`);
-  setText("k_ce", fmt1(avoidableCorrectives));
-  setText("k_ahorro", `€${fmt0(savings)}`);
+  setText("k_ce", fmt0(avoidableCorrectives));
+  setText("k_ahorro", fmtMoneyCompact(savings));
   setText("k_alertas", fmt0(alerts));
-  setText("k_sat", `${fmt1(sat)}%`);
+  setText("k_sat", `${fmt0(sat)}%`);
+
+  // Disponibilidad: delta firmado frente al objetivo operativo del 90%.
+  const availTarget = 90;
+  const availDelta = avail - availTarget;
+  const availEl = document.getElementById("k_avail_delta");
+  if(availEl){
+    const up = availDelta >= 0;
+    availEl.className = `delta ${up ? "up" : "down"}`;
+    availEl.textContent = `${up ? "▲" : "▼"} ${up ? "+" : "−"}${fmt1(Math.abs(availDelta))} pp vs objetivo 90%`;
+  }
+
+  // Backlog crítico: cuota sobre el backlog físico para leer la severidad de la cola.
+  const criticalShare = backlogPhysical > 0 ? (backlogCritical / backlogPhysical) * 100 : 0;
+  setText("k_bcf_sub", `${fmt0(criticalShare)}% del backlog físico es crítico`);
+
+  // Saturación: contexto del depósito más tensionado.
+  setText("k_sat_sub", topDepot && topDepot !== "n/a" ? `máx. ${fmt0(topDepotSat)}% · ${topDepot}` : "capacidad usada");
+
+  // Diferencial CBM: el color y el signo deben coincidir (verde=ahorro, rojo=coste).
+  const valueCard = document.querySelector(".card.primary.value");
+  if(valueCard){
+    valueCard.classList.toggle("pos", savings >= 0);
+    valueCard.classList.toggle("neg", savings < 0);
+  }
+  setText("k_ahorro_sub", savings >= 0
+    ? "Ahorro operativo proxy frente a reactivo."
+    : "Sobrecoste operativo proxy frente a reactivo.");
   setText("s_count_rows", fmt0(d.rows.length));
   setText("s_count_units", fmt0(d.uniqueUnits.size));
   setText("s_count_high", fmt0(d.highRiskUnits.size));
@@ -1481,10 +1533,15 @@ function renderInsights(d){
   const prob = cbm ? toNum(cbm.prob_ahorro_positivo)*100 : 0;
   const rmin = cbm ? toNum(cbm.rango_plausible_valor_min)/1e6 : 0;
   const rmax = cbm ? toNum(cbm.rango_plausible_valor_max)/1e6 : 0;
+  const valueReading = savings >= 0
+    ? `preserva valor por ~${fmt0(savings)} EUR`
+    : `presenta un coste incremental de ~${fmt0(Math.abs(savings))} EUR`;
   document.getElementById("strategyInsight").textContent =
-    `Lectura estratégica: CBM vs reactiva preserva valor por ~${fmt0(savings)} EUR en escenario base, con probabilidad de ahorro positivo del ${fmt1(prob)}% y rango plausible de ${fmt2(rmin)}M€ a ${fmt2(rmax)}M€.`;
-  document.getElementById("headerInsight").textContent =
-    `Resumen operativo del recorte actual: ${d.rows.length} componentes, ${d.uniqueUnits.size} unidades y ${d.highRiskUnits.size} unidades con prioridad >=70 en la vista filtrada. La prioridad oficial sigue siendo ${metricSnapshot.top_unit_by_priority}/${metricSnapshot.top_component_by_priority}.`;
+    `Lectura estratégica: CBM vs reactiva ${valueReading} en escenario base, con probabilidad de ahorro positivo del ${fmt1(prob)}% y rango plausible de ${fmt2(rmin)}M€ a ${fmt2(rmax)}M€.`;
+  const topUnit = metricSnapshot.top_unit_by_priority || "n/a";
+  const topComp = metricSnapshot.top_component_by_priority || "n/a";
+  document.getElementById("headerInsight").innerHTML =
+    `Prioridad nº1: <b>${esc(topUnit)} · ${esc(topComp)}</b>. ${fmt0(d.highRiskUnits.size)} unidades con prioridad ≥70 compiten por entrada a taller en la vista actual.`;
 }
 
 function renderCharts(d){
@@ -1647,32 +1704,46 @@ window.addEventListener("scroll", syncFloatingControls, { passive:true });
 
     branded_path = OUTPUTS_DASHBOARD_DIR / DASHBOARD_SLUG
     branded_path.write_text(html, encoding="utf-8")
-    redirect_html = "\n".join(
-        [
-            "<!DOCTYPE html>",
-            "<html lang=\"es\">",
-            "<head>",
-            "  <meta charset=\"UTF-8\" />",
-            f"  <meta http-equiv=\"refresh\" content=\"0; url={PAGES_BASE_URL}outputs/dashboard/{DASHBOARD_SLUG}\" />",
-            "  <title>Dashboard Operativo</title>",
-            "</head>",
-            "<body>",
-            "  <p>Redirigiendo al dashboard operativo...</p>",
-            "</body>",
-            "</html>",
-        ]
-    )
-    docs_index = DOCS_DIR / "index.html"
-    docs_index.write_text(redirect_html, encoding="utf-8")
+    def _redirect_html(target_url: str) -> str:
+        return "\n".join(
+            [
+                "<!DOCTYPE html>",
+                "<html lang=\"es\">",
+                "<head>",
+                "  <meta charset=\"UTF-8\" />",
+                "  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\" />",
+                f"  <meta http-equiv=\"refresh\" content=\"0; url={target_url}\" />",
+                "  <title>Centro de Control CBM Ferroviario</title>",
+                "  <style>",
+                "    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }",
+                "    html, body { height: 100%; font-family: -apple-system, BlinkMacSystemFont, \"Segoe UI\", system-ui, sans-serif; background: #f4f4f5; color: #18181b; }",
+                "    body { display: flex; align-items: center; justify-content: center; padding: 24px; }",
+                "    main { text-align: center; max-width: 420px; }",
+                "    .label { font-size: .75rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: #2f6ae4; margin-bottom: 1rem; }",
+                "    h1 { font-size: 1.5rem; font-weight: 650; color: #18181b; margin-bottom: .5rem; }",
+                "    p { font-size: .92rem; color: #71717a; margin-bottom: 1.5rem; line-height: 1.5; }",
+                "    a { color: #2f6ae4; font-weight: 650; text-decoration: none; }",
+                "    a:hover { text-decoration: underline; }",
+                "    .spinner { width: 24px; height: 24px; border: 2px solid #e4e4e7; border-top-color: #2f6ae4; border-radius: 50%; animation: spin .7s linear infinite; margin: 0 auto 1rem; }",
+                "    @keyframes spin { to { transform: rotate(360deg); } }",
+                "    @media (prefers-color-scheme: dark) { html, body { background: #111113; color: #f4f4f5; } h1 { color: #f4f4f5; } .spinner { border-color: #27272a; border-top-color: #4d8bf0; } }",
+                "  </style>",
+                "</head>",
+                "<body>",
+                "  <main>",
+                "    <div class=\"label\">Mantenimiento basado en condición</div>",
+                "    <h1>Centro de control CBM ferroviario</h1>",
+                "    <p>Redirigiendo al dashboard operativo.</p>",
+                "    <div class=\"spinner\" aria-hidden=\"true\"></div>",
+                f"    <p><a href=\"{target_url}\">Abrir dashboard</a></p>",
+                "  </main>",
+                "</body>",
+                "</html>",
+            ]
+        )
+
     root_index = ROOT_DIR / "index.html"
-    root_index.write_text(
-        redirect_html.replace(
-            f"{PAGES_BASE_URL}outputs/dashboard/{DASHBOARD_SLUG}",
-            f"outputs/dashboard/{DASHBOARD_SLUG}",
-        ),
-        encoding="utf-8",
-    )
-    (DOCS_DIR / ".nojekyll").write_text("", encoding="utf-8")
+    root_index.write_text(_redirect_html(f"outputs/dashboard/{DASHBOARD_SLUG}") + "\n", encoding="utf-8")
     (ROOT_DIR / ".nojekyll").write_text("", encoding="utf-8")
     return str(branded_path)
 

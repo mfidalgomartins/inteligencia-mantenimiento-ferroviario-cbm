@@ -90,6 +90,7 @@ FROM raw_asignacion_servicio;
 CREATE OR REPLACE VIEW stg_backlog_mantenimiento AS
 SELECT
     CAST(fecha AS DATE) AS fecha,
+    CAST(backlog_id AS VARCHAR) AS backlog_id,
     CAST(deposito_id AS VARCHAR) AS deposito_id,
     CAST(unidad_id AS VARCHAR) AS unidad_id,
     CAST(componente_id AS VARCHAR) AS componente_id,
