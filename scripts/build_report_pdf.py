@@ -236,7 +236,7 @@ def build() -> None:
     )
 
     d.p(
-        f"La flota sintética mantiene una disponibilidad media del {fmt_pct(mv('fleet_availability_pct'), 2)} "
+        f"La flota mantiene una disponibilidad media del {fmt_pct(mv('fleet_availability_pct'), 2)} "
         f"durante el periodo {m['coverage_start']} a {m['coverage_end']}. Ese nivel agregado es tranquilizador "
         f"y, por sí solo, engañoso. Detrás de él se acumulan {fmt_int(mv('backlog_physical_items_count'))} pendientes "
         f"físicos, de los cuales {fmt_int(mv('backlog_overdue_items_count'))} están vencidos y "
@@ -383,9 +383,9 @@ def build() -> None:
         "rationale, de forma que un planificador puede entender por qué un caso está por encima de otro."
     )
     d.p(
-        "El diseño favorece la trazabilidad sobre la complejidad predictiva. Esa es una elección apropiada para un "
-        "prototipo avanzado cuyo objetivo es demostrar arquitectura y lógica de decisión, no maximizar una métrica de "
-        "validación externa que los datos sintéticos no pueden ofrecer. La contrapartida es explícita: antes de un uso "
+        "El diseño favorece la trazabilidad sobre la complejidad predictiva. Es una elección deliberada: "
+        "un modelo legible y auditable tiene más valor operativo que uno más opaco con mayor precisión aparente "
+        "sobre datos que no ofrecen señal de validación externa. La contrapartida es explícita: antes de un uso "
         "operacional real, los scores requieren recalibración con histórico observado y validación temporal."
     )
     d.h(3, "La comparación estratégica separa servicio, técnica y economía")
