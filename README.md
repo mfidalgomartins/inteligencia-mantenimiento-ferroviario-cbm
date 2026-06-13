@@ -2,7 +2,7 @@
 
 Plataforma de decisión para flotas ferroviarias: prioriza intervenciones de taller, cuantifica el riesgo de diferir cada decisión y mide el valor del mantenimiento basado en condición frente a una estrategia reactiva.
 
-**[Dashboard en vivo](https://mfidalgomartins.github.io/inteligencia-mantenimiento-ferroviario-cbm/)** · Python · SQL · DuckDB · HTML offline
+**[Dashboard en vivo](https://mfidalgomartins.github.io/inteligencia-mantenimiento-ferroviario-cbm/)** · **[Informe analítico (PDF)](https://mfidalgomartins.github.io/inteligencia-mantenimiento-ferroviario-cbm/outputs/reports/informe_analitico_cbm_ferroviario.pdf)**
 
 ## Resultados - flota sintética de 144 unidades
 
@@ -58,10 +58,6 @@ Plataforma de decisión para flotas ferroviarias: prioriza intervenciones de tal
 ## Dashboard
 
 HTML autocontenido sin dependencias externas. Funciona offline e incluye filtros por flota, depósito, familia, sistema, riesgo e intervención.
-
-**[Abrir dashboard en vivo](https://mfidalgomartins.github.io/inteligencia-mantenimiento-ferroviario-cbm/)**
-
-**[Descargar informe analítico (PDF)](outputs/reports/informe_analitico_cbm_ferroviario.pdf)**
 
 ## Arquitectura
 

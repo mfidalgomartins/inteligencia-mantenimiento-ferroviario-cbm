@@ -172,7 +172,7 @@ def build() -> None:
         f"""
 <section class="cover">
   <div class="cover-band">
-    <div class="kicker">Informe analítico · v1.0</div>
+    <div class="kicker">Informe analítico</div>
     <h1 class="cover-title">Inteligencia de mantenimiento ferroviario</h1>
     <p class="cover-sub">Riesgo, priorización de taller, vida remanente y disciplina económica
     del mantenimiento basado en condición</p>
@@ -184,13 +184,10 @@ def build() -> None:
     <div class="cover-meta-row"><span>Controles de gobernanza</span><strong>{len(checks)} activos · 0 bloqueos de publicación</strong></div>
   </div>
   <div class="cover-decision">
-    <div class="cover-decision-label">Decisión que soporta este informe</div>
-    <p>Aprobar la secuencia de intervención basada en riesgo y el rebalanceo de capacidad de taller
-    para proteger disponibilidad, manteniendo la inversión en mantenimiento basado en condición
-    condicionada a una calibración económica con costes reales.</p>
+    <p>La secuencia de intervención basada en riesgo y el rebalanceo de capacidad de taller
+    son la prioridad inmediata para proteger disponibilidad. La inversión en mantenimiento basado
+    en condición queda condicionada a una calibración económica con costes reales.</p>
   </div>
-  <div class="cover-foot">Documento generado sobre datos sintéticos deterministas y métricas proxy.
-  Uso analítico y demostrativo.</div>
 </section>
 """
     )
@@ -1066,7 +1063,7 @@ def base_css() -> str:
   size:A4; margin:20mm 18mm 18mm 18mm;
   @top-left{ content:"Inteligencia de mantenimiento ferroviario"; font-family:'IBM Plex Sans'; font-size:7pt; color:#98a2b3; font-weight:600; letter-spacing:.04em; }
   @top-right{ content:string(section); font-family:'IBM Plex Sans'; font-size:7pt; color:#98a2b3; font-weight:600; text-transform:uppercase; letter-spacing:.04em; }
-  @bottom-left{ content:"Informe analítico · datos sintéticos y métricas proxy"; font-family:'IBM Plex Sans'; font-size:7pt; color:#98a2b3; }
+  @bottom-left{ content:"Inteligencia de mantenimiento ferroviario"; font-family:'IBM Plex Sans'; font-size:7pt; color:#98a2b3; }
   @bottom-right{ content:counter(page) " / " counter(pages); font-family:'IBM Plex Mono'; font-size:7.5pt; color:#98a2b3; }
 }
 @page cover{ margin:0; @top-left{content:""} @top-right{content:""} @bottom-left{content:""} @bottom-right{content:""} }
@@ -1088,9 +1085,7 @@ h2{ string-set:section attr(data-section); }
 .cover-meta-row span{ font-size:8pt; font-weight:600; letter-spacing:.06em; text-transform:uppercase; color:var(--muted); }
 .cover-meta-row strong{ font-size:10.5pt; color:var(--ink); font-weight:600; }
 .cover-decision{ margin:12mm 20mm 0 20mm; padding:7mm; background:var(--panel); border-left:3pt solid var(--accent); }
-.cover-decision-label{ font-size:8pt; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:var(--accent); margin-bottom:3mm; }
 .cover-decision p{ font-size:11.5pt; font-weight:600; line-height:1.5; margin:0; text-align:left; }
-.cover-foot{ position:absolute; bottom:14mm; left:20mm; right:20mm; font-size:7.5pt; color:var(--muted); }
 
 /* ---------- Índice ---------- */
 .toc{ page:toc; padding-top:6mm; break-after:page; }
