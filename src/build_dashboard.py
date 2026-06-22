@@ -926,6 +926,16 @@ function esc(v){
     .replaceAll("'", "&#39;");
 }
 
+function setSelectOptions(sel, values){
+  sel.replaceChildren();
+  values.forEach(value => {
+    const opt = document.createElement("option");
+    opt.value = String(value);
+    opt.textContent = String(value);
+    sel.appendChild(opt);
+  });
+}
+
 function badge(level){
   const cls = level==="Critico"?"badge-critico":(level==="Alto"?"badge-alto":(level==="Medio"?"badge-medio":"badge-bajo"));
   return `<span class="badge ${cls}">${esc(level)}</span>`;
@@ -979,7 +989,7 @@ function renderFilterState(){
 function initFilters(){
   filters.forEach(([id,key]) => {
     const sel = document.getElementById(id);
-    sel.innerHTML = uniq(baseRows.map(r => r[key])).map(v => `<option value="${v}">${v}</option>`).join("");
+    setSelectOptions(sel, uniq(baseRows.map(r => r[key])));
     sel.addEventListener("change", applyFilters);
   });
   document.getElementById("searchBox").addEventListener("input", applyFilters);

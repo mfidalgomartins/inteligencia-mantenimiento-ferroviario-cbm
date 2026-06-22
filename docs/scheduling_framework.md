@@ -28,33 +28,33 @@ Reducir salida no ejecutable del plan de taller sin forzar programaciones irreal
 ## Comparación de métricas
 | metric                            |   baseline_greedy_21d |   heuristica_redisenada_35d |   delta_after_minus_before |
 |:----------------------------------|----------------------:|----------------------------:|---------------------------:|
-| total_casos                       |        1152           |              1152           |                 0          |
-| programadas_pct                   |          30.122       |                12.674       |               -17.448      |
-| programables_proxima_ventana_pct  |           0           |                37.76        |                37.76       |
-| pendientes_total_pct              |          69.878       |                49.566       |               -20.312      |
-| pendiente_capacidad_pct           |          69.878       |                46.615       |               -23.263      |
-| pendiente_repuesto_pct            |           0           |                 2.951       |                 2.951      |
-| pendiente_conflicto_operativo_pct |           0           |                 0           |                 0          |
-| escalar_decision_pct              |           0           |                 0           |                 0          |
-| actionable_pct                    |          30.122       |                50.434       |                20.312      |
-| capacidad_utilizada_pct           |          16.901       |                45.904       |                29.003      |
-| horas_taller_usadas               |        1763.46        |              3963.65        |              2200.19       |
-| riesgo_residual_no_atendido_pct   |          68.74        |                44.734       |               -24.006      |
-| valor_capturado_proxy             |           6.27269e+06 |                 7.28518e+06 |                 1.0125e+06 |
-| valor_no_capturado_proxy          |           8.73283e+06 |                 7.72033e+06 |                -1.0125e+06 |
+| total_casos                       |        1152           |              1152           |                0           |
+| programadas_pct                   |          29.774       |                12.674       |              -17.1         |
+| programables_proxima_ventana_pct  |           0           |                37.587       |               37.587       |
+| pendientes_total_pct              |          70.226       |                49.74        |              -20.486       |
+| pendiente_capacidad_pct           |          70.226       |                46.788       |              -23.438       |
+| pendiente_repuesto_pct            |           0           |                 2.951       |                2.951       |
+| pendiente_conflicto_operativo_pct |           0           |                 0           |                0           |
+| escalar_decision_pct              |           0           |                 0           |                0           |
+| actionable_pct                    |          29.774       |                50.26        |               20.486       |
+| capacidad_utilizada_pct           |          16.753       |                45.807       |               29.054       |
+| horas_taller_usadas               |        1748.01        |              3955.25        |             2207.23        |
+| riesgo_residual_no_atendido_pct   |          69.025       |                44.856       |              -24.169       |
+| valor_capturado_proxy             |           6.23653e+06 |                 7.27594e+06 |                1.03942e+06 |
+| valor_no_capturado_proxy          |           8.76899e+06 |                 7.72957e+06 |               -1.03942e+06 |
 
 ## Cuellos de botella principales (baseline)
 | deposito_id   |   casos |   horas_requeridas |   pendientes_capacidad |   pending_rate_pct |
 |:--------------|--------:|-------------------:|-----------------------:|-------------------:|
-| DEP01         |     864 |           4471.54  |                    658 |              76.16 |
+| DEP01         |     864 |           4471.54  |                    660 |              76.39 |
 | DEP10         |     144 |            830.311 |                     87 |              60.42 |
-| DEP08         |     144 |            699.295 |                     60 |              41.67 |
+| DEP08         |     144 |            699.295 |                     62 |              43.06 |
 
 ## Distribución de estados del plan rediseñado
 | estado_intervencion         |   share_pct |
 |:----------------------------|------------:|
-| pendiente_capacidad         |      46.615 |
-| programable_proxima_ventana |      37.76  |
+| pendiente_capacidad         |      46.788 |
+| programable_proxima_ventana |      37.587 |
 | programada                  |      12.674 |
 | pendiente_repuesto          |       2.951 |
 

@@ -64,6 +64,11 @@ EXPORT_OBJECTS = [
     "val_consistency_scores_actions",
     "val_semantic_health_deterioration",
     "val_backlog_semantic_consistency",
+    "val_primary_key_uniqueness",
+    "val_referential_integrity",
+    "val_join_cardinality",
+    "val_metric_ranges",
+    "val_business_metric_coherence",
 ]
 
 
@@ -109,6 +114,11 @@ def _assert_sql_validations(con: duckdb.DuckDBPyConnection) -> None:
         "val_sensor_ranges",
         "val_temporal_coherence",
         "val_backlog_semantic_consistency",
+        "val_primary_key_uniqueness",
+        "val_referential_integrity",
+        "val_join_cardinality",
+        "val_metric_ranges",
+        "val_business_metric_coherence",
     ]
     failures: dict[str, dict[str, float]] = {}
     for view in zero_views:

@@ -1,6 +1,9 @@
 from pathlib import Path
 
 import pandas as pd
+import pytest
+
+from src.recommendation_engine import assign_component_recommendations, assign_operational_decisions
 
 ROOT = Path(__file__).resolve().parents[1]
 PROCESSED = ROOT / "data" / "processed"
@@ -39,3 +42,46 @@ def test_escalation_is_traceable_to_conflict_rule():
         return
     assert escalated["recommendation_conflict_flag"].eq(1).all()
     assert escalated["recommendation_rule_id"].eq("R07_escalado_conflicto").all()
+
+
+def test_component_recommendations_validate_required_columns():
+    with pytest.raises(ValueError, match="columnas obligatorias ausentes"):
+        assign_component_recommendations(pd.DataFrame({"component_health_score": [80.0]}))
+
+
+def test_operational_decisions_validate_required_columns():
+    with pytest.raises(ValueError, match="columnas obligatorias ausentes"):
+        assign_operational_decisions(pd.DataFrame({"prob_fallo_30d": [0.1]}))
+
+
+def test_component_recommendations_do_not_mutate_input():
+    df = pd.DataFrame(
+        {
+            "component_failure_risk_score": [0.05, 0.55, 0.95],
+            "component_health_score": [92.0, 55.0, 18.0],
+            "deterioration_index": [4.0, 44.0, 91.0],
+            "predicted_unavailability_risk": [0.03, 0.35, 0.84],
+            "impact_on_service_proxy": [8.0, 45.0, 96.0],
+            "defect_confidence_recent": [0.9, 0.65, 0.88],
+            "critical_alerts_count": [0, 1, 3],
+            "backlog_exposure_flag": [0, 0, 1],
+            "confidence_flag": ["alta", "media", "alta"],
+        }
+    )
+    before = df.copy(deep=True)
+
+    out = assign_component_recommendations(df)
+
+    pd.testing.assert_frame_equal(df, before)
+    assert "recommended_action_initial" in out.columns
+    assert set(out["recommended_action_initial"]).issubset(
+        {
+            "intervencion_inmediata",
+            "intervencion_proxima_ventana",
+            "inspeccion_prioritaria",
+            "monitorizacion_intensiva",
+            "mantener_bajo_observacion",
+            "no_accion_por_ahora",
+            "escalado_tecnico_manual_review",
+        }
+    )

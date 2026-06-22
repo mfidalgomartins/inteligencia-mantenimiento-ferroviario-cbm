@@ -36,6 +36,7 @@ SELECT
     w.week_start,
     w.flota_id,
     w.availability_rate,
+    w.failures_count,
     CASE
         WHEN w.failures_count > 0 THEN w.available_hours / w.failures_count
         ELSE w.available_hours

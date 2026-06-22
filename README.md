@@ -2,7 +2,7 @@
 
 Plataforma de decisión para flotas ferroviarias: prioriza intervenciones de taller, cuantifica el riesgo de diferir cada decisión y mide el valor del mantenimiento basado en condición frente a una estrategia reactiva.
 
-**[Dashboard en vivo](https://mfidalgomartins.github.io/inteligencia-mantenimiento-ferroviario-cbm/)** · **[Informe analítico (PDF)](https://mfidalgomartins.github.io/inteligencia-mantenimiento-ferroviario-cbm/outputs/reports/informe_analitico_cbm_ferroviario.pdf)**
+**[Dashboard en vivo](https://mfidalgomartins.github.io/inteligencia-mantenimiento-ferroviario-cbm/)** · Python · SQL · DuckDB · HTML offline
 
 ## Resultados - flota sintética de 144 unidades
 
@@ -59,6 +59,10 @@ Plataforma de decisión para flotas ferroviarias: prioriza intervenciones de tal
 
 HTML autocontenido sin dependencias externas. Funciona offline e incluye filtros por flota, depósito, familia, sistema, riesgo e intervención.
 
+**[Abrir dashboard en vivo](https://mfidalgomartins.github.io/inteligencia-mantenimiento-ferroviario-cbm/)**
+
+**[Descargar informe analítico (PDF)](outputs/reports/informe_analitico_cbm_ferroviario.pdf)**
+
 ## Arquitectura
 
 ```
@@ -81,6 +85,7 @@ source .venv/bin/activate
 python -m pip install -r requirements-lock.txt
 ./scripts/run_pipeline.sh
 ./scripts/run_tests.sh
+./scripts/run_coverage.sh
 ```
 La pipeline usa semilla fija y regenera datos, métricas, documentación derivada y dashboard.
 
@@ -96,7 +101,7 @@ tests/        validaciones de QA, métricas y consistencia
 docs/         reproducibilidad, supuestos y contratos de métricas
 ```
 
-Documentación técnica: [`reproducibility`](docs/reproducibility.md) · [`repo_architecture`](docs/repo_architecture.md) · [`rul_framework`](docs/rul_framework.md) · [`gobierno_metricas`](docs/gobierno_metricas.md)
+Documentación técnica: [`reproducibility`](docs/reproducibility.md) · [`repo_architecture`](docs/repo_architecture.md) · [`production_readiness`](docs/production_readiness.md) · [`security_dependency_hygiene`](docs/security_dependency_hygiene.md) · [`rul_framework`](docs/rul_framework.md) · [`gobierno_metricas`](docs/gobierno_metricas.md)
 
 ## Limitaciones
 - Todos los datos son sintéticos; los umbrales requieren calibración antes de uso operacional.
@@ -105,7 +110,7 @@ Documentación técnica: [`reproducibility`](docs/reproducibility.md) · [`repo_
 - El scheduling es heurístico y no garantiza una solución global óptima.
 
 ## Stack
-Python · SQL · DuckDB · pandas · matplotlib · pytest · HTML/CSS/JavaScript
+Python · SQL · DuckDB · pandas · matplotlib · pytest · pytest-cov · HTML/CSS/JavaScript
 
 ## Licencia
 MIT.

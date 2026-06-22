@@ -5,11 +5,17 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 DASHBOARD = ROOT / "outputs" / "dashboard" / "centro-control-mantenimiento-ferroviario.html"
+ROOT_INDEX = ROOT / "index.html"
 
 
 def _html() -> str:
     assert DASHBOARD.exists(), f"Dashboard oficial no existe: {DASHBOARD}"
     return DASHBOARD.read_text(encoding="utf-8")
+
+
+def _root_index_html() -> str:
+    assert ROOT_INDEX.exists(), f"Index público no existe: {ROOT_INDEX}"
+    return ROOT_INDEX.read_text(encoding="utf-8")
 
 
 def test_dashboard_single_official_artifact():
@@ -22,6 +28,29 @@ def test_dashboard_offline_no_cdn_refs():
     html = _html()
     assert re.search(r"<script[^>]+src=['\"]https?://", html, flags=re.IGNORECASE) is None
     assert re.search(r"<link[^>]+href=['\"]https?://", html, flags=re.IGNORECASE) is None
+
+
+def test_static_html_blocks_high_risk_embedding_and_navigation_patterns():
+    for html in [_html(), _root_index_html()]:
+        for pattern in [
+            r"\s+on[a-z]+\s*=",
+            r"javascript:",
+            r"<iframe\b",
+            r"<object\b",
+            r"<embed\b",
+            r"<form\b",
+        ]:
+            assert re.search(pattern, html, flags=re.IGNORECASE) is None, f"Patrón HTML inseguro: {pattern}"
+        assert re.search(r'target=["\']_blank["\']', html, flags=re.IGNORECASE) is None
+
+
+def test_root_index_redirect_stays_relative_to_official_dashboard():
+    html = _root_index_html()
+    expected = "outputs/dashboard/centro-control-mantenimiento-ferroviario.html"
+    assert f'content="0; url={expected}"' in html
+    assert f'href="{expected}"' in html
+    assert "http://" not in html.lower()
+    assert "https://" not in html.lower()
 
 
 def test_dashboard_meta_stamp_present():
@@ -73,3 +102,10 @@ def test_dashboard_responsive_redraw_debounce():
     html = _html()
     assert "window.addEventListener(\"resize\"" in html
     assert "setTimeout(() => renderAll(), 180)" in html
+
+
+def test_dashboard_filter_options_are_dom_built_not_template_injected():
+    html = _html()
+    assert "function setSelectOptions(sel, values)" in html
+    assert "document.createElement(\"option\")" in html
+    assert "sel.innerHTML = uniq(baseRows.map" not in html

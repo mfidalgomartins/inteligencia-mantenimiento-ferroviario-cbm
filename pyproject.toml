@@ -14,3 +14,15 @@ ignore = ["E501"]
 
 [tool.ruff.lint.per-file-ignores]
 "src/rul_estimation.py" = ["E402"]
+
+[tool.coverage.run]
+branch = true
+source = ["src"]
+omit = ["src/notebooks_builder.py"]
+
+[tool.coverage.report]
+show_missing = true
+skip_empty = true
+exclude_also = [
+    "if __name__ == .__main__.:",
+]

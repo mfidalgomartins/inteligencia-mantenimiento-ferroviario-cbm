@@ -7,6 +7,13 @@
 
 ## Métricas núcleo en marts/vistas
 
+## Reglas de validación obligatorias
+- Toda métrica `*_rate`, `*_ratio`, `*_coverage` y `*_proxy` normalizada debe mantenerse en `[0,1]` salvo definición explícita distinta.
+- Toda métrica `*_score`, `*_index` acotada debe mantenerse en `[0,100]`.
+- Los marts deben respetar su grano oficial: componente-día, unidad-día y flota-semana.
+- La integridad unidad-componente es obligatoria en sensores, inspecciones, mantenimiento, fallas, alertas y backlog.
+- Las reglas anteriores se controlan en `sql/11_validation_queries.sql` mediante `val_primary_key_uniqueness`, `val_referential_integrity`, `val_join_cardinality`, `val_metric_ranges` y `val_business_metric_coherence`.
+
 ### `estimated_health_input_index` (mart_component_day)
 Índice base de salud por componente-día (0-100, alto=mejor).
 - Construcción: complemento de `deterioration_input_index`.
@@ -25,11 +32,13 @@
 ### `predicted_unavailability_risk`
 Riesgo proxy de indisponibilidad por unidad (0-1, alto=peor).
 - Construcción: salud agregada inversa + componentes críticos comprometidos + backlog + no disponibilidad + sustituciones.
+- Grano válido: `fecha, unidad_id`.
 
 ### `saturation_ratio`
 Presión de capacidad de taller por depósito (alto=peor).
 - Construcción: carga diaria equivalente / capacidad.
 - Uso: identificar cuellos de botella y riesgo de diferimiento.
+- Grano válido: `fecha, deposito_id`.
 
 ### `backlog_physical_items` / `backlog_overdue_items` / `backlog_critical_items`
 Taxonomía oficial de backlog físico en marts/vistas.
@@ -58,10 +67,12 @@ Frecuencia de mantenimiento por componente en 180 días.
 ### `mtbf_proxy`
 Tiempo medio entre fallas por flota-semana (alto=mejor).
 - Fórmula: `sum(horas_disponibles) / sum(failures_count)`; si no hay fallas, se reportan las horas disponibles observadas.
+- Grano válido: `week_start, flota_id`.
 
 ### `mttr_proxy`
 Tiempo medio de reparación por flota-semana (alto=peor).
 - Fórmula: `sum(failure_downtime_h) / sum(failures_count)`.
+- Regla: si `failures_count = 0`, `mttr_proxy = 0`.
 
 ### `backlog_risk` (alias legacy)
 Alias de compatibilidad para `backlog_physical_risk_accum`.

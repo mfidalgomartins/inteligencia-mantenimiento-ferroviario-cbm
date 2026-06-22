@@ -114,6 +114,10 @@ def build() -> None:
     sched = read("scheduling_before_after_metrics.csv").set_index("scenario")
     baseline = sched.loc["baseline_greedy_21d"]
     redesigned = sched.loc["heuristica_redisenada_35d"]
+    bottlenecks = read("scheduling_bottleneck_diagnosis.csv").sort_values("pending_rate_pct", ascending=False)
+    sensitivity = read("comparativo_estrategias_sensibilidad.csv")
+    contracts = read("metric_contract_registry.csv")
+    inspection_value = read("inspection_module_value_comparison.csv").set_index("scenario")
 
     defer = read("impacto_diferimiento_resumen.csv").set_index("defer_dias")
     families = read("risk_segmentation_component_family.csv").set_index("component_family")
@@ -128,6 +132,13 @@ def build() -> None:
         "intervention_priority_score", ascending=False
     )
     top = priority.iloc[0]
+    top10 = priority.head(10)
+    priority_threshold_85 = int((priority["intervention_priority_score"] >= 85).sum())
+    priority_threshold_80 = int((priority["intervention_priority_score"] >= 80).sum())
+    priority_threshold_70 = int((priority["intervention_priority_score"] >= 70).sum())
+    top10_deferral_avg = float(top10["deferral_risk_score"].mean())
+    portfolio_deferral_avg = float(priority["deferral_risk_score"].mean())
+    top3_priority_spread = float(priority.head(3)["intervention_priority_score"].max() - priority.head(3)["intervention_priority_score"].min())
 
     risk = read("unit_unavailability_risk_score.csv")["unit_unavailability_risk_score"]
     threshold = risk.mean() + 1.5 * risk.std()
@@ -164,6 +175,22 @@ def build() -> None:
     cbm_cost = float(cbm["coste_total_esperado"])
     re_cost = float(reactive["coste_total_esperado"])
     pv_cost = float(preventive["coste_total_esperado"])
+    cbm_sens = sensitivity[sensitivity["estrategia"] == "basada_en_condicion"]
+    preventive_sens = sensitivity[sensitivity["estrategia"] == "preventiva_rigida"]
+    cbm_positive_share = float((cbm_sens["ahorro_neto_vs_reactiva"] > 0).mean() * 100)
+    preventive_positive_share = float((preventive_sens["ahorro_neto_vs_reactiva"] > 0).mean() * 100)
+    cbm_sens_min = float(cbm_sens["ahorro_neto_vs_reactiva"].min())
+    cbm_sens_max = float(cbm_sens["ahorro_neto_vs_reactiva"].max())
+    preventive_sens_min = float(preventive_sens["ahorro_neto_vs_reactiva"].min())
+    preventive_sens_max = float(preventive_sens["ahorro_neto_vs_reactiva"].max())
+    inspection_correctives_delta = (
+        float(inspection_value.loc["sin_inspeccion_automatica", "correctivas_estimadas"])
+        - float(inspection_value.loc["con_inspeccion_automatica", "correctivas_estimadas"])
+    )
+    inspection_downtime_delta = (
+        float(inspection_value.loc["sin_inspeccion_automatica", "horas_indisponibilidad_estimadas"])
+        - float(inspection_value.loc["con_inspeccion_automatica", "horas_indisponibilidad_estimadas"])
+    )
 
     d = Doc()
 
@@ -262,6 +289,25 @@ def build() -> None:
         "se corrige la asignación de capacidad entre depósitos. El caso de inversión en CBM no se presenta como "
         "ahorro: se fija el valor corporativo de la disponibilidad adicional y se recalibran costes antes de comprometer capital.",
         "accent",
+    )
+    d.h(3, "Lectura de comité: qué está decidido y qué no")
+    d.p(
+        "Hay una decisión operativa suficientemente soportada y una decisión de inversión que todavía no lo está. "
+        "La decisión operativa es priorizar la cabeza de cola, proteger los casos de alto riesgo de diferimiento y "
+        "mover capacidad hacia el cuello de botella real. La evidencia que la respalda es convergente: riesgo técnico, "
+        "impacto de servicio, ventana de intervención, saturación de depósito y coste de aplazar apuntan en la misma "
+        "dirección. La decisión de inversión en CBM, en cambio, no debe aprobarse todavía como caso de ahorro. El "
+        "modelo muestra una ganancia de disponibilidad, pero también un coste neto incremental bajo todos los perfiles "
+        "de sensibilidad probados. Esa separación evita mezclar una mejora operacional defendible con una tesis "
+        "financiera aún no calibrada."
+    )
+    d.p(
+        f"La concentración de prioridad es material. Solo {priority_threshold_85} casos superan 85 puntos, "
+        f"{priority_threshold_80} superan 80 y {priority_threshold_70} superan 70 sobre {fmt_int(len(priority))} "
+        f"componentes evaluados. La media de riesgo de diferimiento en los diez primeros casos es "
+        f"{fmt_dec(top10_deferral_avg, 1)}, frente a {fmt_dec(portfolio_deferral_avg, 1)} en la cartera completa. "
+        "Esto permite un gobierno de excepción: la organización no necesita sobregestionar toda la base de activos, "
+        "sino blindar la pequeña franja donde el aplazamiento destruye más valor operativo."
     )
     d.h(3, "Cinco decisiones concentran el valor de gestión")
     d.p(
@@ -373,6 +419,20 @@ def build() -> None:
         "documentos es uno de los fallos más frecuentes y más corrosivos para la credibilidad de un sistema analítico, "
         "y aquí se elimina en origen en lugar de corregirse a mano."
     )
+    contract_rows = "".join(
+        f"<tr><td><strong>{escape(str(row['business_name']))}</strong></td>"
+        f"<td>{escape(str(row['owner']))}</td>"
+        f"<td>{escape(str(row['valid_grain']))}</td>"
+        f"<td>{escape(str(row['maturity']))}</td></tr>"
+        for _, row in contracts.head(8).iterrows()
+    )
+    d.add(
+        "<table class='data'><thead><tr><th>Métrica gobernada</th><th>Owner</th><th>Grano válido</th>"
+        "<th>Madurez</th></tr></thead><tbody>" + contract_rows + "</tbody></table>"
+        "<p class='tbl-note'>Extracto del registro de contratos de métricas. El owner define responsabilidad funcional; "
+        "el grano válido bloquea agregaciones incompatibles; la madurez separa métricas listas para comunicación "
+        "ejecutiva de métricas que requieren calibración adicional.</p>"
+    )
     d.h(3, "Los scores son interpretables y están orientados a priorización")
     d.p(
         "La salud del componente combina condición estimada, índice de deterioro, velocidad de degradación, defectos "
@@ -421,6 +481,32 @@ def build() -> None:
         "física entre componentes sanos y enfermos. Los casos próximos a cualquier umbral deben revisarse junto con la "
         "confianza de la señal, la criticidad de servicio y la disponibilidad de repuesto. El marco está construido "
         "para soportar ese juicio experto, no para sustituirlo."
+    )
+    d.h(3, "El modelo necesita derechos de decisión, no solo precisión")
+    d.p(
+        "La calidad de un sistema de mantenimiento predictivo se mide por la decisión que cambia, no por la cantidad "
+        "de señales que agrega. Por eso el marco separa recomendación, autorización y ejecución. El modelo prioriza; "
+        "Planificación confirma factibilidad; Operaciones valida impacto de servicio; Finanzas revisa el caso "
+        "económico; Fiabilidad aprende de la intervención ejecutada. Esta asignación reduce dos riesgos habituales: "
+        "automatizar una orden sin contexto operativo y, en el extremo opuesto, convertir el score en una recomendación "
+        "decorativa que nadie tiene obligación de seguir."
+    )
+    decision_rows = [
+        ("Priorizar intervención", "Modelo + Reliability Analytics", "Score, RUL, fallo 30d, driver y confianza", "Ranking y nivel P1/P2/P3"),
+        ("Autorizar excepción", "Dirección de Mantenimiento", "Motivo, restricción, coste de diferir y nueva fecha", "Excepción trazable"),
+        ("Asignar capacidad", "Planificación de Taller", "Horas, depósito, repuesto, ventana y compatibilidad", "Plan de 35 días"),
+        ("Medir impacto", "Operaciones + Finanzas", "Disponibilidad, indisponibilidad, coste proxy y servicio preservado", "Revisión mensual"),
+        ("Recalibrar modelo", "Reliability Analytics", "Orden ejecutada, resultado observado, falsa alerta y reincidencia", "Nuevo set de umbrales"),
+    ]
+    decision_html = "".join(
+        f"<tr><td><strong>{escape(a)}</strong></td><td>{escape(b)}</td><td>{escape(c)}</td><td>{escape(e)}</td></tr>"
+        for a, b, c, e in decision_rows
+    )
+    d.add(
+        "<table class='data'><thead><tr><th>Decisión</th><th>Responsable</th><th>Evidencia mínima</th>"
+        "<th>Salida esperada</th></tr></thead><tbody>" + decision_html + "</tbody></table>"
+        "<p class='tbl-note'>Modelo operativo recomendado para que el sistema gobierne decisiones reales sin convertir "
+        "la analítica en automatismo opaco ni en reporte pasivo.</p>"
     )
 
     # ----- 4. Diagnóstico operativo ------------------------------------- #
@@ -610,6 +696,15 @@ def build() -> None:
         "alerta, porque aumentar el número de inspecciones sin mejorar su conversión a orden de trabajo eleva la carga "
         "sin reducir el riesgo."
     )
+    d.p(
+        f"El módulo de inspección tiene valor operacional medible incluso antes de cerrar el caso financiero de CBM. "
+        f"En el escenario comparativo reduce las correctivas estimadas en {fmt_dec(inspection_correctives_delta, 1)} "
+        f"eventos proxy, evita {fmt_dec(inspection_downtime_delta, 0)} horas de indisponibilidad y disminuye el backlog "
+        f"crítico estimado de {fmt_dec(inspection_value.loc['sin_inspeccion_automatica', 'backlog_critico_estimado'], 1)} "
+        f"a {fmt_dec(inspection_value.loc['con_inspeccion_automatica', 'backlog_critico_estimado'], 1)}. La conclusión "
+        "no es desplegar inspección indiscriminadamente; es instrumentar la cadena completa alerta -> orden -> ejecución "
+        "-> resultado, porque solo esa cadena convierte detección temprana en disponibilidad preservada."
+    )
     fam_order = ["pantograph", "bogie", "brake", "wheel"]
     fam_rows = "".join(
         f"<tr><td><strong>{FAM_ES_CAP[f]}</strong></td>"
@@ -658,6 +753,13 @@ def build() -> None:
         "de modo que la ejecución debe conservar la secuencia y registrar cualquier excepción con su motivo y su "
         "autorizador. La tabla siguiente recoge los diez primeros casos con su nivel de prioridad asignado."
     )
+    d.p(
+        f"La diferencia entre los tres primeros casos es de solo {fmt_dec(top3_priority_spread, 1)} puntos de prioridad. "
+        "Ese margen estrecho cambia la forma de gobernar la cola: no basta con seleccionar el primer activo y olvidar "
+        "el resto. Los tres primeros casos deben tratarse como un paquete de protección P1, con revisión diaria de "
+        "capacidad, repuesto y ventana de servicio. Si una restricción real bloquea el primer caso, la sustitución debe "
+        "elegirse dentro del mismo paquete y no mediante una nueva negociación informal de prioridades."
+    )
 
     # Priority table
     fam = FAM_ES_CAP
@@ -698,6 +800,21 @@ def build() -> None:
         f"El rediseño introduce un {fmt_pct(float(redesigned['pendiente_repuesto_pct']), 1)} de casos pendientes de "
         "repuesto, lo que no es un defecto sino un cambio de problema: parte de la restricción se desplaza de la "
         "capacidad de taller a la coordinación de suministro, donde es más barata de resolver."
+    )
+    bottleneck_rows = "".join(
+        f"<tr><td><strong>{escape(str(row['deposito_id']))}</strong></td>"
+        f"<td class='num'>{fmt_int(row['casos'])}</td>"
+        f"<td class='num'>{fmt_dec(row['horas_requeridas'], 1)} h</td>"
+        f"<td class='num'>{fmt_int(row['pendientes_capacidad'])}</td>"
+        f"<td class='num'>{fmt_pct(row['pending_rate_pct'], 1)}</td></tr>"
+        for _, row in bottlenecks.iterrows()
+    )
+    d.add(
+        "<table class='data'><thead><tr><th>Depósito</th><th class='num'>Casos</th>"
+        "<th class='num'>Horas requeridas</th><th class='num'>Pendientes por capacidad</th>"
+        "<th class='num'>Tasa pendiente</th></tr></thead><tbody>" + bottleneck_rows + "</tbody></table>"
+        "<p class='tbl-note'>Diagnóstico de cuello de botella sobre la programación rediseñada. La tasa pendiente "
+        "mide casos que siguen sin absorberse por restricción de capacidad del depósito recomendado.</p>"
     )
     d.figure(
         "16_utilizacion_capacidad.png",
@@ -785,6 +902,29 @@ def build() -> None:
         "La preventiva rígida ocupa una posición intermedia interesante, con una probabilidad de ahorro positivo del "
         f"{fmt_pct(preventive['prob_ahorro_positivo'] * 100, 0)} y un rango que en su extremo superior alcanza "
         f"{fmt_money_m(preventive['ahorro_neto_p90_vs_reactiva'])}."
+    )
+    d.p(
+        f"La sensibilidad refuerza la disciplina del mensaje. CBM tiene un {fmt_pct(cbm_positive_share, 1)} de casos "
+        f"con ahorro positivo en la malla completa de {fmt_int(len(cbm_sens))} escenarios, con diferenciales entre "
+        f"{fmt_money_m(cbm_sens_min)} y {fmt_money_m(cbm_sens_max)}. La preventiva rígida cruza a positivo en "
+        f"{fmt_pct(preventive_positive_share, 1)} de sus escenarios, con rango entre {fmt_money_m(preventive_sens_min)} "
+        f"y {fmt_money_m(preventive_sens_max)}. La consecuencia para comité es precisa: aprobar la ejecución operativa "
+        "basada en riesgo, pero exigir una segunda puerta financiera antes de escalar CBM como programa de inversión."
+    )
+    sensitivity_rows = "".join(
+        f"<tr><td><strong>{escape(profile.capitalize())}</strong></td>"
+        f"<td class='num'>{fmt_money_m(group['ahorro_neto_vs_reactiva'].median())}</td>"
+        f"<td class='num'>{fmt_money_m(group['ahorro_neto_vs_reactiva'].min())}</td>"
+        f"<td class='num'>{fmt_money_m(group['ahorro_neto_vs_reactiva'].max())}</td>"
+        f"<td class='num'>{fmt_pct((group['ahorro_neto_vs_reactiva'] > 0).mean() * 100, 1)}</td></tr>"
+        for profile, group in cbm_sens.groupby("scenario_profile", sort=True)
+    )
+    d.add(
+        "<table class='data'><thead><tr><th>Perfil CBM</th><th class='num'>Mediana vs reactiva</th>"
+        "<th class='num'>Peor caso</th><th class='num'>Mejor caso</th><th class='num'>Ahorro positivo</th>"
+        "</tr></thead><tbody>" + sensitivity_rows + "</tbody></table>"
+        "<p class='tbl-note'>Sensibilidad de CBM frente a reactiva en los perfiles conservador, base y agresivo. "
+        "Los importes son diferenciales netos proxy; valores negativos indican coste incremental.</p>"
     )
     d.figure(
         "18_variancia_escenarios.png",

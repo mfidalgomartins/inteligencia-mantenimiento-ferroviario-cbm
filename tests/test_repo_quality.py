@@ -8,7 +8,7 @@ PROCESSED = ROOT / "data" / "processed"
 
 def test_runtime_requirements_cover_core_stack():
     req = (ROOT / "requirements.txt").read_text(encoding="utf-8").lower()
-    for pkg in ["pandas", "numpy", "matplotlib", "pytest", "ruff", "duckdb", "tabulate", "weasyprint"]:
+    for pkg in ["pandas", "numpy", "matplotlib", "pytest", "pytest-cov", "ruff", "duckdb", "tabulate", "weasyprint"]:
         assert pkg in req, f"Missing runtime dependency in requirements.txt: {pkg}"
 
 
@@ -16,7 +16,18 @@ def test_lockfile_exists_and_has_core_stack():
     lock = ROOT / "requirements-lock.txt"
     assert lock.exists(), "Missing requirements-lock.txt"
     lock_text = lock.read_text(encoding="utf-8").lower()
-    for pkg in ["pandas==", "numpy==", "matplotlib==", "pytest==", "ruff==", "duckdb==", "tabulate==", "weasyprint=="]:
+    for pkg in [
+        "pandas==",
+        "numpy==",
+        "matplotlib==",
+        "pytest==",
+        "pytest-cov==",
+        "coverage==",
+        "ruff==",
+        "duckdb==",
+        "tabulate==",
+        "weasyprint==",
+    ]:
         assert pkg in lock_text, f"Missing pinned dependency in lockfile: {pkg}"
 
 

@@ -25,11 +25,48 @@ OPERATIONAL_DECISIONS = [
 ]
 
 
+COMPONENT_REQUIRED_COLUMNS = {
+    "component_failure_risk_score",
+    "component_health_score",
+    "deterioration_index",
+    "predicted_unavailability_risk",
+    "impact_on_service_proxy",
+    "defect_confidence_recent",
+    "critical_alerts_count",
+    "backlog_exposure_flag",
+    "confidence_flag",
+}
+
+OPERATIONAL_REQUIRED_COLUMNS = {
+    "prob_fallo_30d",
+    "health_score",
+    "component_rul_estimate",
+    "intervention_priority_score",
+    "deferral_risk_score",
+    "service_impact_score",
+    "workshop_fit_score",
+    "ventana_operativa_disponible",
+    "saturation_ratio",
+    "criticidad_servicio",
+    "predicted_unavailability_risk",
+    "confidence_rul",
+    "confidence_flag",
+    "recommended_action_initial",
+}
+
+
+def _require_columns(df: pd.DataFrame, required_columns: set[str], context: str) -> None:
+    missing = sorted(required_columns.difference(df.columns))
+    if missing:
+        raise ValueError(f"{context}: columnas obligatorias ausentes: {missing}")
+
+
 def _confidence_value(series: pd.Series) -> pd.Series:
     return series.map({"alta": 0.92, "media": 0.74, "baja": 0.52}).fillna(0.66)
 
 
 def assign_component_recommendations(df: pd.DataFrame) -> pd.DataFrame:
+    _require_columns(df, COMPONENT_REQUIRED_COLUMNS, "assign_component_recommendations")
     out = df.copy()
 
     out["component_failure_risk_score"] = out["component_failure_risk_score"].fillna(0.0).clip(0, 1)
@@ -155,6 +192,7 @@ def assign_component_recommendations(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def assign_operational_decisions(df: pd.DataFrame) -> pd.DataFrame:
+    _require_columns(df, OPERATIONAL_REQUIRED_COLUMNS, "assign_operational_decisions")
     out = df.copy()
 
     out["prob_fallo_30d"] = out["prob_fallo_30d"].fillna(0.0).clip(0, 1)
@@ -222,7 +260,7 @@ def assign_operational_decisions(df: pd.DataFrame) -> pd.DataFrame:
     c_no_action = (
         (out["prob_fallo_30d"] <= risk_q15)
         & (out["health_score"] >= out["health_score"].quantile(0.80))
-        & ((~rul_has_signal) | (out["component_rul_estimate"] > out["component_rul_estimate"].quantile(0.70)))
+        & ((not rul_has_signal) | (out["component_rul_estimate"] > out["component_rul_estimate"].quantile(0.70)))
         & (out["service_impact_score"] <= impact_q25)
         & (out["intervention_priority_score"] <= prio_q30)
     )
@@ -232,7 +270,7 @@ def assign_operational_decisions(df: pd.DataFrame) -> pd.DataFrame:
     c_observe = (
         (out["prob_fallo_30d"] <= risk_q30)
         & (out["health_score"] >= out["health_score"].quantile(0.62))
-        & ((~rul_has_signal) | (out["component_rul_estimate"] > out["component_rul_estimate"].quantile(0.50)))
+        & ((not rul_has_signal) | (out["component_rul_estimate"] > out["component_rul_estimate"].quantile(0.50)))
         & (out["service_impact_score"] <= impact_q45)
         & (out["intervention_priority_score"] <= prio_q45)
         & (~c_no_action)

@@ -76,10 +76,28 @@ def test_sql_blocking_validations_pass():
         "val_sensor_ranges.csv",
         "val_temporal_coherence.csv",
         "val_backlog_semantic_consistency.csv",
+        "val_primary_key_uniqueness.csv",
+        "val_referential_integrity.csv",
+        "val_join_cardinality.csv",
+        "val_metric_ranges.csv",
+        "val_business_metric_coherence.csv",
     ]
     for name in zero_outputs:
         df = pd.read_csv(ROOT / "data" / "processed" / name)
         assert (df.select_dtypes(include="number") == 0).all().all(), f"Validación SQL fallida: {name}"
+
+
+def test_sql_validation_exports_are_blocking_gates():
+    from src.run_sql_layer import EXPORT_OBJECTS
+
+    required = {
+        "val_primary_key_uniqueness",
+        "val_referential_integrity",
+        "val_join_cardinality",
+        "val_metric_ranges",
+        "val_business_metric_coherence",
+    }
+    assert required.issubset(set(EXPORT_OBJECTS))
 
 
 def test_mtbf_proxy_reconciles_to_available_hours_per_failure():
@@ -93,6 +111,7 @@ def test_mtbf_proxy_reconciles_to_available_hours_per_failure():
     expected["expected_mtbf"] = expected["available_hours"] / expected["failures_count"].replace(0, pd.NA)
     fleet_week["week_start"] = pd.to_datetime(fleet_week["week_start"])
     merged = fleet_week.merge(expected, on=["week_start", "flota_id"], how="inner")
-    with_failures = merged["failures_count"] > 0
+    assert (merged["failures_count_x"] == merged["failures_count_y"]).all()
+    with_failures = merged["failures_count_x"] > 0
     error = (merged.loc[with_failures, "mtbf_proxy"] - merged.loc[with_failures, "expected_mtbf"]).abs().max()
     assert float(error) <= 1e-6
