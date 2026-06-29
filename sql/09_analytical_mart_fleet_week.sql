@@ -63,4 +63,5 @@ SELECT
 FROM weekly w
 LEFT JOIN maintenance_mix mm
     ON mm.week_start = w.week_start
-    AND mm.flota_id = w.flota_id;
+    AND mm.flota_id = w.flota_id
+ORDER BY w.week_start, w.flota_id;

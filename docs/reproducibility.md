@@ -49,6 +49,22 @@ La pipeline genera datos sintéticos, marts, scoring, RUL, priorización, schedu
 | Contratos de datos | `data/processed/data_contract_registry.csv` |
 | Validaciones de governance | `data/processed/governance_contract_checks.csv` |
 
+## Determinismo byte a byte
+La pipeline es reproducible byte a byte entre corridas en el mismo entorno: dos
+ejecuciones consecutivas producen un dashboard con idéntica `dashboard-signature`.
+
+La fuente de no determinismo más sutil son las agregaciones en coma flotante de
+DuckDB (`AVG`/`SUM`): con varias hebras, el orden de sumación varía y filtra ruido
+en los últimos dígitos hacia scoring, métricas y firma. Por eso la capa SQL fija la
+conexión a una sola hebra (`SET threads TO 1`, en `src/run_sql_layer.py`). El test
+`tests/test_pipeline_determinism.py` protege esta garantía.
+
+Para verificar el determinismo de forma manual:
+```bash
+./scripts/run_pipeline.sh && cp outputs/dashboard/*.html /tmp/a.html
+./scripts/run_pipeline.sh && diff /tmp/a.html outputs/dashboard/*.html && echo "byte-identical"
+```
+
 ## Verificación
 ```bash
 ./scripts/run_tests.sh

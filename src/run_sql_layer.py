@@ -78,12 +78,20 @@ def run_sql_layer() -> None:
 
     con = duckdb.connect(str(DUCKDB_PATH))
     try:
+        _configure_connection(con)
         _load_raw_tables(con)
         _run_sql_scripts(con)
         _export_objects(con)
         _assert_sql_validations(con)
     finally:
         con.close()
+
+
+def _configure_connection(con: duckdb.DuckDBPyConnection) -> None:
+    # Determinismo: una sola hebra fija el orden de sumación en las agregaciones
+    # en coma flotante (AVG/SUM) y el orden de filas exportadas, de modo que la
+    # pipeline es reproducible byte a byte entre ejecuciones.
+    con.execute("SET threads TO 1")
 
 
 def _load_raw_tables(con: duckdb.DuckDBPyConnection) -> None:
