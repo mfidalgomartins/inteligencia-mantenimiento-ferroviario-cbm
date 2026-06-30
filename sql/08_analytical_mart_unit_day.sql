@@ -92,7 +92,8 @@ SELECT
 FROM int_unit_availability ua
 LEFT JOIN component_rollup cr
     ON cr.fecha = ua.fecha
-    AND cr.unidad_id = ua.unidad_id;
+    AND cr.unidad_id = ua.unidad_id
+ORDER BY ua.fecha, ua.unidad_id;
 
 CREATE OR REPLACE VIEW vw_unit_operational_risk AS
 SELECT

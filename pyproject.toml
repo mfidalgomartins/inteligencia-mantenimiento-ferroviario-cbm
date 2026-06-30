@@ -23,6 +23,7 @@ omit = ["src/notebooks_builder.py"]
 [tool.coverage.report]
 show_missing = true
 skip_empty = true
+fail_under = 90
 exclude_also = [
     "if __name__ == .__main__.:",
 ]

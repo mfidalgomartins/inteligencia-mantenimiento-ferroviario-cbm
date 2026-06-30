@@ -1,0 +1,23 @@
+cff-version: 1.2.0
+message: "Si utiliza este software, por favor cítelo con los metadatos siguientes."
+title: "Inteligencia de Mantenimiento Ferroviario — CBM"
+abstract: >-
+  Plataforma reproducible de decisión para flotas ferroviarias basada en mantenimiento
+  según condición (CBM): prioriza intervenciones de taller, cuantifica el riesgo de
+  diferir cada decisión y mide el valor del CBM frente a una estrategia reactiva sobre
+  una flota sintética determinista.
+type: software
+authors:
+  - family-names: "Fidalgo Martins"
+    given-names: "Miguel"
+    email: "mfidalgomartins@gmail.com"
+license: MIT
+repository-code: "https://github.com/mfidalgomartins/inteligencia-mantenimiento-ferroviario-cbm"
+url: "https://mfidalgomartins.github.io/inteligencia-mantenimiento-ferroviario-cbm/"
+keywords:
+  - mantenimiento-basado-en-condicion
+  - mantenimiento-predictivo
+  - ferroviario
+  - analitica-de-decision
+  - python
+  - duckdb

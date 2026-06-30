@@ -150,7 +150,8 @@ SELECT
             )
         )
     ) AS estimated_health_input_index
-FROM base b;
+FROM base b
+ORDER BY b.fecha, b.unidad_id, b.componente_id;
 
 CREATE OR REPLACE VIEW vw_component_daily_health AS
 SELECT

@@ -9,5 +9,6 @@ fi
 
 "$PYTHON_BIN" -m coverage erase
 "$PYTHON_BIN" -m coverage run --branch --source=src -m src.run_pipeline
+"$PYTHON_BIN" -m coverage run --branch --source=src -a scripts/build_publication_outputs.py
 "$PYTHON_BIN" -m coverage run --branch --source=src -a -m pytest -q
 "$PYTHON_BIN" -m coverage report --show-missing

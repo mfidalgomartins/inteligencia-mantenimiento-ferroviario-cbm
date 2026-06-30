@@ -72,3 +72,37 @@ def test_run_early_warning_rules_merges_confidence_and_writes_alerts(tmp_path, m
     assert out.loc["U5", "confidence_flag"] == "baja"
     assert out["n_reglas_activas"].between(0, 4).all()
     assert (tmp_path / "alertas_tempranas.csv").exists()
+
+
+def test_run_early_warning_rules_takes_confidence_from_rul_when_scoring_lacks_it(tmp_path, monkeypatch):
+    # Sin colisión de columnas: scoring no trae confidence_flag, así que el merge
+    # produce una única columna confidence_flag proveniente del RUL.
+    monkeypatch.setattr(early_warning, "DATA_PROCESSED_DIR", tmp_path)
+    scoring = pd.DataFrame(
+        {
+            "fecha": ["2026-01-01"] * 2,
+            "unidad_id": ["U1", "U2"],
+            "componente_id": ["C1", "C2"],
+            "component_family": ["wheel"] * 2,
+            "health_score": [90, 30],
+            "prob_fallo_30d": [0.05, 0.85],
+            "riesgo_ajustado_negocio": [5, 90],
+            "main_risk_driver": ["degradacion", "anomalias"],
+        }
+    )
+    rul = pd.DataFrame(
+        {
+            "unidad_id": ["U1", "U2"],
+            "componente_id": ["C1", "C2"],
+            "component_rul_estimate": [240, 10],
+            "confidence_flag": ["alta", "baja"],
+        }
+    )
+    scoring.to_csv(tmp_path / "scoring_componentes.csv", index=False)
+    rul.to_csv(tmp_path / "component_rul_estimate.csv", index=False)
+
+    out = early_warning.run_early_warning_rules().set_index("unidad_id")
+
+    assert "confidence_flag_x" not in out.columns
+    assert out.loc["U1", "confidence_flag"] == "alta"
+    assert out.loc["U2", "confidence_flag"] == "baja"
