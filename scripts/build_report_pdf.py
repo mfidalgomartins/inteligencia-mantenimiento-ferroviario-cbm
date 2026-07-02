@@ -702,8 +702,8 @@ def build() -> None:
         f"eventos proxy, evita {fmt_dec(inspection_downtime_delta, 0)} horas de indisponibilidad y disminuye el backlog "
         f"crítico estimado de {fmt_dec(inspection_value.loc['sin_inspeccion_automatica', 'backlog_critico_estimado'], 1)} "
         f"a {fmt_dec(inspection_value.loc['con_inspeccion_automatica', 'backlog_critico_estimado'], 1)}. La conclusión "
-        "no es desplegar inspección indiscriminadamente; es instrumentar la cadena completa alerta -> orden -> ejecución "
-        "-> resultado, porque solo esa cadena convierte detección temprana en disponibilidad preservada."
+        "no es desplegar inspección indiscriminadamente; es instrumentar la cadena completa alerta → orden → ejecución "
+        "→ resultado, porque solo esa cadena convierte detección temprana en disponibilidad preservada."
     )
     fam_order = ["pantograph", "bogie", "brake", "wheel"]
     fam_rows = "".join(
@@ -1250,7 +1250,7 @@ h2{ string-set:section attr(data-section); }
 .kpi{ flex:1; background:var(--panel); border:.5pt solid var(--light); border-top:2.5pt solid var(--muted); padding:4mm; }
 .kpi.danger{ border-top-color:var(--danger); } .kpi.positive{ border-top-color:var(--positive); }
 .kpi.warning{ border-top-color:var(--warning); }
-.kpi-val{ font-family:'IBM Plex Mono'; font-size:16pt; font-weight:600; color:var(--ink); line-height:1.1; }
+.kpi-val{ font-family:'IBM Plex Mono'; font-size:16pt; font-weight:600; color:var(--ink); line-height:1.1; white-space:nowrap; }
 .kpi-lab{ font-size:7.8pt; color:var(--muted); margin-top:2mm; line-height:1.3; }
 
 /* Callouts */
