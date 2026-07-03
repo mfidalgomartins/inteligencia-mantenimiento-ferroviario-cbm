@@ -194,6 +194,22 @@ NARRATIVE_METRIC_SPECS = [
         definition="Robustez del caso CBM: share de simulaciones con ahorro positivo frente a reactiva.",
     ),
     MetricSpec(
+        metric_id="cbm_breakeven_value_per_service_hour_eur",
+        label="CBM: valor sombra de equilibrio por hora de servicio",
+        unit="eur_per_hour",
+        source_of_truth="data/processed/comparativo_estrategias.csv",
+        window_definition="escenario comparativo de estrategia (caso base)",
+        filter_definition="estrategia in (reactiva, basada_en_condicion)",
+        aggregation_definition="abs(cbm_operational_savings_eur) / horas_servicio_preservadas_vs_reactiva(CBM)",
+        definition=(
+            "Valor mínimo que la organización debería asignar a cada hora de servicio preservada para que el "
+            "coste incremental proxy de CBM quede compensado por el valor de disponibilidad adicional. Es un "
+            "umbral de decisión bajo el escenario base, no una estimación de disposición a pagar observada ni "
+            "un precio de mercado; no debe usarse para justificar el caso de inversión sin validar el propio "
+            "umbral con costes corporativos reales."
+        ),
+    ),
+    MetricSpec(
         metric_id="avoidable_downtime_hours_inspection",
         label="Horas de indisponibilidad evitables por inspección automática",
         unit="hours",
@@ -456,6 +472,10 @@ def _compute_metrics_values(inputs: dict[str, pd.DataFrame]) -> dict[str, Any]:
         "cbm_value_range_min_eur": float(cbm.get("rango_plausible_valor_min", np.nan)),
         "cbm_value_range_max_eur": float(cbm.get("rango_plausible_valor_max", np.nan)),
         "cbm_prob_positive_savings": float(cbm.get("prob_ahorro_positivo", np.nan)),
+        "cbm_breakeven_value_per_service_hour_eur": float(
+            abs(react["coste_operativo_proxy"] - cbm["coste_operativo_proxy"])
+            / cbm["horas_servicio_preservadas_vs_reactiva"]
+        ),
         "avoidable_downtime_hours_inspection": float(
             sin_insp["horas_indisponibilidad_estimadas"] - con_insp["horas_indisponibilidad_estimadas"]
         ),

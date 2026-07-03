@@ -400,8 +400,8 @@ def build() -> None:
     d.h(3, "La calidad se controla con contratos de datos y métricas")
     d.figure(
         "19_gobernanza_validaciones.png",
-        "Las validaciones de publicación no presentan bloqueos activos: las 33 verificaciones, repartidas entre "
-        "severidad alta y crítica, están aprobadas.",
+        f"Las validaciones de publicación no presentan bloqueos activos: las {len(checks)} verificaciones, "
+        "repartidas entre severidad alta y crítica, están aprobadas.",
         "registro de gobernanza de métricas",
     )
     d.p(
@@ -891,14 +891,20 @@ def build() -> None:
         "<th class='num'>Prob. ahorro &gt;0</th><th class='num'>Horas servicio preservadas</th></tr></thead><tbody>"
         + strat_rows + "</tbody></table>"
         "<p class='tbl-note'>Comparación de estrategias sobre el escenario base. El diferencial y las horas preservadas "
-        "se miden frente a la estrategia reactiva. Los importes son proxies técnico-operativos, no P&amp;L. "
+        "se miden frente a la estrategia reactiva. Los importes son proxies técnico-operativos, no P&amp;L. Las cifras "
+        "se redondean de forma independiente a partir de los valores completos; el diferencial puede no coincidir "
+        "exactamente con la resta de las cifras de coste ya redondeadas. "
         "Fuente: simulación de estrategias de mantenimiento.</p>"
     )
     d.p(
         "La lectura correcta no es declarar un ahorro inexistente. Es reconocer que la decisión necesita un precio "
-        "sombra explícito para la disponibilidad y para las horas de servicio preservadas. Si la organización valora "
-        "cada hora de servicio por encima de cierto umbral, la mejora de disponibilidad de CBM puede compensar su mayor "
-        "coste proxy; si no lo hace, no debe comprometerse capital sobre la base de un ahorro que el modelo no muestra. "
+        "sombra explícito para la disponibilidad y para las horas de servicio preservadas. Bajo el escenario base, ese "
+        f"umbral es calculable: el coste incremental proxy de CBM queda compensado si la organización valora cada hora "
+        f"de servicio preservada en al menos € {fmt_int(mv('cbm_breakeven_value_per_service_hour_eur'))} por hora; "
+        "por debajo de ese umbral, la mejora de disponibilidad no justifica el mayor coste, y no debe comprometerse "
+        "capital sobre la base de un ahorro que el modelo no muestra. Este umbral es un punto de partida para la "
+        "discusión de comité, no una cifra validada: debe contrastarse contra el valor corporativo real de la "
+        "disponibilidad antes de usarse en una decisión de inversión. "
         "La preventiva rígida ocupa una posición intermedia interesante, con una probabilidad de ahorro positivo del "
         f"{fmt_pct(preventive['prob_ahorro_positivo'] * 100, 0)} y un rango que en su extremo superior alcanza "
         f"{fmt_money_m(preventive['ahorro_neto_p90_vs_reactiva'])}."
@@ -1101,6 +1107,7 @@ utilización por depósito, reincidencia por modo y diferencial económico recal
         "high_deferral_risk_cases_count": "Modelo de priorización",
         "cbm_vs_reactiva_availability_pp": "Simulación estratégica",
         "cbm_operational_savings_eur": "Simulación estratégica",
+        "cbm_breakeven_value_per_service_hour_eur": "Simulación estratégica",
         "deferral_cost_delta_14d_eur": "Simulación de diferimiento",
         "deferral_downtime_delta_14d_h": "Simulación de diferimiento",
         "mean_depot_saturation_pct": "Mart de presión de talleres",
@@ -1119,6 +1126,11 @@ utilización por depósito, reincidencia por modo y diferencial económico recal
         ("top_depot_saturation_pct", "Saturación del depósito más exigido", lambda v: fmt_pct(v, 1)),
         ("cbm_vs_reactiva_availability_pp", "Mejora de disponibilidad de CBM", lambda v: f"+{fmt_dec(v, 2)} p.p."),
         ("cbm_operational_savings_eur", "Diferencial neto de CBM frente a reactiva", fmt_money_m),
+        (
+            "cbm_breakeven_value_per_service_hour_eur",
+            "Valor sombra de equilibrio de CBM por hora de servicio",
+            lambda v: f"€ {fmt_int(v)}/h",
+        ),
         ("deferral_cost_delta_14d_eur", "Coste incremental al diferir 14 días", lambda v: fmt_money_m(v, 2)),
         ("deferral_downtime_delta_14d_h", "Indisponibilidad incremental al diferir 14 días", lambda v: f"{fmt_dec(v, 0)} h"),
     ]
@@ -1145,6 +1157,11 @@ utilización por depósito, reincidencia por modo y diferencial económico recal
         ("Riesgo de diferimiento", "Daño esperado de aplazar una decisión", "No equivale a backlog crítico"),
         ("Saturación de taller", "Uso relativo de la capacidad del depósito", "No mide productividad"),
         ("Valor estratégico", "Comparar compensaciones entre estrategias", "No es P&L ni ahorro contractual"),
+        (
+            "Valor sombra de equilibrio",
+            "Punto de partida para fijar el valor de una hora de servicio en comité",
+            "No es una disposición a pagar validada ni un precio de mercado",
+        ),
     ]
     method_html = "".join(
         f"<tr><td><strong>{escape(a)}</strong></td><td>{escape(b)}</td><td>{escape(c)}</td></tr>"
