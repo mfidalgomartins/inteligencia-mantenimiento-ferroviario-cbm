@@ -17,7 +17,7 @@ import matplotlib.font_manager as fm
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-from matplotlib.ticker import FuncFormatter
+from matplotlib.ticker import FuncFormatter, MaxNLocator
 
 ROOT = Path(__file__).resolve().parents[1]
 DATA = ROOT / "data" / "processed"
@@ -122,6 +122,45 @@ def save_chart(fig, filename: str, source: str) -> None:
     plt.close(fig)
 
 
+SUBSISTEMA_ES = {
+    "bogie": "bogie",
+    "brake": "freno",
+    "door": "puerta",
+    "gearbox": "caja de engranajes",
+    "hvac": "climatización",
+    "motor": "motor",
+    "pantograph": "pantógrafo",
+    "wheelset": "juego de ruedas",
+}
+
+MODO_FALLA_ES = {
+    "aplanamiento_rueda": "aplanamiento de rueda",
+    "arco_electrico": "arco eléctrico",
+    "bloqueo_actuador": "bloqueo de actuador",
+    "contaminacion_lubricante": "contaminación de lubricante",
+    "degradacion_pastilla": "degradación de pastilla",
+    "desajuste_mecanismo": "desajuste de mecanismo",
+    "desalineacion_engranes": "desalineación de engranajes",
+    "desbalance_rotor": "desbalance de rotor",
+    "desgaste_amortiguador": "desgaste de amortiguador",
+    "desgaste_carbon": "desgaste de carbón",
+    "desgaste_perfil": "desgaste de perfil",
+    "desgaste_rodamiento": "desgaste de rodamiento",
+    "fading_freno": "fading de freno",
+    "falla_compresor": "falla de compresor",
+    "falla_control_puerta": "falla de control de puerta",
+    "fatiga_bastidor": "fatiga de bastidor",
+    "fatiga_bobinado": "fatiga de bobinado",
+    "fatiga_discos": "fatiga de discos",
+    "fisura_termica": "fisura térmica",
+    "fuga_refrigerante": "fuga de refrigerante",
+    "holgura_suspension": "holgura de suspensión",
+    "obstruccion_filtro": "obstrucción de filtro",
+    "perdida_contacto": "pérdida de contacto",
+    "sobrecalentamiento_estator": "sobrecalentamiento de estator",
+}
+
+
 def build_charts() -> list[dict[str, str]]:
     charts: list[dict[str, str]] = []
     family_es = {"pantograph": "Pantógrafo", "bogie": "Bogie", "brake": "Freno", "wheel": "Rueda"}
@@ -134,6 +173,9 @@ def build_charts() -> list[dict[str, str]]:
     ax.plot(trend["week_start"], trend["availability_rate"] * 100, color=NEUTRAL, lw=1.1, alpha=0.55)
     ax.plot(trend["week_start"], trend["rolling"], color=ACCENT, lw=2.5)
     ax.axhline(trend["availability_rate"].mean() * 100, color=INK, lw=1, ls=(0, (4, 3)))
+    # Ticks forzados a enteros: el locator automático elegía un paso fino (p. ej.
+    # 0.5 p.p.) que el formateador sin decimales redondeaba a etiquetas duplicadas.
+    ax.yaxis.set_major_locator(MaxNLocator(integer=True))
     ax.yaxis.set_major_formatter(FuncFormatter(lambda v, _: f"{v:.0f}%"))
     ax.set_ylabel("Disponibilidad")
     clean_axis(ax, "y")
@@ -187,11 +229,22 @@ def build_charts() -> list[dict[str, str]]:
         "intervention_priority_score"
     )
     fig, ax = plt.subplots(figsize=(9.2, 6.1))
-    labels_p = priority["unidad_id"] + " · " + priority["component_family"].map(family_es).fillna(priority["component_family"])
+    # componente_id incluido para garantizar etiquetas únicas: varias intervenciones
+    # comparten unidad y familia (p. ej. dos bogies de la misma unidad), y barh con
+    # etiquetas de texto repetidas colapsa esas filas en una sola barra.
+    labels_p = (
+        priority["unidad_id"]
+        + " · "
+        + priority["component_family"].map(family_es).fillna(priority["component_family"])
+        + " · "
+        + priority["componente_id"]
+    )
+    y_pos = range(len(priority))
     colors_p = [ACCENT] * len(priority)
     colors_p[-1] = DANGER
-    ax.barh(labels_p, priority["intervention_priority_score"], color=colors_p, zorder=3)
-    for y, value in enumerate(priority["intervention_priority_score"]):
+    ax.barh(y_pos, priority["intervention_priority_score"], color=colors_p, zorder=3)
+    ax.set_yticks(list(y_pos), labels_p)
+    for y, value in zip(y_pos, priority["intervention_priority_score"], strict=True):
         ax.text(value + 0.3, y, fmt_dec(value, 1), va="center", fontsize=8.5, fontfamily=MONO)
     ax.set_xlim(78, 94)
     ax.set_xlabel("Índice de prioridad")
@@ -332,7 +385,11 @@ def build_charts() -> list[dict[str, str]]:
 
     failures = read("kpi_fallas_repetitivas_mas_frecuentes.csv").sort_values("repetitive_events", ascending=False).head(15)
     failures = failures.iloc[::-1]
-    labels_f = failures["subsistema"] + " · " + failures["modo_falla"].str.replace("_", " ")
+    labels_f = (
+        failures["subsistema"].map(SUBSISTEMA_ES).fillna(failures["subsistema"])
+        + " · "
+        + failures["modo_falla"].map(MODO_FALLA_ES).fillna(failures["modo_falla"].str.replace("_", " "))
+    )
     fig, ax = plt.subplots(figsize=(9.2, 6.2))
     ax.barh(labels_f, failures["repetitive_events"], color=ACCENT)
     ax.set_xlabel("Eventos repetitivos")
@@ -431,7 +488,12 @@ def build_charts() -> list[dict[str, str]]:
     charts.append({"file": "18_variancia_escenarios.png", "title": "Variancia entre escenarios"})
 
     checks = read("governance_contract_checks.csv")
-    summary = checks.groupby(["severity", "passed"]).size().unstack(fill_value=0)
+    # Reindexar explícitamente a [False, True]: si no hay fallos (caso esperado),
+    # unstack() no materializa la columna False y la asignación de color por
+    # posición desplazaría DANGER a la única columna presente (Aprobados).
+    summary = (
+        checks.groupby(["severity", "passed"]).size().unstack(fill_value=0).reindex(columns=[False, True], fill_value=0)
+    )
     fig, ax = plt.subplots(figsize=(9.2, 4.8))
     summary.plot(kind="bar", stacked=True, color=[DANGER, POSITIVE], ax=ax, zorder=3)
     ax.set_xlabel("")
