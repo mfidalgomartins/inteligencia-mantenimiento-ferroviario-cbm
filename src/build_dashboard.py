@@ -33,7 +33,7 @@ def _embedded_font_faces() -> str:
 
 def _risk_tier(score: float) -> str:
     if score >= 80:
-        return "Critico"
+        return "Crítico"
     if score >= 65:
         return "Alto"
     if score >= 45:
@@ -69,7 +69,7 @@ def _latest_frame(df: pd.DataFrame, date_col: str) -> pd.DataFrame:
 
 
 def _coalesce_columns(df: pd.DataFrame, canonical: str, candidates: list[str]) -> pd.DataFrame:
-    """Create canonical column by first non-null candidate and drop alternates."""
+    """Crea una columna canónica con el primer candidato no nulo y elimina alternas."""
     available = [c for c in candidates if c in df.columns]
     if canonical in df.columns:
         available = [canonical] + [c for c in available if c != canonical]
@@ -253,15 +253,15 @@ def build_dashboard() -> str:
     backlog_key = ["fecha", "backlog_id"]
     backlog_duplicate_count = int(backlog_raw.duplicated(backlog_key).sum())
     duplicate_backlog_issue = (
-        f"{backlog_duplicate_count} órdenes duplicadas sobre key={backlog_key}"
+        f"{backlog_duplicate_count} órdenes duplicadas sobre clave={backlog_key}"
         if backlog_duplicate_count > 0
-        else "sin órdenes duplicadas en el snapshot de backlog"
+        else "sin órdenes duplicadas en el corte de pendientes"
     )
 
     anomalies = [
         {
             "severity": "critical",
-            "title": "Crisis de backlog físico",
+            "title": "Crisis de pendientes físicos",
             "value": f"{int(metrics.get('backlog_critical_physical_count', 0)):,}".replace(",", "."),
             "description": f"{int(metrics.get('backlog_overdue_items_count', 0)):,}".replace(",", ".")
             + " pendientes vencidos frente a "
@@ -276,9 +276,9 @@ def build_dashboard() -> str:
         },
         {
             "severity": "info",
-            "title": "Último snapshot válido de backlog",
+            "title": "Último corte válido de pendientes",
             "value": str(latest_depot_valid_date.date()) if pd.notna(latest_depot_valid_date) else "n/a",
-            "description": "el calendario más reciente no trae backlog físico; el panel usa el último snapshot con carga real.",
+            "description": "el calendario más reciente no trae pendientes físicos; el panel usa el último corte con carga real.",
         },
         {
             "severity": "warning" if backlog_duplicate_count > 0 else "info",
@@ -370,7 +370,7 @@ def build_dashboard() -> str:
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Dashboard CBM Ferroviario</title>
+  <title>Panel de Control CBM Ferroviario</title>
   <meta name="dashboard-version" content="__DASHBOARD_VERSION__" />
   <meta name="dashboard-signature" content="__PAYLOAD_SIGNATURE__" />
   <meta name="theme-color" content="#fafafa" media="(prefers-color-scheme: light)" />
@@ -618,7 +618,7 @@ def build_dashboard() -> str:
       <span>Panel de control para salud de activos, priorización de taller y valor CBM.</span>
     </div>
     <h2>Filtros Globales</h2>
-    <p>Aplican sobre gráficos, ranking operativo y tabla de detalle. Los KPI superiores permanecen gobernados por la capa oficial.</p>
+    <p>Aplican sobre gráficos, clasificación operativa y tabla de detalle. Los indicadores superiores permanecen gobernados por la capa oficial.</p>
     <div class="filter-group"><label for="f_flota">Flota</label><select id="f_flota" name="flota" autocomplete="off"></select></div>
     <div class="filter-group"><label for="f_unidad">Unidad</label><select id="f_unidad" name="unidad" autocomplete="off"></select></div>
     <div class="filter-group"><label for="f_deposito">Depósito recomendado</label><select id="f_deposito" name="deposito" autocomplete="off"></select></div>
@@ -629,7 +629,7 @@ def build_dashboard() -> str:
     <div class="filter-group"><label for="f_ventana">Ventana temporal</label><select id="f_ventana" name="ventana" autocomplete="off"></select></div>
     <div class="filter-group"><label for="f_estrategia">Estrategia mantenimiento</label><select id="f_estrategia" name="estrategia" autocomplete="off"></select></div>
     <div class="side-actions">
-      <button type="button" class="btn btn-reset" id="btnReset">Resetear filtros</button>
+      <button type="button" class="btn btn-reset" id="btnReset">Restablecer filtros</button>
     </div>
     <div class="sidebar-stats">
       <div><b id="s_count_rows">0</b> componentes filtrados</div>
@@ -660,11 +660,11 @@ def build_dashboard() -> str:
         <span class="pill">Componentes: __N_COMPONENTES__</span>
       </div>
       <div class="insight" id="headerInsight">Resumen operativo: salud de activos, riesgo operativo y prioridades de taller para la ventana seleccionada.</div>
-      <nav class="top-nav" aria-label="Navegación del dashboard">
+      <nav class="top-nav" aria-label="Navegación del panel de control">
         <a href="#kpiCardsPrimary">Resumen</a>
         <a href="#sec_saude">Riesgo técnico</a>
-        <a href="#sec_taller">Backlog y capacidad</a>
-        <a href="#sec_alertas">Drivers</a>
+        <a href="#sec_taller">Pendientes y capacidad</a>
+        <a href="#sec_alertas">Factores</a>
         <a href="#sec_action">Qué hacer ahora</a>
         <a href="#sec_estrategica">Escenarios</a>
         <a href="#sec_tabela">Detalle</a>
@@ -675,16 +675,16 @@ def build_dashboard() -> str:
     <section class="cards cards-primary" id="kpiCardsPrimary">
       <div class="card primary"><div class="k">Disponibilidad de flota</div><div class="v" id="k_avail">-</div><div class="delta flat" id="k_avail_delta">—</div></div>
       <div class="card primary risk"><div class="k">Unidades prioridad ≥70</div><div class="v" id="k_uhr">-</div><div class="s">Compiten por entrada prioritaria a taller.</div></div>
-      <div class="card primary capacity"><div class="k">Backlog crítico físico</div><div class="v" id="k_bcf">-</div><div class="s" id="k_bcf_sub">Carga prioritaria pendiente.</div></div>
-      <div class="card primary value pos"><div class="k">Diferencial CBM vs reactivo</div><div class="v" id="k_ahorro">-</div><div class="s" id="k_ahorro_sub">Coste operativo proxy frente al escenario reactivo.</div></div>
+      <div class="card primary capacity"><div class="k">Pendientes críticos físicos</div><div class="v" id="k_bcf">-</div><div class="s" id="k_bcf_sub">Carga prioritaria pendiente.</div></div>
+      <div class="card primary value pos"><div class="k">Diferencial CBM frente a reactivo</div><div class="v" id="k_ahorro">-</div><div class="s" id="k_ahorro_sub">Coste operativo aproximado frente al escenario reactivo.</div></div>
     </section>
 
     <section class="cards cards-ribbon" id="kpiCards" aria-label="Métricas operativas de detalle">
       <div class="card"><div class="k">MTBF</div><div class="v" id="k_mtbf">-</div><div class="s">horas</div></div>
       <div class="card"><div class="k">MTTR</div><div class="v" id="k_mttr">-</div><div class="s">horas</div></div>
-      <div class="card"><div class="k">Backlog físico</div><div class="v" id="k_bf">-</div><div class="s">órdenes abiertas</div></div>
-      <div class="card"><div class="k">Backlog vencido</div><div class="v" id="k_bv">-</div><div class="s">fuera de ventana</div></div>
-      <div class="card"><div class="k">Riesgo diferir alto</div><div class="v" id="k_drh">-</div><div class="s">casos score ≥70</div></div>
+      <div class="card"><div class="k">Pendientes físicos</div><div class="v" id="k_bf">-</div><div class="s">órdenes abiertas</div></div>
+      <div class="card"><div class="k">Pendientes vencidos</div><div class="v" id="k_bv">-</div><div class="s">fuera de ventana</div></div>
+      <div class="card"><div class="k">Riesgo alto al diferir</div><div class="v" id="k_drh">-</div><div class="s">casos con puntuación ≥70</div></div>
       <div class="card"><div class="k">Correctivas evitables</div><div class="v" id="k_ce">-</div><div class="s">migrables a plan</div></div>
       <div class="card"><div class="k">Componentes riesgo ≥65%</div><div class="v" id="k_alertas">-</div><div class="s">fallo a 30 días</div></div>
       <div class="card"><div class="k">Saturación media taller</div><div class="v" id="k_sat">-</div><div class="s" id="k_sat_sub">capacidad usada</div></div>
@@ -701,7 +701,7 @@ def build_dashboard() -> str:
         <div class="chart-box">
           <div class="chart-head"><h4>Deterioro y riesgo por familia</h4></div>
           <div class="chart-note">Compara presión de riesgo frente a salud media para detectar familias con peor equilibrio.</div>
-          <div class="chart-question">Pregunta: ¿qué familia concentra degradación accionable?</div>
+          <div class="chart-question">Pregunta: ¿qué familia concentra degradación que exige acción?</div>
           <div class="chart-legend"><span class="legend-chip"><span class="legend-dot" style="background:var(--c-danger)"></span>Riesgo</span><span class="legend-chip"><span class="legend-dot" style="background:var(--c-positive)"></span>Salud</span></div>
           <div id="ch_family" class="svg-chart"></div>
         </div>
@@ -723,7 +723,7 @@ def build_dashboard() -> str:
         </div>
       </div>
       <div class="grid2">
-        <div class="chart-box"><div class="chart-head"><h4>Top unidades por prioridad de intervención</h4></div><div class="chart-note">Ordena las unidades con mayor urgencia relativa en la cartera filtrada.</div><div class="chart-question">Pregunta: ¿qué unidad entra primero?</div><div id="ch_top_units" class="svg-chart"></div></div>
+        <div class="chart-box"><div class="chart-head"><h4>Unidades principales por prioridad de intervención</h4></div><div class="chart-note">Ordena las unidades con mayor urgencia relativa en la cartera filtrada.</div><div class="chart-question">Pregunta: ¿qué unidad entra primero?</div><div id="ch_top_units" class="svg-chart"></div></div>
         <div class="chart-box"><div class="chart-head"><h4>Impacto en servicio por unidad</h4></div><div class="chart-note">Muestra dónde una intervención temprana evita mayor daño al servicio.</div><div class="chart-question">Pregunta: ¿dónde se protege más servicio?</div><div id="ch_service" class="svg-chart"></div></div>
         <div class="chart-box"><div class="chart-head"><h4>Prioridad vs riesgo de diferimiento</h4></div><div class="chart-note">Separa componentes urgentes por decisión de cola de los casos que no deben aplazarse.</div><div class="chart-question">Pregunta: ¿qué casos son prioridad alta y no diferibles?</div><div id="ch_priority_deferral" class="svg-chart"></div></div>
       </div>
@@ -733,14 +733,14 @@ def build_dashboard() -> str:
       <div class="section-head">
         <div>
           <span class="eyebrow">Restricciones de ejecución</span>
-          <h3>El backlog y la capacidad explican qué puede ejecutarse realmente</h3>
+          <h3>Los pendientes y la capacidad explican qué puede ejecutarse realmente</h3>
           <p>Separar carga física, vencimiento y saturación evita confundir riesgo analítico con cola real de taller.</p>
         </div>
       </div>
       <div class="grid2">
-        <div class="chart-box"><div class="chart-head"><h4>Backlog físico, vencido y crítico por depósito</h4></div><div class="chart-note">Usa el último snapshot operativo válido para mostrar dónde está la crisis real de cola.</div><div class="chart-question">Pregunta: ¿qué depósito está bloqueando la recuperación?</div><div id="ch_backlog_depot" class="svg-chart"></div></div>
+        <div class="chart-box"><div class="chart-head"><h4>Pendientes físicos, vencidos y críticos por depósito</h4></div><div class="chart-note">Usa el último corte operativo válido para mostrar dónde está la crisis real de cola.</div><div class="chart-question">Pregunta: ¿qué depósito está bloqueando la recuperación?</div><div id="ch_backlog_depot" class="svg-chart"></div></div>
         <div class="chart-box"><div class="chart-head"><h4>Saturación por depósito</h4></div><div class="chart-note">Prioriza depósitos donde la capacidad disponible se acerca al límite operativo.</div><div class="chart-question">Pregunta: ¿dónde falta capacidad de taller?</div><div id="ch_depot" class="svg-chart"></div></div>
-        <div class="chart-box"><div class="chart-head"><h4>Cola de decisiones operativas</h4></div><div class="chart-note">Visualiza el mix entre inspección, intervención, observación y escalado.</div><div class="chart-question">Pregunta: ¿qué tipo de decisión domina la cola?</div><div id="ch_decisions" class="svg-chart"></div></div>
+        <div class="chart-box"><div class="chart-head"><h4>Cola de decisiones operativas</h4></div><div class="chart-note">Visualiza la mezcla entre inspección, intervención, observación y escalado.</div><div class="chart-question">Pregunta: ¿qué tipo de decisión domina la cola?</div><div id="ch_decisions" class="svg-chart"></div></div>
       </div>
     </section>
 
@@ -749,12 +749,12 @@ def build_dashboard() -> str:
         <div>
           <span class="eyebrow">Factores causales</span>
           <h3>Qué señales están empujando la situación actual</h3>
-          <p>Inspección automática y drivers dominantes ayudan a separar anomalías, repetitividad, backlog y degradación.</p>
+          <p>Inspección automática y factores dominantes ayudan a separar anomalías, repetitividad, pendientes y degradación.</p>
         </div>
       </div>
       <div class="grid2">
         <div class="chart-box"><div class="chart-head"><h4>Calidad de inspección por familia</h4></div><div class="chart-note">Cobertura y valor pre-falla para priorizar despliegue donde la detección añade más utilidad.</div><div class="chart-question">Pregunta: ¿la señal CBM llega antes de la falla?</div><div id="ch_inspection" class="svg-chart"></div></div>
-        <div class="chart-box"><div class="chart-head"><h4>Drivers principales del riesgo</h4></div><div class="chart-note">Resume qué señales dominan la criticidad: anomalías, repetitividad o degradación.</div><div class="chart-question">Pregunta: ¿por qué sube el riesgo?</div><div id="ch_drivers" class="svg-chart"></div></div>
+        <div class="chart-box"><div class="chart-head"><h4>Factores principales del riesgo</h4></div><div class="chart-note">Resume qué señales dominan la criticidad: anomalías, repetitividad o degradación.</div><div class="chart-question">Pregunta: ¿por qué sube el riesgo?</div><div id="ch_drivers" class="svg-chart"></div></div>
       </div>
     </section>
 
@@ -772,7 +772,7 @@ def build_dashboard() -> str:
           <div class="big" id="exec_action" aria-live="polite">-</div>
           <p id="exec_action_note">-</p>
           <div class="decision-proof" aria-label="Criterios de decisión">
-            <div class="proof-chip"><b>Score prioridad</b><span id="proof_priority">-</span></div>
+            <div class="proof-chip"><b>Puntuación prioridad</b><span id="proof_priority">-</span></div>
             <div class="proof-chip"><b>Impacto servicio</b><span id="proof_service">-</span></div>
             <div class="proof-chip"><b>Salud/RUL</b><span id="proof_health">-</span></div>
             <div class="proof-chip"><b>Riesgo diferir</b><span id="proof_deferral">-</span></div>
@@ -791,14 +791,14 @@ def build_dashboard() -> str:
           <h2>Estado operativo</h2>
           <p id="exec_state" aria-live="polite">-</p>
           <div class="decision-steps single">
-            <div class="step"><b>Snapshot backlog</b><span id="exec_snapshot">-</span></div>
+            <div class="step"><b>Corte de pendientes</b><span id="exec_snapshot">-</span></div>
             <div class="step"><b>Bloqueo principal</b><span id="exec_bottleneck">-</span></div>
           </div>
         </div>
       </div>
       <div class="anomaly-grid" id="anomalyGrid"></div>
       <div class="interpretation">
-        <div class="item"><b>Lectura de backlog</b><span id="interp_backlog">-</span></div>
+        <div class="item"><b>Lectura de pendientes</b><span id="interp_backlog">-</span></div>
         <div class="item"><b>Lectura de riesgo</b><span id="interp_risk">-</span></div>
         <div class="item"><b>Lectura de capacidad</b><span id="interp_capacity">-</span></div>
       </div>
@@ -815,8 +815,8 @@ def build_dashboard() -> str:
       <div class="insight" id="strategyInsight"></div>
       <div class="grid2">
         <div class="chart-box"><div class="chart-head"><h4>Reactivo vs Preventivo vs CBM</h4></div><div class="chart-note">Comparación de disponibilidad para leer la posición relativa de cada estrategia.</div><div class="chart-question">Pregunta: ¿qué estrategia protege más disponibilidad?</div><div id="ch_strategy" class="svg-chart"></div></div>
-        <div class="chart-box"><div class="chart-head"><h4>Trade-off de diferimiento</h4></div><div class="chart-note">Evolución conjunta del coste y la indisponibilidad al aplazar intervención.</div><div class="chart-question">Pregunta: ¿cuánto cuesta aplazar?</div><div class="chart-legend"><span class="legend-chip"><span class="legend-dot" style="background:var(--c-danger)"></span>Coste</span><span class="legend-chip"><span class="legend-dot" style="background:var(--c-s1)"></span>Indisponibilidad</span></div><div id="ch_deferral" class="svg-chart"></div></div>
-        <div class="chart-box"><div class="chart-head"><h4>Scheduling: baseline vs heurística rediseñada</h4></div><div class="chart-note">Mide si la cola se convierte en acción o queda bloqueada por capacidad/repuestos.</div><div class="chart-question">Pregunta: ¿la planificación reduce riesgo residual?</div><div id="ch_scheduling" class="svg-chart"></div></div>
+        <div class="chart-box"><div class="chart-head"><h4>Compensación de diferimiento</h4></div><div class="chart-note">Evolución conjunta del coste y la indisponibilidad al aplazar intervención.</div><div class="chart-question">Pregunta: ¿cuánto cuesta aplazar?</div><div class="chart-legend"><span class="legend-chip"><span class="legend-dot" style="background:var(--c-danger)"></span>Coste</span><span class="legend-chip"><span class="legend-dot" style="background:var(--c-s1)"></span>Indisponibilidad</span></div><div id="ch_deferral" class="svg-chart"></div></div>
+        <div class="chart-box"><div class="chart-head"><h4>Planificación: base inicial vs heurística rediseñada</h4></div><div class="chart-note">Mide si la cola se convierte en acción o queda bloqueada por capacidad/repuestos.</div><div class="chart-question">Pregunta: ¿la planificación reduce riesgo residual?</div><div id="ch_scheduling" class="svg-chart"></div></div>
       </div>
     </section>
 
@@ -824,12 +824,12 @@ def build_dashboard() -> str:
       <div class="section-head">
         <div>
           <span class="eyebrow">Inspección granular</span>
-          <h3>Componentes, scores y trazabilidad caso a caso</h3>
+          <h3>Componentes, puntuaciones y trazabilidad caso a caso</h3>
           <p>Use la tabla para revisar distribuciones, segmentaciones y registros específicos después de entender la prioridad.</p>
         </div>
       </div>
       <div class="toolbar">
-        <input id="searchBox" name="busqueda" autocomplete="off" aria-label="Buscar unidad, componente o driver" placeholder="Buscar unidad, componente, driver…" />
+        <input id="searchBox" name="busqueda" autocomplete="off" aria-label="Buscar unidad, componente o factor" placeholder="Buscar unidad, componente, factor…" />
         <span class="count" id="resultCount" aria-live="polite">0 resultados</span>
         <div class="pager">
           <button type="button" class="btn" id="btnPrevPage">Anterior</button>
@@ -847,7 +847,7 @@ def build_dashboard() -> str:
       <div class="table-wrap">
         <table id="mainTable"><thead><tr id="tableHead"></tr></thead><tbody id="tableBody"></tbody></table>
       </div>
-      <div class="footer-note">Dashboard autocontenido y listo para presentación. Los KPI superiores consumen métricas gobernadas; los filtros gobiernan gráficos, ranking y tabla sin dependencias externas.</div>
+      <div class="footer-note">Panel de control autocontenido y listo para presentación. Los indicadores superiores consumen métricas gobernadas; los filtros gobiernan gráficos, clasificación y tabla sin dependencias externas.</div>
     </section>
   </main>
 </div>
@@ -937,7 +937,7 @@ function setSelectOptions(sel, values){
 }
 
 function badge(level){
-  const cls = level==="Critico"?"badge-critico":(level==="Alto"?"badge-alto":(level==="Medio"?"badge-medio":"badge-bajo"));
+  const cls = level==="Crítico"?"badge-critico":(level==="Alto"?"badge-alto":(level==="Medio"?"badge-medio":"badge-bajo"));
   return `<span class="badge ${cls}">${esc(level)}</span>`;
 }
 
@@ -1219,9 +1219,9 @@ function renderKPIs(d){
     availEl.textContent = `${up ? "▲" : "▼"} ${up ? "+" : "−"}${fmt1(Math.abs(availDelta))} pp vs objetivo 90%`;
   }
 
-  // Backlog crítico: cuota sobre el backlog físico para leer la severidad de la cola.
+  // Pendientes críticos: cuota sobre los pendientes físicos para leer la severidad de la cola.
   const criticalShare = backlogPhysical > 0 ? (backlogCritical / backlogPhysical) * 100 : 0;
-  setText("k_bcf_sub", `${fmt0(criticalShare)}% del backlog físico es crítico`);
+  setText("k_bcf_sub", `${fmt0(criticalShare)}% de los pendientes físicos son críticos`);
 
   // Saturación: contexto del depósito más tensionado.
   setText("k_sat_sub", topDepot && topDepot !== "n/a" ? `máx. ${fmt0(topDepotSat)}% · ${topDepot}` : "capacidad usada");
@@ -1233,8 +1233,8 @@ function renderKPIs(d){
     valueCard.classList.toggle("neg", savings < 0);
   }
   setText("k_ahorro_sub", savings >= 0
-    ? "Ahorro operativo proxy frente a reactivo."
-    : "Sobrecoste operativo proxy frente a reactivo.");
+    ? "Ahorro operativo aproximado frente a reactivo."
+    : "Sobrecoste operativo aproximado frente a reactivo.");
   setText("s_count_rows", fmt0(d.rows.length));
   setText("s_count_units", fmt0(d.uniqueUnits.size));
   setText("s_count_high", fmt0(d.highRiskUnits.size));
@@ -1251,7 +1251,7 @@ function renderActionPanel(d){
   const actionablePct = pendingCapacity ? toNum(pendingCapacity.actionable_pct) : 0;
   if(top){
     setText("exec_action", `${top.unidad_id} / ${top.componente_id}`);
-    setText("exec_action_note", `Enviar a ${top.deposito_recomendado} en la próxima ventana. ${top.decision_type}; prioridad ${fmt1(top.intervention_priority_score)}, impacto servicio ${fmt1(top.service_impact_score)}, salud ${fmt1(top.health_score)} y diferimiento ${fmt1(top.deferral_risk_score)}.`);
+    setText("exec_action_note", `Enviar a ${top.deposito_recomendado} en la próxima ventana. ${top.decision_type}; puntuación de prioridad ${fmt1(top.intervention_priority_score)}, impacto servicio ${fmt1(top.service_impact_score)}, salud ${fmt1(top.health_score)} y diferimiento ${fmt1(top.deferral_risk_score)}.`);
     setText("exec_step_unit", `${top.unidad_id} · ${top.deposito_recomendado}`);
     setText("proof_priority", `${fmt1(top.intervention_priority_score)} / 100`);
     setText("proof_service", `${fmt1(top.service_impact_score)} impacto`);
@@ -1268,15 +1268,15 @@ function renderActionPanel(d){
   }
   setText("exec_step_backlog", `${fmt0(backlogCritical)} críticos / ${fmt0(backlogPhysical)} físicos`);
   setText("exec_step_deferral", `${fmt0(deferralHigh)} casos alto riesgo`);
-  setText("exec_state", `Crisis activa: ${fmt1(backlogPhysical ? backlogOverdue/backlogPhysical*100 : 0)}% del backlog físico está vencido. La heurística deja ${fmt1(pendingCapacityPct)}% pendiente por capacidad y convierte ${fmt1(actionablePct)}% de casos en acción.`);
+  setText("exec_state", `Crisis activa: ${fmt1(backlogPhysical ? backlogOverdue/backlogPhysical*100 : 0)}% de los pendientes físicos están vencidos. La heurística deja ${fmt1(pendingCapacityPct)}% pendiente por capacidad y convierte ${fmt1(actionablePct)}% de casos en acción.`);
   const snapshotLabel = meta.latest_depot_valid_date
     ? `${meta.latest_depot_valid_date} válido${meta.latest_depot_calendar_zero_backlog ? " · calendario reciente sin carga física" : ""}`
     : "n/a";
   setText("exec_snapshot", snapshotLabel);
   setText("exec_bottleneck", pendingCapacityPct >= 40 ? "Capacidad de taller" : "Repuestos / secuenciación");
-  setText("interp_backlog", `${fmt0(backlogOverdue)} de ${fmt0(backlogPhysical)} pendientes están vencidos; la cola es una crisis física, no solo un score de riesgo.`);
+  setText("interp_backlog", `${fmt0(backlogOverdue)} de ${fmt0(backlogPhysical)} pendientes están vencidos; la cola es una crisis física, no solo una puntuación de riesgo.`);
   setText("interp_risk", `${fmt0(deferralHigh)} componentes cruzan umbral de diferimiento alto; son los casos que no deben aplazarse sin decisión explícita.`);
-  setText("interp_capacity", `${fmt1(pendingCapacityPct)}% queda pendiente por capacidad tras rediseñar scheduling; el cuello de botella es operativo, no de visualización.`);
+  setText("interp_capacity", `${fmt1(pendingCapacityPct)}% queda pendiente por capacidad tras rediseñar la planificación; el cuello de botella es operativo, no de visualización.`);
 }
 
 function renderAnomalies(){
@@ -1475,7 +1475,7 @@ function drawBacklogBars(containerId, rows){
   const w = svg.viewBox.baseVal.width, h = svg.viewBox.baseVal.height;
   const m = {l:42,r:14,t:12,b:48}; const iw=w-m.l-m.r, ih=h-m.t-m.b;
   const items = rows.slice().sort((a,b)=>toNum(b.backlog_critical_items)-toNum(a.backlog_critical_items)).slice(0,10);
-  if(!items.length){ svg.innerHTML=`<text x="${w/2}" y="${h/2}" text-anchor="middle" fill="${CK.empty}" font-size="12">Sin backlog válido</text>`; return; }
+  if(!items.length){ svg.innerHTML=`<text x="${w/2}" y="${h/2}" text-anchor="middle" fill="${CK.empty}" font-size="12">Sin pendientes válidos</text>`; return; }
   const maxV = Math.max(...items.flatMap(r => [toNum(r.backlog_physical_items), toNum(r.backlog_overdue_items), toNum(r.backlog_critical_items)]), 1);
   const slot = iw/items.length;
   const bw = Math.max(5, (slot-8)/3);
@@ -1494,14 +1494,14 @@ function drawBacklogBars(containerId, rows){
     });
     out += `<text x="${x+bw}" y="${m.t+ih+12}" text-anchor="middle" fill="${CK.axis}" font-size="10">${esc(r.deposito_id)}</text>`;
   });
-  out += `<text x="${m.l+iw}" y="${m.t+10}" text-anchor="end" fill="${CK.axis}" font-size="10">Snapshot ${esc(meta.latest_depot_valid_date || "")}</text>`;
+  out += `<text x="${m.l+iw}" y="${m.t+10}" text-anchor="end" fill="${CK.axis}" font-size="10">Corte ${esc(meta.latest_depot_valid_date || "")}</text>`;
   svg.innerHTML = out;
   bindSvgTooltip(svg);
 }
 
 function drawSchedulingBars(containerId){
   const scenarios = schedulingMetrics.map(r => ({
-    label:String(r.scenario).replace("heuristica_redisenada_35d","rediseñada").replace("baseline_greedy_21d","baseline"),
+    label:String(r.scenario).replace("heuristica_redisenada_35d","rediseñada").replace("base_inicial_voraz_21d","base inicial"),
     programada:toNum(r.programadas_pct),
     programable:toNum(r.programables_proxima_ventana_pct),
     pendiente:toNum(r.pendientes_total_pct),
@@ -1511,7 +1511,7 @@ function drawSchedulingBars(containerId){
   const CK = chartInk();
   const w = svg.viewBox.baseVal.width, h = svg.viewBox.baseVal.height;
   const m = {l:42,r:14,t:34,b:42}; const iw=w-m.l-m.r, ih=h-m.t-m.b;
-  if(!scenarios.length){ svg.innerHTML=`<text x="${w/2}" y="${h/2}" text-anchor="middle" fill="${CK.empty}" font-size="12">Sin datos de scheduling</text>`; return; }
+  if(!scenarios.length){ svg.innerHTML=`<text x="${w/2}" y="${h/2}" text-anchor="middle" fill="${CK.empty}" font-size="12">Sin datos de planificación</text>`; return; }
   const slot = iw/scenarios.length, bw = Math.min(84, slot*.46);
   let out = `<line x1="${m.l}" y1="${m.t+ih}" x2="${m.l+iw}" y2="${m.t+ih}" stroke="${CK.axis}"/>`;
   scenarios.forEach((s,i)=>{
@@ -1547,7 +1547,7 @@ function renderInsights(d){
     ? `preserva valor por ~${fmt0(savings)} EUR`
     : `presenta un coste incremental de ~${fmt0(Math.abs(savings))} EUR`;
   document.getElementById("strategyInsight").textContent =
-    `Lectura estratégica: CBM vs reactiva ${valueReading} en escenario base, con probabilidad de ahorro positivo del ${fmt1(prob)}% y rango plausible de ${fmt2(rmin)}M€ a ${fmt2(rmax)}M€.`;
+    `Lectura estratégica: CBM vs reactiva ${valueReading} en escenario base, con probabilidad de ahorro positivo del ${fmt1(prob)}% y rango estimado de ${fmt2(rmin)}M€ a ${fmt2(rmax)}M€.`;
   const topUnit = metricSnapshot.top_unit_by_priority || "n/a";
   const topComp = metricSnapshot.top_component_by_priority || "n/a";
   document.getElementById("headerInsight").innerHTML =
@@ -1743,9 +1743,9 @@ window.addEventListener("scroll", syncFloatingControls, { passive:true });
                 "  <main>",
                 "    <div class=\"label\">Mantenimiento basado en condición</div>",
                 "    <h1>Centro de control CBM ferroviario</h1>",
-                "    <p>Redirigiendo al dashboard operativo.</p>",
+                "    <p>Redirigiendo al panel operativo.</p>",
                 "    <div class=\"spinner\" aria-hidden=\"true\"></div>",
-                f"    <p><a href=\"{target_url}\">Abrir dashboard</a></p>",
+                f"    <p><a href=\"{target_url}\">Abrir panel de control</a></p>",
                 "  </main>",
                 "</body>",
                 "</html>",

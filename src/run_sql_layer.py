@@ -90,7 +90,7 @@ def run_sql_layer() -> None:
 def _configure_connection(con: duckdb.DuckDBPyConnection) -> None:
     # Determinismo: una sola hebra fija el orden de sumación en las agregaciones
     # en coma flotante (AVG/SUM) y el orden de filas exportadas, de modo que la
-    # pipeline es reproducible byte a byte entre ejecuciones.
+    # El flujo es reproducible byte a byte entre ejecuciones.
     con.execute("SET threads TO 1")
 
 

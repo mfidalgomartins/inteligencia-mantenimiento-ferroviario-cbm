@@ -9,12 +9,12 @@ PROCESSED = ROOT / "data" / "processed"
 def test_runtime_requirements_cover_core_stack():
     req = (ROOT / "requirements.txt").read_text(encoding="utf-8").lower()
     for pkg in ["pandas", "numpy", "matplotlib", "pytest", "pytest-cov", "ruff", "duckdb", "tabulate", "weasyprint"]:
-        assert pkg in req, f"Missing runtime dependency in requirements.txt: {pkg}"
+        assert pkg in req, f"Falta dependencia de ejecución en requirements.txt: {pkg}"
 
 
 def test_lockfile_exists_and_has_core_stack():
     lock = ROOT / "requirements-lock.txt"
-    assert lock.exists(), "Missing requirements-lock.txt"
+    assert lock.exists(), "Falta requirements-lock.txt"
     lock_text = lock.read_text(encoding="utf-8").lower()
     for pkg in [
         "pandas==",
@@ -28,15 +28,15 @@ def test_lockfile_exists_and_has_core_stack():
         "tabulate==",
         "weasyprint==",
     ]:
-        assert pkg in lock_text, f"Missing pinned dependency in lockfile: {pkg}"
+        assert pkg in lock_text, f"Falta dependencia fijada en lockfile: {pkg}"
 
 
 def test_governance_contract_publish_blockers_pass():
     checks_path = PROCESSED / "governance_contract_checks.csv"
-    assert checks_path.exists(), "Missing governance contract checks artifact"
+    assert checks_path.exists(), "Falta artefacto de validaciones de contratos de gobernanza"
     checks = pd.read_csv(checks_path)
     blockers = checks[checks["publish_blocker"] == True]  # noqa: E712
-    assert blockers["passed"].all(), f"Governance blockers present: {len(blockers[~blockers['passed']])}"
+    assert blockers["passed"].all(), f"Bloqueos de gobernanza presentes: {len(blockers[~blockers['passed']])}"
 
 
 def test_repo_architecture_points_to_active_dashboard_artifact():
@@ -51,7 +51,7 @@ def test_public_text_files_do_not_contain_local_absolute_paths():
     ]
     for path in paths:
         text = path.read_text(encoding="utf-8")
-        assert "/Users/" not in text, f"Local absolute path found in {path.relative_to(ROOT)}"
+        assert "/Users/" not in text, f"Ruta absoluta local encontrada en {path.relative_to(ROOT)}"
 
 
 def test_pipeline_syncs_narrative_before_publication_gates():
@@ -59,15 +59,16 @@ def test_pipeline_syncs_narrative_before_publication_gates():
 
     labels = [label for label, _ in PIPELINE_STEPS]
     assert labels.index("Evaluar inspección automática") < labels.index("Comparar estrategias")
-    sync_idx = labels.index("Sincronizar métricas y narrativa")
-    assert sync_idx < labels.index("Validar contratos de governance")
-    assert sync_idx < labels.index("Construir dashboard")
+    sync_idx = labels.index("Sincronizar métricas y texto ejecutivo")
+    assert sync_idx < labels.index("Validar contratos de gobernanza")
+    assert sync_idx < labels.index("Construir panel de control")
 
 
 def test_redundant_or_empty_publication_artifacts_are_absent():
     redundant_files = [
         ROOT / "docs" / "index.html",
         ROOT / "docs" / ".nojekyll",
+        ROOT / "outputs" / "charts",
         ROOT / "outputs" / "reports" / "governance_contract_blockers.csv",
     ]
     assert not [path for path in redundant_files if path.exists()]
@@ -84,7 +85,7 @@ def test_readme_local_links_resolve():
         if not target.startswith(("http://", "https://", "mailto:"))
     ]
     missing = [target for target in local_targets if target and not (ROOT / target).exists()]
-    assert not missing, f"Broken local README links: {missing}"
+    assert not missing, f"Enlaces locales rotos en README: {missing}"
 
 
 def test_public_text_files_end_with_newline():

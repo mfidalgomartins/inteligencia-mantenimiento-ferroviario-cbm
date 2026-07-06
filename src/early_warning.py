@@ -43,7 +43,7 @@ def run_early_warning_rules() -> pd.DataFrame:
     df["regla_salud_baja"] = (df["health_score"] <= df["health_thr_low"]).astype(int)
     df["regla_rul_corto"] = (df["component_rul_estimate"].fillna(365) <= df["rul_thr_short"]).astype(int)
     df["regla_driver_critico"] = (
-        df["main_risk_driver"].isin(["backlog", "repetitividad", "anomalias"])
+        df["main_risk_driver"].isin(["pendientes", "repetitividad", "anomalias"])
         & (df["prob_fallo_30d"] >= df["risk_thr_high"])
     ).astype(int)
 

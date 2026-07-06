@@ -1,6 +1,6 @@
 # Seguridad y dependencias
 
-Política mínima para mantener reproducibilidad, dependencias auditables y outputs HTML seguros.
+Política mínima para mantener reproducibilidad, dependencias auditables y salidas HTML seguras.
 
 ## Dependencias
 - Instalar siempre desde `requirements-lock.txt` para corridas reproducibles.
@@ -10,13 +10,12 @@ Política mínima para mantener reproducibilidad, dependencias auditables y outp
 
 ## Higiene HTML
 - Evitar contenido HTML generado desde strings no confiables.
-- Escapar texto de datos antes de insertarlo en dashboard o informes.
-- Mantener assets locales y rutas relativas dentro de `outputs/`.
-- No incluir credenciales, tokens, rutas privadas o datos personales en outputs publicados.
+- Escapar texto de datos antes de insertarlo en el panel de control o informes.
+- Mantener activos locales y rutas relativas dentro de `outputs/`.
+- No incluir credenciales, tokens, rutas privadas o datos personales en salidas publicadas.
 
-## Revisión antes de merge
+## Revisión antes de fusionar cambios
 - Confirmar que `./scripts/run_tests.sh` pasa completo.
-- Confirmar que los tests de hardening del dashboard siguen activos.
-- Revisar cambios en `requirements-lock.txt` para detectar upgrades no intencionales.
+- Confirmar que los tests de endurecimiento del panel de control siguen activos.
+- Revisar cambios en `requirements-lock.txt` para detectar actualizaciones no intencionales.
 - Documentar cualquier limitación de seguridad relevante en README o docs.
-

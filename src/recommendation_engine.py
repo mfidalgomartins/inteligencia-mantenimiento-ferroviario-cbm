@@ -11,7 +11,7 @@ COMPONENT_ACTIONS = [
     "monitorizacion_intensiva",
     "mantener_bajo_observacion",
     "no_accion_por_ahora",
-    "escalado_tecnico_manual_review",
+    "escalado_tecnico_revision_manual",
 ]
 
 OPERATIONAL_DECISIONS = [
@@ -21,7 +21,7 @@ OPERATIONAL_DECISIONS = [
     "monitorización intensiva",
     "mantener bajo observación",
     "no acción por ahora",
-    "escalado técnico/manual review",
+    "escalado técnico/revisión manual",
 ]
 
 
@@ -169,19 +169,19 @@ def assign_component_recommendations(df: pd.DataFrame) -> pd.DataFrame:
         | ((out["component_health_score"] <= out["component_health_score"].quantile(0.12)) & (out["component_failure_risk_score"] <= risk_q35))
         | ((out["deterioration_index"] >= out["deterioration_index"].quantile(0.88)) & (impact_norm >= impact_q75) & (signal_conf < 0.60))
     ) & (~c_immediate)
-    out.loc[c_conflict, "recommended_action_initial"] = "escalado_tecnico_manual_review"
+    out.loc[c_conflict, "recommended_action_initial"] = "escalado_tecnico_revision_manual"
     out.loc[c_conflict, "recommendation_rule_id"] = "R07_escalado_conflicto"
     out.loc[c_conflict, "recommendation_conflict_flag"] = 1
 
     out["recommendation_rationale"] = (
         out["recommendation_rule_id"]
-        + " | risk="
+        + " | riesgo="
         + out["component_failure_risk_score"].round(3).astype(str)
-        + ", health="
+        + ", salud="
         + out["component_health_score"].round(1).astype(str)
-        + ", det="
+        + ", deterioro="
         + out["deterioration_index"].round(1).astype(str)
-        + ", conf="
+        + ", confianza="
         + signal_conf.round(2).astype(str)
     )
     out["recommended_action_initial"] = out["recommended_action_initial"].where(
@@ -314,7 +314,7 @@ def assign_operational_decisions(df: pd.DataFrame) -> pd.DataFrame:
         )
         | ((out["health_score"] <= out["health_score"].quantile(0.15)) & (out["prob_fallo_30d"] <= risk_q30))
     )
-    out.loc[c_conflict, "decision_type"] = "escalado técnico/manual review"
+    out.loc[c_conflict, "decision_type"] = "escalado técnico/revisión manual"
     out.loc[c_conflict, "decision_rule_id"] = "D07_escalado_conflicto"
     out.loc[c_conflict, "decision_conflict_flag"] = 1
 
@@ -324,13 +324,13 @@ def assign_operational_decisions(df: pd.DataFrame) -> pd.DataFrame:
 
     out["decision_rationale"] = (
         out["decision_rule_id"]
-        + " | risk="
+        + " | riesgo="
         + out["prob_fallo_30d"].round(3).astype(str)
         + ", rul="
         + out["component_rul_estimate"].round(1).astype(str)
-        + ", impact="
+        + ", impacto="
         + out["service_impact_score"].round(1).astype(str)
-        + ", fit="
+        + ", ajuste="
         + out["workshop_fit_score"].round(1).astype(str)
     )
     out["decision_type"] = out["decision_type"].where(out["decision_type"].isin(OPERATIONAL_DECISIONS), "monitorización intensiva")
@@ -340,12 +340,12 @@ def assign_operational_decisions(df: pd.DataFrame) -> pd.DataFrame:
 def write_recommendation_distribution_reports(score: pd.DataFrame, priorities: pd.DataFrame) -> None:
     OUTPUTS_REPORTS_DIR.mkdir(parents=True, exist_ok=True)
 
-    action_dist = score["recommended_action_initial"].value_counts(dropna=False).rename_axis("action").reset_index(name="count")
-    action_dist["share"] = action_dist["count"] / action_dist["count"].sum()
+    action_dist = score["recommended_action_initial"].value_counts(dropna=False).rename_axis("accion").reset_index(name="conteo")
+    action_dist["proporcion"] = action_dist["conteo"] / action_dist["conteo"].sum()
     action_dist.to_csv(OUTPUTS_REPORTS_DIR / "recommendation_action_distribution.csv", index=False)
 
-    decision_dist = priorities["decision_type"].value_counts(dropna=False).rename_axis("decision").reset_index(name="count")
-    decision_dist["share"] = decision_dist["count"] / decision_dist["count"].sum()
+    decision_dist = priorities["decision_type"].value_counts(dropna=False).rename_axis("decision").reset_index(name="conteo")
+    decision_dist["proporcion"] = decision_dist["conteo"] / decision_dist["conteo"].sum()
     decision_dist.to_csv(OUTPUTS_REPORTS_DIR / "recommendation_decision_distribution.csv", index=False)
 
 
@@ -360,8 +360,8 @@ def write_recommendation_logic_doc(examples_df: pd.DataFrame) -> None:
             {"rule_id": "R03_inspeccion", "accion": "inspeccion_prioritaria", "condicion": "señal degradada con confianza baja o conflicto moderado"},
             {"rule_id": "R04_monitorizacion", "accion": "monitorizacion_intensiva", "condicion": "riesgo/interacción moderada sin gatillos de intervención"},
             {"rule_id": "R05_observacion", "accion": "mantener_bajo_observacion", "condicion": "riesgo bajo con salud aceptable"},
-            {"rule_id": "R06_no_accion", "accion": "no_accion_por_ahora", "condicion": "riesgo muy bajo, salud alta, sin alertas ni backlog"},
-            {"rule_id": "R07_escalado_conflicto", "accion": "escalado_tecnico_manual_review", "condicion": "conflicto señal-riesgo o riesgo alto con baja confianza"},
+            {"rule_id": "R06_no_accion", "accion": "no_accion_por_ahora", "condicion": "riesgo muy bajo, salud alta, sin alertas ni pendientes"},
+            {"rule_id": "R07_escalado_conflicto", "accion": "escalado_tecnico_revision_manual", "condicion": "conflicto señal-riesgo o riesgo alto con baja confianza"},
         ]
     )
     rules_component.to_csv(OUTPUTS_REPORTS_DIR / "recommendation_rules_component.csv", index=False)
@@ -374,7 +374,7 @@ def write_recommendation_logic_doc(examples_df: pd.DataFrame) -> None:
             {"rule_id": "D04_monitorizacion", "decision": "monitorización intensiva", "condicion": "riesgo medio con seguimiento reforzado"},
             {"rule_id": "D05_observacion", "decision": "mantener bajo observación", "condicion": "baja criticidad y ventana de seguridad amplia"},
             {"rule_id": "D06_no_accion", "decision": "no acción por ahora", "condicion": "riesgo mínimo y salud elevada"},
-            {"rule_id": "D07_escalado_conflicto", "decision": "escalado técnico/manual review", "condicion": "riesgo alto con baja confianza o RUL crítico sin capacidad de taller"},
+            {"rule_id": "D07_escalado_conflicto", "decision": "escalado técnico/revisión manual", "condicion": "riesgo alto con baja confianza o RUL crítico sin capacidad de taller"},
             {"rule_id": "D02B_inmediata_bloqueada_capacidad", "decision": "intervención en próxima ventana", "condicion": "urgencia alta pero bloqueo de capacidad/ventana"},
         ]
     )
@@ -393,7 +393,7 @@ def write_recommendation_logic_doc(examples_df: pd.DataFrame) -> None:
         "- monitorizacion_intensiva",
         "- mantener_bajo_observacion",
         "- no_accion_por_ahora",
-        "- escalado_tecnico_manual_review",
+        "- escalado_tecnico_revision_manual",
         "",
         "## Categorías de decisión (operación/taller)",
         "- intervención inmediata",
@@ -402,7 +402,7 @@ def write_recommendation_logic_doc(examples_df: pd.DataFrame) -> None:
         "- monitorización intensiva",
         "- mantener bajo observación",
         "- no acción por ahora",
-        "- escalado técnico/manual review",
+        "- escalado técnico/revisión manual",
         "",
         "## Tabla de reglas | Capa componente",
         rules_component.to_markdown(index=False),
@@ -411,7 +411,7 @@ def write_recommendation_logic_doc(examples_df: pd.DataFrame) -> None:
         rules_operational.to_markdown(index=False),
         "",
         "## Resolución de conflictos",
-        "- Riesgo alto + confianza baja: `escalado_tecnico_manual_review` / `escalado técnico/manual review`.",
+        "- Riesgo alto + confianza baja: `escalado_tecnico_revision_manual` / `escalado técnico/revisión manual`.",
         "- Degradación alta + impacto operacional bajo: `inspeccion_prioritaria`.",
         "- RUL bajo + ventana/capacidad inexistente: `intervención en próxima ventana` con marcador de bloqueo de capacidad.",
         "",
@@ -420,7 +420,7 @@ def write_recommendation_logic_doc(examples_df: pd.DataFrame) -> None:
     if not examples_df.empty:
         lines.extend(
             [
-                "Los casos siguientes muestran input clave -> regla disparada -> decisión final:",
+                "Los casos siguientes muestran entrada clave -> regla disparada -> decisión final:",
                 examples_df.to_markdown(index=False),
             ]
         )

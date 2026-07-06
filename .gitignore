@@ -38,8 +38,6 @@ data/processed/*
 !data/raw/.gitkeep
 !data/processed/.gitkeep
 
-# Generated exploratory outputs
-outputs/charts/
 outputs/reports/*
 !outputs/reports/informe_analitico_cbm_ferroviario.pdf
 

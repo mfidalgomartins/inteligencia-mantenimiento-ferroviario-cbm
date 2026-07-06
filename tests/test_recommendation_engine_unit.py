@@ -17,7 +17,7 @@ def _component_cases() -> pd.DataFrame:
                 "immediate",
                 "conflict_low_conf",
                 "missing_inputs",
-                "backlog",
+                "pendientes",
             ],
             "component_failure_risk_score": [0.02, 0.18, 0.50, 0.70, 0.95, 0.90, None, 0.60],
             "component_health_score": [98, 82, 62, 45, 20, 60, None, 55],
@@ -80,13 +80,13 @@ def test_assign_component_recommendations_covers_core_rules_and_defaults():
     assert out.loc["observe", "recommended_action_initial"] == "mantener_bajo_observacion"
     assert out.loc["inspect_low_conf", "recommended_action_initial"] == "inspeccion_prioritaria"
     assert out.loc["immediate", "recommended_action_initial"] == "intervencion_inmediata"
-    assert out.loc["conflict_low_conf", "recommended_action_initial"] == "escalado_tecnico_manual_review"
+    assert out.loc["conflict_low_conf", "recommended_action_initial"] == "escalado_tecnico_revision_manual"
     assert int(out.loc["conflict_low_conf", "recommendation_conflict_flag"]) == 1
 
     assert out.loc["missing_inputs", "component_failure_risk_score"] == 0.0
     assert out.loc["missing_inputs", "component_health_score"] == 50.0
     assert out["recommended_action_initial"].isin(rec.COMPONENT_ACTIONS).all()
-    assert out["recommendation_rationale"].str.contains("risk=").all()
+    assert out["recommendation_rationale"].str.contains("riesgo=").all()
 
 
 def test_assign_operational_decisions_handles_conflicts_capacity_and_defaults():
@@ -96,14 +96,14 @@ def test_assign_operational_decisions_handles_conflicts_capacity_and_defaults():
     assert out.loc["observe", "decision_type"] == "mantener bajo observación"
     assert out.loc["inspection_from_component", "decision_type"] == "inspección prioritaria"
     assert out.loc["immediate", "decision_type"] == "intervención inmediata"
-    assert out.loc["conflict_capacity", "decision_type"] == "escalado técnico/manual review"
+    assert out.loc["conflict_capacity", "decision_type"] == "escalado técnico/revisión manual"
     assert int(out.loc["conflict_capacity", "decision_conflict_flag"]) == 1
     assert out.loc["blocked_immediate", "decision_rule_id"] == "D02B_inmediata_bloqueada_capacidad"
 
     assert out.loc["missing_inputs", "prob_fallo_30d"] == 0.0
     assert out.loc["missing_inputs", "component_rul_estimate"] == 365.0
     assert out["decision_type"].isin(rec.OPERATIONAL_DECISIONS).all()
-    assert out["decision_rationale"].str.contains("fit=").all()
+    assert out["decision_rationale"].str.contains("ajuste=").all()
 
 
 def test_write_recommendation_reports_and_logic_doc_use_target_dirs(tmp_path, monkeypatch):
@@ -143,8 +143,8 @@ def test_write_recommendation_reports_and_logic_doc_use_target_dirs(tmp_path, mo
 
     action_dist = pd.read_csv(reports_dir / "recommendation_action_distribution.csv")
     decision_dist = pd.read_csv(reports_dir / "recommendation_decision_distribution.csv")
-    assert action_dist["share"].sum().round(6) == 1.0
-    assert decision_dist["share"].sum().round(6) == 1.0
+    assert action_dist["proporcion"].sum().round(6) == 1.0
+    assert decision_dist["proporcion"].sum().round(6) == 1.0
     assert (reports_dir / "recommendation_rules_component.csv").exists()
     assert (reports_dir / "recommendation_rules_operational.csv").exists()
 

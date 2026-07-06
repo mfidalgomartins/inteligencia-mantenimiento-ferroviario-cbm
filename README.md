@@ -1,8 +1,8 @@
 # Inteligencia de Mantenimiento Ferroviario - CBM
 
-Plataforma de decisión para flotas ferroviarias: prioriza intervenciones de taller, cuantifica el riesgo de diferir cada decisión y mide el valor del mantenimiento basado en condición frente a una estrategia reactiva.
+Sistema de decisión para flotas ferroviarias: prioriza intervenciones de taller, cuantifica el riesgo de diferir cada decisión y mide el valor del mantenimiento basado en condición frente a una estrategia reactiva.
 
-**[Dashboard en vivo](https://mfidalgomartins.github.io/inteligencia-mantenimiento-ferroviario-cbm/)** · Python · SQL · DuckDB · HTML offline
+**[Panel de control en vivo](https://mfidalgomartins.github.io/inteligencia-mantenimiento-ferroviario-cbm/)** · Python · SQL · DuckDB · HTML sin conexión
 
 ## Resultados - flota sintética de 144 unidades
 
@@ -10,11 +10,11 @@ Plataforma de decisión para flotas ferroviarias: prioriza intervenciones de tal
 |---------|------:|
 | Disponibilidad media de flota | **95,75 %** |
 | Unidades de alto riesgo (≥ media + 1,5σ) | **9** |
-| Backlog físico | **2.056 pendientes** |
-| Backlog vencido | **2.011 pendientes** |
-| Backlog crítico físico | **1.955 pendientes** |
+| Pendientes físicos | **2.056 pendientes** |
+| Pendientes vencidos | **2.011 pendientes** |
+| Pendientes críticos físicos | **1.955 pendientes** |
 | Casos de alto riesgo de diferimiento | **43** |
-| Coste incremental proxy CBM vs reactiva | **€ 48.700.525** |
+| Coste incremental aproximado CBM vs reactiva | **€ 48.700.525** |
 | Mejora de disponibilidad CBM vs reactiva | **+0,93 p.p.** |
 
 **Decisión actual:** intervenir primero la unidad `UNI0055`, componente `COMP000438`.
@@ -24,7 +24,7 @@ Plataforma de decisión para flotas ferroviarias: prioriza intervenciones de tal
 - Integra sensores, inspección automática, fallos y mantenimiento para puntuar 1.152 componentes.
 - Ordena y secuencia la cola de taller según riesgo técnico, impacto de servicio, capacidad y ventana operativa.
 - Compara CBM, preventiva rígida y reactiva con supuestos económicos explícitos y análisis de sensibilidad.
-- Mantiene trazabilidad desde los datos hasta las métricas ejecutivas y bloquea la pipeline ante validaciones críticas.
+- Mantiene trazabilidad desde los datos hasta las métricas ejecutivas y bloquea el flujo ante validaciones críticas.
 
 ## Análisis
 
@@ -55,26 +55,26 @@ Plataforma de decisión para flotas ferroviarias: prioriza intervenciones de tal
 </tr>
 </table>
 
-## Dashboard
+## Panel de control
 
-HTML autocontenido sin dependencias externas. Funciona offline e incluye filtros por flota, depósito, familia, sistema, riesgo e intervención.
+HTML autocontenido sin dependencias externas. Funciona sin conexión e incluye filtros por flota, depósito, familia, sistema, riesgo e intervención.
 
-**[Abrir dashboard en vivo](https://mfidalgomartins.github.io/inteligencia-mantenimiento-ferroviario-cbm/)**
+**[Abrir panel de control en vivo](https://mfidalgomartins.github.io/inteligencia-mantenimiento-ferroviario-cbm/)**
 
 **[Descargar informe analítico (PDF)](outputs/reports/informe_analitico_cbm_ferroviario.pdf)**
 
 ## Arquitectura
 
 ```
-datos sintéticos → staging SQL → marts → scoring → priorización → dashboard
+datos sintéticos → preparación SQL → tablas analíticas → puntuación → priorización → panel de control
 ```
 
 1. Datos sintéticos deterministas de operación, sensores, fallos, inspección y mantenimiento.
-2. Capa SQL DuckDB por etapas: staging, integración, marts y KPIs.
-3. Feature engineering para salud de componente, RUL operativo y score de prioridad.
-4. Priorización y scheduling heurístico con capacidad de taller.
+2. Capa SQL DuckDB por etapas: preparación, integración, tablas analíticas e indicadores.
+3. Ingeniería de variables para salud de componente, RUL operativo y puntuación de prioridad.
+4. Priorización y planificación heurística con capacidad de taller.
 5. Comparativa estratégica y análisis de diferimiento.
-6. Dashboard offline alimentado por el registro oficial de métricas.
+6. Panel de control sin conexión alimentado por el registro oficial de métricas.
 
 ## Reproducir
 Requiere Python 3.12 o superior.
@@ -87,29 +87,29 @@ python -m pip install -r requirements-lock.txt
 ./scripts/run_tests.sh
 ./scripts/run_coverage.sh
 ```
-La pipeline usa semilla fija y regenera datos, métricas, documentación derivada y dashboard.
+El flujo usa semilla fija y regenera datos, métricas, documentación derivada y panel de control.
 
 ## Estructura
 
 ```
-src/          lógica de datos, scoring y generador del dashboard
-sql/          capa SQL por etapas (staging → integración → marts → KPIs)
-notebooks/    análisis exploratorio por fase del pipeline
-scripts/      ejecución del pipeline, tests y publicación
-outputs/      dashboard, gráficos PNG e informe PDF
-tests/        validaciones de QA, métricas y consistencia
+src/          lógica de datos, puntuación y generador del panel de control
+sql/          capa SQL por etapas (preparación → integración → tablas analíticas → indicadores)
+notebooks/    análisis exploratorio por fase del flujo
+scripts/      ejecución del flujo, pruebas y publicación
+outputs/      panel de control, gráficos PNG e informe PDF
+tests/        validaciones de calidad, métricas y consistencia
 docs/         reproducibilidad, supuestos y contratos de métricas
 ```
 
-Documentación técnica: [`reproducibility`](docs/reproducibility.md) · [`repo_architecture`](docs/repo_architecture.md) · [`production_readiness`](docs/production_readiness.md) · [`security_dependency_hygiene`](docs/security_dependency_hygiene.md) · [`rul_framework`](docs/rul_framework.md) · [`gobierno_metricas`](docs/gobierno_metricas.md)
+Documentación técnica: [reproducibilidad](docs/reproducibility.md) · [arquitectura del repositorio](docs/repo_architecture.md) · [preparación productiva](docs/production_readiness.md) · [seguridad y dependencias](docs/security_dependency_hygiene.md) · [marco RUL](docs/rul_framework.md) · [gobierno de métricas](docs/gobierno_metricas.md)
 
 ## Limitaciones
 - Todos los datos son sintéticos; los umbrales requieren calibración antes de uso operacional.
-- Los costes y ahorros son proxies de escenario, no estimaciones financieras contratuales.
+- Los costes y ahorros son aproximaciones de escenario, no estimaciones financieras contractuales.
 - El RUL sirve como ventana relativa de intervención; su asociación con fallo a 30 días es débil y no representa una fecha de fallo calibrada.
-- El scheduling es heurístico y no garantiza una solución global óptima.
+- La planificación es heurística y no garantiza una solución global óptima.
 
-## Stack
+## Tecnologías
 Python · SQL · DuckDB · pandas · matplotlib · pytest · pytest-cov · HTML/CSS/JavaScript
 
 ## Licencia

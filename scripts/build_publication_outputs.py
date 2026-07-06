@@ -7,17 +7,29 @@ Salida estricta:
 """
 from __future__ import annotations
 
+import os
 import shutil
+import tempfile
 from pathlib import Path
 
-import matplotlib
-
-matplotlib.use("Agg")
-import matplotlib.font_manager as fm
-import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-from matplotlib.ticker import FuncFormatter, MaxNLocator
+
+
+def configure_matplotlib_cache() -> None:
+    cache_dir = Path(tempfile.gettempdir()) / "railway_cbm_matplotlib"
+    cache_dir.mkdir(parents=True, exist_ok=True)
+    os.environ.setdefault("MPLCONFIGDIR", str(cache_dir))
+
+
+configure_matplotlib_cache()
+
+import matplotlib  # noqa: E402
+
+matplotlib.use("Agg")
+import matplotlib.font_manager as fm  # noqa: E402
+import matplotlib.pyplot as plt  # noqa: E402
+from matplotlib.ticker import FuncFormatter, MaxNLocator  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[1]
 DATA = ROOT / "data" / "processed"
@@ -97,23 +109,23 @@ def chart_title(ax, title: str, subtitle: str) -> None:
 
 def save_chart(fig, filename: str, source: str) -> None:
     source_name = {
-        "fleet_week_features.csv": "mart semanal de flota",
+        "fleet_week_features.csv": "tabla analítica semanal de flota",
         "comparativo_estrategias.csv": "simulación de estrategias de mantenimiento",
         "impacto_diferimiento_resumen.csv": "simulación de diferimiento",
         "workshop_priority_table.csv": "modelo de priorización de taller",
-        "vw_depot_maintenance_pressure.csv": "mart de presión de talleres",
+        "vw_depot_maintenance_pressure.csv": "tabla analítica de presión de talleres",
         "unit_unavailability_risk_score.csv": "modelo de riesgo de indisponibilidad",
         "scheduling_status_distribution.csv": "simulación de programación de taller",
         "risk_signal_determinants.csv": "análisis de determinantes de riesgo",
         "component_model_scores.csv": "modelo de salud y riesgo de componentes",
         "risk_segmentation_component_family.csv": "segmentación de riesgo por familia",
-        "kpi_backlog_mas_critico.csv": "mart de backlog por depósito",
-        "kpi_fallas_repetitivas_mas_frecuentes.csv": "mart de fallos repetitivos",
-        "rul_family_discrimination_before_after.csv": "validación del proxy de vida remanente",
-        "rul_distribution_before_after.csv": "validación del proxy de vida remanente",
+        "kpi_backlog_mas_critico.csv": "tabla analítica de pendientes por depósito",
+        "kpi_fallas_repetitivas_mas_frecuentes.csv": "tabla analítica de fallos repetitivos",
+        "rul_family_discrimination_before_after.csv": "validación de vida remanente aproximada",
+        "rul_distribution_before_after.csv": "validación de vida remanente aproximada",
         "inspection_module_family_performance.csv": "módulo de inspección automática",
         "workshop_capacity_calendar.csv": "calendario de capacidad de taller",
-        "kpi_unidades_mayor_indisponibilidad.csv": "mart de indisponibilidad por unidad",
+        "kpi_unidades_mayor_indisponibilidad.csv": "tabla analítica de indisponibilidad por unidad",
         "comparativo_estrategias_escenarios.csv": "simulación de sensibilidad estratégica",
         "governance_contract_checks.csv": "registro de controles de gobernanza",
     }.get(source, source)
@@ -212,7 +224,7 @@ def build_charts() -> list[dict[str, str]]:
     fig, ax = plt.subplots(figsize=(9.2, 5.2))
     ax.plot(defer["defer_dias"], defer["costo_total_eur"] / 1e6, color=ACCENT, marker="o", lw=2.4)
     ax.set_xlabel("Días de diferimiento")
-    ax.set_ylabel("Coste proxy, M€")
+    ax.set_ylabel("Coste aproximado, M€")
     ax2 = ax.twinx()
     ax2.plot(defer["defer_dias"], defer["downtime_total_h"], color=DANGER, marker="s", lw=2.2)
     ax2.set_ylabel("Indisponibilidad, horas", color=DANGER)
@@ -250,9 +262,9 @@ def build_charts() -> list[dict[str, str]]:
     ax.set_xlabel("Índice de prioridad")
     clean_axis(ax, "x")
     chart_title(ax, "La cola ejecutiva está dominada por pocos casos de prioridad muy alta",
-                "Quince primeras intervenciones por score compuesto")
+                "Quince primeras intervenciones por puntuación compuesta")
     save_chart(fig, "04_ranking_intervenciones.png", "workshop_priority_table.csv")
-    charts.append({"file": "04_ranking_intervenciones.png", "title": "Ranking de intervenciones"})
+    charts.append({"file": "04_ranking_intervenciones.png", "title": "Clasificación de intervenciones"})
 
     depot = read("vw_depot_maintenance_pressure.csv")
     depot["fecha"] = pd.to_datetime(depot["fecha"])
@@ -266,7 +278,7 @@ def build_charts() -> list[dict[str, str]]:
     ax.set_xlim(0, max(55, snap["saturation_ratio"].max() * 115))
     clean_axis(ax, "x")
     chart_title(ax, "La presión de taller está desigualmente distribuida entre depósitos",
-                f"Snapshot a {snap['fecha'].max().date()}")
+                f"Corte a {snap['fecha'].max().date()}")
     save_chart(fig, "05_saturacion_depositos.png", "vw_depot_maintenance_pressure.csv")
     charts.append({"file": "05_saturacion_depositos.png", "title": "Presión por depósito"})
 
@@ -276,7 +288,7 @@ def build_charts() -> list[dict[str, str]]:
     ax.hist(risk, bins=18, color=NEUTRAL, edgecolor=WHITE, zorder=3)
     ax.axvline(threshold, color=DANGER, lw=2)
     ax.text(threshold + 0.5, ax.get_ylim()[1] * 0.88, f"alto riesgo: {fmt_dec(threshold, 1)}", color=DANGER, fontsize=9)
-    ax.set_xlabel("Score de riesgo de indisponibilidad")
+    ax.set_xlabel("Puntuación de riesgo de indisponibilidad")
     ax.set_ylabel("Unidades")
     clean_axis(ax, "y")
     chart_title(ax, "El riesgo de unidad se concentra en una cola estrecha",
@@ -286,7 +298,7 @@ def build_charts() -> list[dict[str, str]]:
 
     status = read("scheduling_status_distribution.csv")
     pivot = status.pivot(index="scenario", columns="estado_intervencion", values="share_pct").fillna(0)
-    scenario_order = ["baseline_greedy_21d", "heuristica_redisenada_35d"]
+    scenario_order = ["base_inicial_voraz_21d", "heuristica_redisenada_35d"]
     state_order = ["programada", "programable_proxima_ventana", "pendiente_repuesto", "pendiente_capacidad"]
     state_labels = {
         "programada": "Programada",
@@ -310,10 +322,10 @@ def build_charts() -> list[dict[str, str]]:
     ax.set_xlabel("Distribución de casos")
     ax.legend(frameon=False, ncol=2, loc="upper center", bbox_to_anchor=(0.5, -0.16), fontsize=8.5)
     clean_axis(ax, "x")
-    chart_title(ax, "El rediseño del scheduling convierte capacidad bloqueada en casos accionables",
+    chart_title(ax, "El rediseño de la planificación convierte capacidad bloqueada en casos accionables",
                 "Comparación de estados antes y después")
     save_chart(fig, "07_scheduling_antes_despues.png", "scheduling_status_distribution.csv")
-    charts.append({"file": "07_scheduling_antes_despues.png", "title": "Scheduling antes y después"})
+    charts.append({"file": "07_scheduling_antes_despues.png", "title": "Planificación antes y después"})
 
     drivers = read("risk_signal_determinants.csv").sort_values("spearman_corr_with_failure_risk")
     driver_labels = {
@@ -323,7 +335,7 @@ def build_charts() -> list[dict[str, str]]:
         "anomaly_count_30d": "Anomalías en 30 días",
         "inspection_defect_score_recent": "Defecto reciente en inspección",
         "operating_stress_index": "Estrés operativo",
-        "backlog_exposure_flag": "Exposición a backlog",
+        "backlog_exposure_flag": "Exposición a pendientes",
         "days_since_last_failure": "Días desde último fallo",
         "days_since_last_maintenance": "Días desde mantenimiento",
         "maintenance_restoration_index": "Restauración por mantenimiento",
@@ -336,7 +348,7 @@ def build_charts() -> list[dict[str, str]]:
     ax.set_xlabel("Correlación de Spearman con riesgo de fallo")
     clean_axis(ax, "x")
     chart_title(ax, "Deterioro y velocidad explican la mayor parte del ordenamiento de riesgo",
-                "Relación monotónica entre señales y score de fallo")
+                "Relación monotónica entre señales y puntuación de fallo")
     save_chart(fig, "08_determinantes_riesgo.png", "risk_signal_determinants.csv")
     charts.append({"file": "08_determinantes_riesgo.png", "title": "Determinantes del riesgo"})
 
@@ -370,7 +382,7 @@ def build_charts() -> list[dict[str, str]]:
     cumulative = share.cumsum()
     fig, ax = plt.subplots(figsize=(9.2, 5.3))
     ax.bar(backlog["deposito_id"], share, color=ACCENT, zorder=3)
-    ax.set_ylabel("Cuota del backlog físico, %")
+    ax.set_ylabel("Cuota de pendientes físicos, %")
     ax2 = ax.twinx()
     ax2.plot(backlog["deposito_id"], cumulative, color=DANGER, marker="o", lw=2)
     ax2.set_ylim(0, 105)
@@ -378,10 +390,10 @@ def build_charts() -> list[dict[str, str]]:
     ax2.tick_params(colors=DANGER, length=0)
     ax2.spines["top"].set_visible(False)
     clean_axis(ax, "y")
-    chart_title(ax, "El backlog se concentra en pocos depósitos",
+    chart_title(ax, "Los pendientes se concentran en pocos depósitos",
                 "Participación y curva acumulada sobre el histórico agregado")
     save_chart(fig, "11_concentracion_backlog.png", "kpi_backlog_mas_critico.csv")
-    charts.append({"file": "11_concentracion_backlog.png", "title": "Concentración del backlog"})
+    charts.append({"file": "11_concentracion_backlog.png", "title": "Concentración de pendientes"})
 
     failures = read("kpi_fallas_repetitivas_mas_frecuentes.csv").sort_values("repetitive_events", ascending=False).head(15)
     failures = failures.iloc[::-1]
@@ -405,16 +417,16 @@ def build_charts() -> list[dict[str, str]]:
     ax.hlines(y, rul["new_p10"], rul["new_p90"], color=NEUTRAL, lw=5)
     ax.scatter(rul["new_p50"], y, color=ACCENT, s=70, zorder=3)
     ax.set_yticks(y, rul["component_family"].map(family_es))
-    ax.set_xlabel("RUL proxy, días")
+    ax.set_xlabel("RUL aproximado, días")
     clean_axis(ax, "x")
     chart_title(ax, "El RUL discrimina ventanas de intervención por familia",
-                "Mediana y rango P10-P90 del proxy rediseñado")
+                "Mediana y rango P10-P90 del cálculo rediseñado")
     save_chart(fig, "13_cohortes_rul_familia.png", "rul_family_discrimination_before_after.csv")
     charts.append({"file": "13_cohortes_rul_familia.png", "title": "Coortes RUL por familia"})
 
     rul_dist = read("rul_distribution_before_after.csv")
     fig, ax = plt.subplots(figsize=(9.2, 5.0))
-    methods = ["Legacy lineal", "Proxy por familia"]
+    methods = ["Lineal anterior", "Aproximado por familia"]
     p50 = rul_dist["p50_rul"].values
     p10 = rul_dist["p10_rul"].values
     p90 = rul_dist["p90_rul"].values
@@ -424,7 +436,7 @@ def build_charts() -> list[dict[str, str]]:
     ax.set_xticks(x, methods)
     ax.set_ylabel("RUL, días")
     clean_axis(ax, "y")
-    chart_title(ax, "El rediseño elimina la saturación artificial del RUL legacy",
+    chart_title(ax, "El rediseño elimina la saturación artificial del RUL anterior",
                 "Mediana y rango P10-P90 antes y después")
     save_chart(fig, "14_rul_antes_despues.png", "rul_distribution_before_after.csv")
     charts.append({"file": "14_rul_antes_despues.png", "title": "RUL antes y después"})
@@ -468,7 +480,7 @@ def build_charts() -> list[dict[str, str]]:
     chart_title(ax, "La indisponibilidad histórica también está concentrada",
                 "Quince unidades con mayor tiempo fuera de servicio")
     save_chart(fig, "17_ranking_indisponibilidad.png", "kpi_unidades_mayor_indisponibilidad.csv")
-    charts.append({"file": "17_ranking_indisponibilidad.png", "title": "Ranking de indisponibilidad"})
+    charts.append({"file": "17_ranking_indisponibilidad.png", "title": "Clasificación de indisponibilidad"})
 
     scenarios = read("comparativo_estrategias_escenarios.csv")
     labels_s = {"basada_en_condicion": "CBM", "preventiva_rigida": "Preventiva", "reactiva": "Reactiva"}
@@ -511,12 +523,12 @@ def build_charts() -> list[dict[str, str]]:
 def validate_dashboard() -> Path:
     target = DASHBOARD / "centro-control-mantenimiento-ferroviario.html"
     if not target.exists():
-        raise FileNotFoundError("No se encontró el dashboard standalone existente.")
+        raise FileNotFoundError("No se encontró el panel de control autocontenido existente.")
     content = target.read_text(encoding="utf-8")
     required = ["<!DOCTYPE html", "<style", "<script", "</html>"]
     missing = [token for token in required if token.lower() not in content.lower()]
     if missing or target.stat().st_size < 100_000:
-        raise ValueError(f"Dashboard incompleto o no standalone: {missing}")
+        raise ValueError(f"Panel de control incompleto o no autocontenido: {missing}")
     return target
 
 
@@ -547,7 +559,7 @@ def main() -> None:
     build_narrative_report()
     validate_dashboard()
     print(f"Gráficos: {len(charts)}")
-    print(f"Dashboard: {DASHBOARD / 'centro-control-mantenimiento-ferroviario.html'}")
+    print(f"Panel de control: {DASHBOARD / 'centro-control-mantenimiento-ferroviario.html'}")
     print(f"Informe: {REPORT}")
 
 

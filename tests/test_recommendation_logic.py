@@ -37,7 +37,7 @@ def test_no_action_has_low_average_risk():
 
 def test_escalation_is_traceable_to_conflict_rule():
     score = pd.read_csv(PROCESSED / "scoring_componentes.csv")
-    escalated = score[score["recommended_action_initial"] == "escalado_tecnico_manual_review"]
+    escalated = score[score["recommended_action_initial"] == "escalado_tecnico_revision_manual"]
     if escalated.empty:
         return
     assert escalated["recommendation_conflict_flag"].eq(1).all()
@@ -82,6 +82,6 @@ def test_component_recommendations_do_not_mutate_input():
             "monitorizacion_intensiva",
             "mantener_bajo_observacion",
             "no_accion_por_ahora",
-            "escalado_tecnico_manual_review",
+            "escalado_tecnico_revision_manual",
         }
     )

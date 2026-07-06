@@ -1,13 +1,13 @@
-# Runbook de Reproducibilidad
+# Guía de Reproducibilidad
 
 ## Objetivo
-Ejecutar el proyecto de forma determinista en una máquina limpia y con gates de calidad activos.
+Ejecutar el proyecto de forma determinista en una máquina limpia y con puertas de calidad activas.
 
 ## Entorno
 Requiere Python 3.12 o superior.
 Reserve al menos 4 GB libres para los CSV y artefactos generados localmente.
 
-## Preflight
+## Preparación previa
 - Ejecutar desde la raíz del repositorio.
 - Usar `requirements-lock.txt` para resultados comparables.
 - No editar manualmente `data/processed/`, `outputs/` ni notebooks generados antes de una corrida comparativa.
@@ -31,38 +31,38 @@ python -m pip install -r requirements-lock.txt
 ./scripts/run_pipeline.sh
 ```
 
-La pipeline genera datos sintéticos, marts, scoring, RUL, priorización, scheduling, documentación derivada y dashboard.
+El flujo genera datos sintéticos, tablas analíticas, puntuación, RUL, priorización, planificación, documentación derivada y panel de control.
 
-### Orden operativo de la pipeline
-1. Generación sintética y auditoría raw.
-2. Capa SQL DuckDB y marts.
-3. Features, scoring, RUL y alertas.
-4. Priorización, scheduling, inspección, estrategia y diferimiento.
-5. Sincronización de narrativa, notebooks, contratos y dashboard.
+### Orden operativo del flujo
+1. Generación sintética y auditoría de datos brutos.
+2. Capa SQL DuckDB y tablas analíticas.
+3. Variables, puntuación, RUL y alertas.
+4. Priorización, planificación, inspección, estrategia y diferimiento.
+5. Sincronización de métricas ejecutivas, notebooks, contratos y panel de control.
 
-### Outputs esperados
+### Salidas esperadas
 | Artefacto | Ruta |
 |-----------|------|
-| Dashboard final | `outputs/dashboard/centro-control-mantenimiento-ferroviario.html` |
+| Panel de control final | `outputs/dashboard/centro-control-mantenimiento-ferroviario.html` |
 | Métricas narrativas oficiales | `data/processed/narrative_metrics_official.csv` |
 | Contratos de métricas | `data/processed/metric_contract_registry.csv` |
 | Contratos de datos | `data/processed/data_contract_registry.csv` |
-| Validaciones de governance | `data/processed/governance_contract_checks.csv` |
+| Validaciones de gobernanza | `data/processed/governance_contract_checks.csv` |
 
 ## Determinismo byte a byte
-La pipeline es reproducible byte a byte entre corridas en el mismo entorno: dos
-ejecuciones consecutivas producen un dashboard con idéntica `dashboard-signature`.
+El flujo es reproducible byte a byte entre corridas en el mismo entorno: dos
+ejecuciones consecutivas producen un panel de control con idéntica `dashboard-signature`.
 
 La fuente de no determinismo más sutil son las agregaciones en coma flotante de
 DuckDB (`AVG`/`SUM`): con varias hebras, el orden de sumación varía y filtra ruido
-en los últimos dígitos hacia scoring, métricas y firma. Por eso la capa SQL fija la
+en los últimos dígitos hacia puntuación, métricas y firma. Por eso la capa SQL fija la
 conexión a una sola hebra (`SET threads TO 1`, en `src/run_sql_layer.py`). El test
 `tests/test_pipeline_determinism.py` protege esta garantía.
 
 Para verificar el determinismo de forma manual:
 ```bash
 ./scripts/run_pipeline.sh && cp outputs/dashboard/*.html /tmp/a.html
-./scripts/run_pipeline.sh && diff /tmp/a.html outputs/dashboard/*.html && echo "byte-identical"
+./scripts/run_pipeline.sh && diff /tmp/a.html outputs/dashboard/*.html && echo "identico-byte-a-byte"
 ```
 
 ## Verificación
@@ -73,33 +73,33 @@ git diff --check
 ```
 
 Publicación recomendada solo si:
-1. La pipeline termina sin validaciones de severidad alta fallidas.
+1. El flujo termina sin validaciones de severidad alta fallidas.
 2. Lint y suite de tests pasan completos.
-3. `scripts/run_tests.sh` no detecta drift entre `requirements-lock.txt` y el entorno activo.
-4. `scripts/run_coverage.sh` genera cobertura para pipeline + tests.
+3. `scripts/run_tests.sh` no detecta deriva entre `requirements-lock.txt` y el entorno activo.
+4. `scripts/run_coverage.sh` genera cobertura para flujo + tests.
 5. `python -m pip check` no reporta conflictos de dependencias.
-6. `data/processed/narrative_metrics_official.csv` está alineado con README, memo y dashboard.
+6. `data/processed/narrative_metrics_official.csv` está alineado con README, memo y panel de control.
 7. `git diff --check` no detecta errores de formato.
 
 ## Seguridad y dependencias
-Ver también `docs/security_dependency_hygiene.md` para la política de actualización, auditoría de vulnerabilidades y hardening HTML.
+Ver también `docs/security_dependency_hygiene.md` para la política de actualización, auditoría de vulnerabilidades y endurecimiento HTML.
 
 ## Diagnóstico rápido
 | Síntoma | Revisión práctica |
 |---------|-------------------|
 | Métricas del README no coinciden | Reejecutar pipeline y revisar `tests/test_reporting_consistency.py`. |
-| Dashboard sin datos recientes | Verificar `data/processed/narrative_metrics_official.csv` y `outputs/dashboard/`. |
+| Panel de control sin datos recientes | Verificar `data/processed/narrative_metrics_official.csv` y `outputs/dashboard/`. |
 | Fallo de contrato | Abrir `data/processed/governance_contract_checks.csv` y corregir fuente, PK, rango o columna obligatoria. |
-| Diferencias inesperadas entre corridas | Confirmar `requirements-lock.txt`, Python 3.12+ y ausencia de ediciones manuales en outputs generados. |
+| Diferencias inesperadas entre corridas | Confirmar `requirements-lock.txt`, Python 3.12+ y ausencia de ediciones manuales en salidas generadas. |
 
 ## Criterio de reproducibilidad aceptado
 - Corrida completa sin errores.
 - Tests y lint sin fallos.
-- Outputs generados por pipeline, no editados a mano.
-- Cambios revisables por `git diff`, con diferencias explicables en datos, docs o dashboard.
+- Salidas generadas por el flujo, no editadas a mano.
+- Cambios revisables por `git diff`, con diferencias explicables en datos, documentación o panel de control.
 
 ## Limitaciones conocidas
 - Dataset sintético: no permite inferencia causal de producción.
-- Capa económica basada en proxies de coste.
+- Capa económica basada en aproximaciones de coste.
 - RUL útil como ventana relativa, no como fecha de fallo calibrada.
-- Scheduling heurístico, no optimización global matemática.
+- Planificación heurística, no optimización global matemática.

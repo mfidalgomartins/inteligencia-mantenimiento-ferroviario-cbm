@@ -1436,10 +1436,10 @@ def _write_generation_logic_summary(
         "- Degradación acumulativa por componente con aceleración por carga, congestión y ambiente.",
         "- Sensores con ruido realista y comportamiento dependiente de desgaste.",
         "- Inspección automática por familias wheel, brake, bogie y pantograph.",
-        "- Fallas probabilísticas con modo de falla plausible y bandera repetitiva.",
+        "- Fallas probabilísticas con modo de falla estimado y bandera repetitiva.",
         "- Mezcla de mantenimiento correctivo, preventivo y basado en condición.",
         "- Disponibilidad y asignación de servicio afectadas por fallas e intervenciones.",
-        "- Backlog y escenarios sintetizados para análisis de riesgo y capacidad.",
+        "- Pendientes y escenarios sintetizados para análisis de riesgo y capacidad.",
         "",
         "## Cardinalidades clave",
     ]
@@ -1447,7 +1447,7 @@ def _write_generation_logic_summary(
     for row in summary.sort_values("n_filas", ascending=False).head(8).itertuples(index=False):
         lines.append(f"- {row.tabla}: {row.n_filas:,} filas | {row.n_columnas} columnas")
 
-    lines.extend(["", "## Estado de validaciones"]) 
+    lines.extend(["", "## Estado de validaciones"])
     for row in validations.itertuples(index=False):
         state = "OK" if bool(row.aprobado) else "FAIL"
         lines.append(f"- {row.check}: {state} (observado={row.valor_observado}, umbral={row.umbral})")

@@ -66,7 +66,7 @@ def _priority_bucket(row: pd.Series) -> str:
     ):
         return "P1"
     if (
-        row["decision_type"] in {"intervención en próxima ventana", "escalado técnico/manual review"}
+        row["decision_type"] in {"intervención en próxima ventana", "escalado técnico/revisión manual"}
         or row["intervention_priority_score"] >= 74
         or row["deferral_risk_score"] >= 60
     ):
@@ -346,7 +346,7 @@ def _schedule_redesigned(
             and (float(row.criticidad_servicio) >= 0.70)
         )
         escalation_required = (
-            (str(row.decision_type) == "escalado técnico/manual review")
+            (str(row.decision_type) == "escalado técnico/revisión manual")
             or (int(row.decision_conflict_flag) == 1)
             or ((str(row.bucket_prioridad) == "P1") and (str(row.confidence_flag) == "baja"))
         )
@@ -467,7 +467,7 @@ def _write_scheduling_framework_doc(
 ) -> None:
     DOCS_DIR.mkdir(parents=True, exist_ok=True)
     lines = [
-        "# Marco de Scheduling de Taller",
+        "# Marco de Planificación de Taller",
         "",
         "## Objetivo",
         "Reducir salida no ejecutable del plan de taller sin forzar programaciones irreales.",
@@ -475,49 +475,49 @@ def _write_scheduling_framework_doc(
         "## Diagnóstico del colapso original",
         "- Horizonte corto (21 días) con ventanas estrictas por caso.",
         "- Concentración de carga en pocos depósitos especializados.",
-        "- Sin carry-over controlado ni capacidad flexible explícita.",
+        "- Sin arrastre controlado ni capacidad flexible explícita.",
         "- Un único estado de no ejecución (`pendiente_capacidad`) sin distinción de causa.",
         "",
         "## Rediseño heurístico aplicado",
         "1. Horizonte multiperiodo: 35 días.",
         "2. Calendario de capacidad por depósito/día: capacidad regular + bolsa flexible.",
-        "3. Bucketización por criticidad (`P1..P4`) y cola priorizada con aging.",
-        "4. Carry-over controlado por bucket para programar fuera de ventana preferida cuando es viable.",
-        "5. Candidatos de depósito (top-N por fit técnico-operativo) para aliviar cuellos.",
+        "3. Agrupación por criticidad (`P1..P4`) y cola priorizada con envejecimiento.",
+        "4. Arrastre controlado por grupo para programar fuera de la ventana preferida cuando es viable.",
+        "5. Candidatos de depósito (principales N por ajuste técnico-operativo) para aliviar cuellos.",
         "6. Nuevos estados operativos de salida para separar causa de no ejecución.",
         "",
         "## Estados de salida",
         "- `programada`: asignada dentro de ventana preferida.",
         "- `programable_proxima_ventana`: asignada fuera de ventana preferida, dentro del horizonte extendido.",
-        "- `pendiente_repuesto`: no programable por riesgo de suministro de repuesto (proxy).",
+        "- `pendiente_repuesto`: no programable por riesgo aproximado de suministro de repuesto.",
         "- `pendiente_capacidad`: no programable por falta de capacidad en horizonte.",
         "- `pendiente_conflicto_operativo`: no programable por ventana operativa/conflicto de servicio.",
-        "- `escalar_decision`: requiere revisión técnica/manual (alto riesgo + conflicto/información insuficiente).",
+        "- `escalar_decision`: requiere revisión técnica manual (alto riesgo + conflicto/información insuficiente).",
         "",
         "## Comparación de métricas",
         before_after.to_markdown(index=False),
         "",
-        "## Cuellos de botella principales (baseline)",
+        "## Cuellos de botella principales (base inicial)",
         bottlenecks.to_markdown(index=False),
         "",
         "## Distribución de estados del plan rediseñado",
         statuses_after.to_markdown(index=False),
         "",
-        "## Trade-offs introducidos",
-        "- Mayor capacidad de ejecución mediante carry-over y flexibilidad controlada.",
+        "## Compensaciones introducidas",
+        "- Mayor capacidad de ejecución mediante arrastre y flexibilidad controlada.",
         "- Posible reasignación de depósito con coste logístico implícito (no modelado en detalle).",
         "- Mayor accionabilidad a cambio de complejidad heurística moderada.",
         "",
         "## Limitaciones del enfoque heurístico",
         "- No garantiza optimalidad global multiobjetivo.",
-        "- Modela repuestos y conflicto operativo con proxies, no con ERP real.",
-        "- No incorpora secuenciación fina de recursos técnicos por skill-hora.",
+        "- Modela repuestos y conflicto operativo con aproximaciones, no con ERP real.",
+        "- No incorpora secuenciación fina de recursos técnicos por habilidad-hora.",
         "",
         "## Cuándo usar optimización formal",
         "- Si la red opera con saturación estructural persistente >85%.",
         "- Si hay restricciones duras de SLA/seguridad en múltiples depósitos simultáneos.",
-        "- Si se necesita minimización explícita de coste+risk con constraints de recursos/repuestos.",
-        "- Si se requiere plan robusto multi-semana con replanificación automática.",
+        "- Si se necesita minimización explícita de coste+riesgo con restricciones de recursos/repuestos.",
+        "- Si se requiere plan estable multi-semana con replanificación automática.",
     ]
     (DOCS_DIR / "scheduling_framework.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
 
@@ -626,7 +626,7 @@ def run_workshop_prioritization() -> tuple[pd.DataFrame, pd.DataFrame]:
     base.loc[base["decision_type"] == "monitorización intensiva", "suggested_window_days"] = 10
     base.loc[base["decision_type"] == "mantener bajo observación", "suggested_window_days"] = 14
     base.loc[base["decision_type"] == "no acción por ahora", "suggested_window_days"] = 21
-    base.loc[base["decision_type"] == "escalado técnico/manual review", "suggested_window_days"] = 1
+    base.loc[base["decision_type"] == "escalado técnico/revisión manual", "suggested_window_days"] = 1
 
     base["reason_main"] = base["decision_rule_id"].fillna("D04_monitorizacion") + " | " + base["main_risk_driver"].fillna("degradacion")
     base["bucket_prioridad"] = base.apply(_priority_bucket, axis=1)
@@ -641,14 +641,14 @@ def run_workshop_prioritization() -> tuple[pd.DataFrame, pd.DataFrame]:
         + base["aging_score"].fillna(0) * 0.08
     )
 
-    # Horas requeridas por intervención (proxy)
+    # Horas requeridas por intervención (aproximación)
     base["hours_required"] = (
         2.0
         + base["intervention_priority_score"] / 25
         + np.where(base["decision_type"] == "intervención inmediata", 2.8, 0)
         + np.where(base["decision_type"] == "intervención en próxima ventana", 1.8, 0)
         + np.where(base["decision_type"] == "inspección prioritaria", 1.0, 0)
-        + np.where(base["decision_type"] == "escalado técnico/manual review", 0.6, 0)
+        + np.where(base["decision_type"] == "escalado técnico/revisión manual", 0.6, 0)
     ).clip(2, 14)
 
     priority_cols = [
@@ -690,16 +690,16 @@ def run_workshop_prioritization() -> tuple[pd.DataFrame, pd.DataFrame]:
     latest_scen = escenarios[escenarios["fecha"] == escenarios["fecha"].max()].copy()
     resources_index = float(latest_scen["disponibilidad_recursos_indice"].mean()) if not latest_scen.empty else 0.55
 
-    # Baseline para auditar la mejora.
+    # Base inicial para auditar la mejora.
     schedule_before, cap_before = _schedule_legacy(priorities=priorities, latest=pd.to_datetime(latest), depositos=depositos)
     metrics_before = _compute_schedule_metrics(
         schedule=schedule_before,
         priorities=priorities,
         capacity_ledger=cap_before,
-        label="baseline_greedy_21d",
+        label="base_inicial_voraz_21d",
     )
 
-    # Scheduling rediseñado.
+    # Planificación rediseñada.
     scheduling, cap_after = _schedule_redesigned(
         priorities=priorities,
         latest=pd.to_datetime(latest),
@@ -723,7 +723,7 @@ def run_workshop_prioritization() -> tuple[pd.DataFrame, pd.DataFrame]:
     status_before = (
         schedule_before["estado_intervencion"].value_counts(normalize=True).rename("share").reset_index().rename(columns={"index": "estado_intervencion"})
     )
-    status_before["scenario"] = "baseline_greedy_21d"
+    status_before["scenario"] = "base_inicial_voraz_21d"
     status_after = (
         scheduling["estado_intervencion"].value_counts(normalize=True).rename("share").reset_index().rename(columns={"index": "estado_intervencion"})
     )
@@ -740,14 +740,14 @@ def run_workshop_prioritization() -> tuple[pd.DataFrame, pd.DataFrame]:
         for c in before_after.columns
         if c not in {"scenario"}
     ]
-    baseline_row = before_after[before_after["scenario"] == "baseline_greedy_21d"].iloc[0]
+    baseline_row = before_after[before_after["scenario"] == "base_inicial_voraz_21d"].iloc[0]
     redesign_row = before_after[before_after["scenario"] == "heuristica_redisenada_35d"].iloc[0]
     before_after_delta = pd.DataFrame(
         {
-            "metric": metric_cols,
-            "baseline_greedy_21d": [baseline_row[c] for c in metric_cols],
+            "metrica": metric_cols,
+            "base_inicial_voraz_21d": [baseline_row[c] for c in metric_cols],
             "heuristica_redisenada_35d": [redesign_row[c] for c in metric_cols],
-            "delta_after_minus_before": [float(redesign_row[c]) - float(baseline_row[c]) for c in metric_cols],
+            "delta_despues_menos_antes": [float(redesign_row[c]) - float(baseline_row[c]) for c in metric_cols],
         }
     ).round(3)
     before_after_delta.to_csv(DATA_PROCESSED_DIR / "scheduling_before_after_deltas.csv", index=False)
@@ -765,7 +765,7 @@ def run_workshop_prioritization() -> tuple[pd.DataFrame, pd.DataFrame]:
     bottleneck = bottleneck.sort_values(["pendientes_capacidad", "horas_requeridas"], ascending=[False, False]).reset_index(drop=True)
     bottleneck.to_csv(DATA_PROCESSED_DIR / "scheduling_bottleneck_diagnosis.csv", index=False)
 
-    # Compatibilidad con outputs legacy
+    # Compatibilidad con salidas históricas.
     legacy_prior = priorities.rename(
         columns={
             "intervention_priority_score": "indice_prioridad",
@@ -796,15 +796,15 @@ def run_workshop_prioritization() -> tuple[pd.DataFrame, pd.DataFrame]:
 
     tradeoffs = pd.DataFrame(
         {
-            "tradeoff": [
+            "compensacion": [
                 "capacidad_flexible_vs_coste_operativo_taller",
-                "carry_over_controlado_vs_riesgo_de_espera",
+                "arrastre_controlado_vs_riesgo_de_espera",
                 "reasignacion_deposito_vs_eficiencia_local",
                 "escalar_decision_vs_ejecucion_automatica",
             ],
             "lectura": [
                 "La bolsa flexible reduce pendientes críticos, pero debe limitarse para no simular sobrecapacidad estructural.",
-                "Carry-over mejora ejecutabilidad sin maquillar urgencias: fuera de ventana preferida queda etiquetado explícitamente.",
+                "El arrastre mejora ejecutabilidad sin maquillar urgencias: fuera de ventana preferida queda etiquetado explícitamente.",
                 "Reasignar depósitos reduce cuellos, pero implica coordinación logística adicional.",
                 "Escalar decisión preserva seguridad cuando la señal no permite automatizar intervención.",
             ],
