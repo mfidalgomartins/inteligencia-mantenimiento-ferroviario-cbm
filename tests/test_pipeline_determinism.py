@@ -1,8 +1,8 @@
-"""Guarda la propiedad central del repositorio: la pipeline es reproducible.
+"""Guarda la propiedad central del repositorio: el flujo es reproducible.
 
 Las agregaciones en coma flotante de DuckDB (AVG/SUM) suman en orden no
 determinista cuando hay varias hebras, lo que filtra ruido en los últimos
-dígitos hacia el scoring, las métricas y la firma del dashboard. Fijar la
+dígitos hacia la puntuación, las métricas y la firma del panel de control. Fijar la
 conexión a una sola hebra elimina esa fuente de no determinismo. Este test
 asegura que la conexión de producción se configura así.
 """

@@ -2,18 +2,10 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from src.plotting import configure_matplotlib_cache
-
-configure_matplotlib_cache()
-
-import matplotlib
 import numpy as np
 import pandas as pd
 
-from src.config import DATA_PROCESSED_DIR, DATA_RAW_DIR, DOCS_DIR, OUTPUTS_CHARTS_DIR, OUTPUTS_REPORTS_DIR
-
-matplotlib.use("Agg")
-import matplotlib.pyplot as plt
+from src.config import DATA_PROCESSED_DIR, DATA_RAW_DIR, DOCS_DIR, OUTPUTS_REPORTS_DIR
 
 RUL_FAILURE_THRESHOLD_LEGACY = 30.0
 
@@ -177,7 +169,7 @@ def _new_rul_projection(grp: pd.DataFrame, latest_row: pd.Series, prob_fallo_30d
     days_since_maint = latest_row.get("days_since_last_maintenance")
     days_since_fail = latest_row.get("days_since_last_failure")
 
-    # Señal de riesgo interpretable: mezcla proxy técnico + probabilidad de fallo si está disponible.
+    # Señal de riesgo interpretable: mezcla aproximación técnica + probabilidad de fallo si está disponible.
     risk_proxy = (
         0.52 * _clip(deterioration / 100.0, 0.0, 1.0)
         + 0.28 * _clip(degradation_velocity / 10.0, 0.0, 1.0)
@@ -326,13 +318,6 @@ def _estimate_snapshot(
     return pd.DataFrame(rows)
 
 
-def _save_chart(fig: plt.Figure, filename: str) -> None:
-    OUTPUTS_CHARTS_DIR.mkdir(parents=True, exist_ok=True)
-    fig.tight_layout()
-    fig.savefig(OUTPUTS_CHARTS_DIR / filename, dpi=140)
-    plt.close(fig)
-
-
 def _build_backtest_failure_linkage(daily: pd.DataFrame, fallas: pd.DataFrame, latest: pd.Timestamp) -> pd.DataFrame:
     min_date = daily["fecha"].min()
     eval_end = latest - pd.Timedelta(days=30)
@@ -412,7 +397,7 @@ def _build_rul_validation_checks(
             "passed": bool(share_cap <= 0.60),
             "metric_value": share_cap,
             "threshold": "<=0.60",
-            "detail": "share en techo de RUL",
+            "detail": "proporción en techo de RUL",
         },
         {
             "check_id": "rul_distribution_spread",
@@ -482,14 +467,73 @@ def _write_rul_framework_doc(
     DOCS_DIR.mkdir(parents=True, exist_ok=True)
 
     legacy_share_cap = float((latest_compare["legacy_rul_days"] >= 365).mean())
+    method_labels = {
+        "legacy_lineal_365": "lineal_anterior_365",
+        "nuevo_proxy_familia": "nueva_aproximacion_familia",
+    }
+    summary_display = summary_before_after.replace(method_labels).rename(
+        columns={
+            "mean_rul": "rul_medio",
+            "p10_rul": "rul_p10",
+            "p50_rul": "rul_p50",
+            "p90_rul": "rul_p90",
+            "share_rul_cap": "proporcion_tope_rul",
+            "share_rul_<=30": "proporcion_rul_<=30",
+        }
+    )
+    family_display = family_summary.rename(
+        columns={
+            "component_family": "familia_componente",
+            "legacy_p50": "anterior_p50",
+            "legacy_p10": "anterior_p10",
+            "legacy_p90": "anterior_p90",
+            "new_p50": "nuevo_p50",
+            "new_p10": "nuevo_p10",
+            "new_p90": "nuevo_p90",
+            "new_share_le_30": "nuevo_proporcion_<=30",
+        }
+    )
+    family_display["familia_componente"] = family_display["familia_componente"].replace(
+        {
+            "wheel": "rueda",
+            "brake": "freno",
+            "bogie": "bogie",
+            "pantograph": "pantógrafo",
+        }
+    )
+    failure_display = failure_linkage.replace(method_labels).rename(
+        columns={
+            "method": "metodo",
+            "rul_bucket": "grupo_rul",
+            "observations": "observaciones",
+            "failures_30d": "fallas_30d",
+            "failure_rate_30d": "tasa_falla_30d",
+        }
+    )
+    checks_display = validation_checks.rename(
+        columns={
+            "severity": "severidad",
+            "passed": "aprobado",
+            "metric_value": "valor_metrica",
+            "threshold": "umbral",
+            "detail": "detalle",
+        }
+    )
+    checks_display["aprobado"] = checks_display["aprobado"].map({True: "sí", False: "no"}).fillna(checks_display["aprobado"])
+    checks_display["detalle"] = (
+        checks_display["detalle"]
+        .astype(str)
+        .str.replace("sanity check direccional", "control direccional", regex=False)
+        .str.replace("failure_rate", "tasa_falla", regex=False)
+    )
 
     lines = [
         "# Marco de RUL",
         "",
         "## 1) Diagnóstico de la lógica anterior",
-        "- La lógica legacy usaba extrapolación lineal y regla de saturación `slope >= -0.02 => RUL=365`.",
-        f"- Resultado observado: `share_rul_365_legacy = {legacy_share_cap:.3f}` (colapso en horizontes amplios).",
-        "- Impacto: baja discriminación para priorización, intervención y scheduling.",
+        "- La lógica anterior usaba extrapolación lineal y regla de saturación `slope >= -0.02 => RUL=365`.",
+        f"- Resultado observado: `proporcion_rul_365_anterior = {legacy_share_cap:.3f}` (colapso en horizontes amplios).",
+        "- Impacto: baja discriminación para priorización, intervención y planificación.",
         "",
         "## 2) Definición operativa del nuevo RUL",
         "RUL (`component_rul_estimate`) = días estimados hasta cruzar umbral de condición crítica por familia técnica,",
@@ -499,7 +543,7 @@ def _write_rul_framework_doc(
         "- Perfil por familia (`wheel`, `brake`, `bogie`, `pantograph`) con umbral y horizonte máximo específicos.",
         "- Degradación no lineal por deterioro, velocidad de degradación y aceleración de tendencia.",
         "- Estrés operacional y ambiental.",
-        "- Resets parciales por restauración de mantenimiento (sin asumir reset perfecto).",
+        "- Restablecimientos parciales por restauración de mantenimiento (sin asumir restablecimiento perfecto).",
         "- Penalización por repetitividad de falla y alertas críticas.",
         "- Banda de confianza (`confidence_rul`, `confidence_flag`) por completitud y estabilidad de señal.",
         "",
@@ -507,32 +551,32 @@ def _write_rul_framework_doc(
         "### Usar RUL para:",
         "- Dimensionar ventana de intervención (urgente/corta/media/larga).",
         "- Desempatar prioridades entre activos con riesgo similar.",
-        "- Ajustar secuencia de taller junto con impacto de servicio y fit de depósito.",
+        "- Ajustar secuencia de taller junto con impacto de servicio y ajuste de depósito.",
         "",
         "### No usar RUL como única señal cuando:",
         "- `confidence_flag = baja` o hay conflicto fuerte entre señales (ej. alto riesgo con RUL amplio).",
         "- Existen restricciones operativas duras (ventana/capacidad/repuesto) que dominan la decisión.",
-        "- Se requiere causalidad física de fallo por componente (este marco es proxy interpretable, no modelo físico).",
+        "- Se requiere causalidad física de fallo por componente (este marco es una aproximación interpretable, no un modelo físico).",
         "",
-        "## 4) Convivencia con health y risk",
+        "## 4) Convivencia con salud y riesgo",
         "- `health_score`: estado actual (alto=mejor).",
         "- `prob_fallo_30d`: probabilidad de fallo a corto plazo.",
         "- `component_rul_estimate`: horizonte temporal de agotamiento bajo condiciones actuales.",
         "- Regla práctica: decisión prioritaria cuando riesgo alto + RUL corto + impacto servicio alto.",
         "",
         "## 5) Comparación con la lógica anterior",
-        summary_before_after.to_markdown(index=False),
+        summary_display.to_markdown(index=False),
         "",
         "### Discriminación por familia",
-        family_summary.to_markdown(index=False),
+        family_display.to_markdown(index=False),
         "",
-        "### Relación con fallas posteriores (backtest)",
-        failure_linkage.to_markdown(index=False),
+        "### Relación con fallas posteriores (validación retrospectiva)",
+        failure_display.to_markdown(index=False),
         "",
         "## 6) Validaciones específicas de RUL",
-        validation_checks.to_markdown(index=False),
+        checks_display.to_markdown(index=False),
         "",
-        "## 7) Integración con recomendación y scheduling",
+        "## 7) Integración con recomendación y planificación",
         "- `component_rul_estimate` y `confidence_rul` alimentan `assign_operational_decisions` y `workshop_priority_table`.",
         "- RUL corto empuja decisiones de `intervención inmediata` / `próxima ventana` según conflicto de capacidad.",
         "- RUL amplio con riesgo bajo permite `observación` / `no acción` con menor presión de taller.",
@@ -598,13 +642,12 @@ def estimate_rul() -> pd.DataFrame:
     # Artefacto principal para consumo downstream.
     DATA_PROCESSED_DIR.mkdir(parents=True, exist_ok=True)
     OUTPUTS_REPORTS_DIR.mkdir(parents=True, exist_ok=True)
-    OUTPUTS_CHARTS_DIR.mkdir(parents=True, exist_ok=True)
     DOCS_DIR.mkdir(parents=True, exist_ok=True)
 
     rul.to_csv(DATA_PROCESSED_DIR / "component_rul_estimate.csv", index=False)
     rul.to_csv(OUTPUTS_REPORTS_DIR / "component_rul_estimate.csv", index=False)
 
-    # Compatibilidad legacy
+    # Compatibilidad con formato anterior
     legacy = rul.rename(
         columns={
             "componente_id": "instancia_id",
@@ -681,7 +724,7 @@ def estimate_rul() -> pd.DataFrame:
     family_summary.to_csv(DATA_PROCESSED_DIR / "rul_family_discrimination_before_after.csv", index=False)
     family_summary.to_csv(OUTPUTS_REPORTS_DIR / "rul_family_discrimination_before_after.csv", index=False)
 
-    # Backtest de relación con fallas posteriores.
+    # Validación retrospectiva de relación con fallas posteriores.
     backtest = _build_backtest_failure_linkage(daily=daily, fallas=fallas, latest=latest)
     backtest.to_csv(DATA_PROCESSED_DIR / "rul_backtest_component_cutoff.csv", index=False)
     backtest.to_csv(OUTPUTS_REPORTS_DIR / "rul_backtest_component_cutoff.csv", index=False)
@@ -728,41 +771,6 @@ def estimate_rul() -> pd.DataFrame:
     rul_checks.to_csv(OUTPUTS_REPORTS_DIR / "rul_validation_checks.csv", index=False)
     _assert_rul_validation(rul_checks)
 
-    # Gráficos comparativos.
-    fig1, ax1 = plt.subplots(figsize=(9.5, 4.8))
-    ax1.hist(compare_latest["legacy_rul_days"], bins=24, alpha=0.45, color="#8d99ae", label="Legacy lineal")
-    ax1.hist(compare_latest["component_rul_estimate"], bins=24, alpha=0.65, color="#2a9d8f", label="Nuevo proxy familia")
-    ax1.set_title("RUL lineal vs proxy por familia | Distribución operativa")
-    ax1.set_xlabel("RUL (días)")
-    ax1.set_ylabel("N.º componentes")
-    ax1.legend()
-    _save_chart(fig1, "16_rul_before_after_distribution.png")
-
-    fig2, ax2 = plt.subplots(figsize=(9.5, 4.8))
-    fam = family_summary.copy()
-    x = np.arange(len(fam))
-    ax2.bar(x - 0.18, fam["legacy_p50"], width=0.36, color="#adb5bd", label="Legacy p50")
-    ax2.bar(x + 0.18, fam["new_p50"], width=0.36, color="#1d3557", label="Nuevo p50")
-    ax2.set_xticks(x)
-    ax2.set_xticklabels(fam["component_family"])
-    ax2.set_title("RUL por familia | Comparación de medianas")
-    ax2.set_ylabel("RUL mediano (días)")
-    ax2.legend()
-    _save_chart(fig2, "17_rul_family_discrimination_before_after.png")
-
-    fig3, ax3 = plt.subplots(figsize=(10, 5))
-    if not failure_linkage.empty:
-        for method, color in [("legacy_lineal_365", "#7f8c8d"), ("nuevo_proxy_familia", "#e76f51")]:
-            tmp = failure_linkage[failure_linkage["method"] == method].copy()
-            ax3.plot(tmp["rul_bucket"], tmp["failure_rate_30d"], marker="o", label=method, color=color)
-    ax3.set_title("Backtest | Relación entre bucket RUL y falla en 30 días")
-    ax3.set_xlabel("Bucket de RUL")
-    ax3.set_ylabel("Failure rate 30d")
-    ax3.set_ylim(bottom=0)
-    ax3.legend()
-    _save_chart(fig3, "18_rul_failure_linkage_before_after.png")
-
-    fig4, ax4 = plt.subplots(figsize=(9.5, 4.8))
     util = pd.DataFrame(
         {
             "bucket": ["<=14", "15-30", "31-60", "61-90", "91-180", ">180"],
@@ -784,16 +792,6 @@ def estimate_rul() -> pd.DataFrame:
             ],
         }
     )
-    x2 = np.arange(len(util))
-    ax4.bar(x2 - 0.18, util["legacy_share"], width=0.36, color="#adb5bd", label="Legacy")
-    ax4.bar(x2 + 0.18, util["new_share"], width=0.36, color="#2a9d8f", label="Nuevo")
-    ax4.set_xticks(x2)
-    ax4.set_xticklabels(util["bucket"])
-    ax4.set_title("Utilidad operativa | Ventanas de intervención sugeridas por RUL")
-    ax4.set_ylabel("Share de componentes")
-    ax4.legend()
-    _save_chart(fig4, "19_rul_window_utility_before_after.png")
-
     util.to_csv(DATA_PROCESSED_DIR / "rul_window_utility_before_after.csv", index=False)
     util.to_csv(OUTPUTS_REPORTS_DIR / "rul_window_utility_before_after.csv", index=False)
 

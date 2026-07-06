@@ -1,47 +1,46 @@
-# Memo ejecutivo
+# Memorando Ejecutivo
 
-## Tesis para comité
+## 1. Contexto
+La red ferroviaria analizada opera con alta exigencia de disponibilidad y presión de taller en depósitos críticos.
 
-La plataforma no debe leerse como un dashboard de mantenimiento, sino como un sistema de decisión para proteger disponibilidad. La decisión inmediata es ejecutar una cola de taller basada en riesgo, corregir la asignación de capacidad y gobernar los diferimientos. La inversión en CBM debe pasar por una segunda puerta financiera: el modelo mejora disponibilidad, pero no demuestra ahorro bajo los supuestos actuales.
+## 2. Problema
+Persisten fallas repetitivas y pendientes técnicos que elevan el riesgo de indisponibilidad y afectan servicio.
 
-## Evidencia crítica
+## 3. Enfoque metodológico
+El resumen toma sus cifras del registro oficial de métricas,
+para que README, panel de control e informes comuniquen los mismos valores.
 
-| Métrica | Lectura ejecutiva |
-|---|---:|
-| Disponibilidad media de flota | 95,75% |
-| Unidades en cola estadística de alto riesgo | 9 |
-| Backlog físico abierto | 2.056 pendientes |
-| Backlog vencido | 2.011 pendientes |
-| Backlog crítico físico | 1.955 pendientes |
-| Casos con alto riesgo de diferimiento | 43 |
-| Mejora CBM vs reactiva | +0,93 p.p. |
-| Diferencial neto CBM vs reactiva | -48,7 M€ |
-| Probabilidad modelada de ahorro positivo CBM | 0,0% |
+## 4. Hallazgos principales
+- Disponibilidad media de flota: 95,75%.
+- Unidades de alto riesgo: 9.
+- Pendientes físicos: 2.056.
+- Pendientes vencidos: 2.011.
+- Pendientes críticos físicos: 1.955.
+- Casos de alto riesgo de diferimiento: 43.
+- CBM vs reactiva: mejora de disponibilidad 0,93 p.p.
 
-Marcadores de decisión:
+## 5. Implicaciones operativas
+Intervenciones anticipadas en componentes de alto riesgo reducen indisponibilidad y sustituciones no planificadas.
 
-- Unidad prioritaria: UNI0055
-- Componente prioritario: COMP000438
-- Coste incremental proxy estimado CBM vs reactiva: 48.700.525 EUR
+## 6. Implicaciones para taller
+El depósito más saturado es DEP08 con 45,2% de ocupación.
 
-## Decisiones recomendadas
+## 7. Implicaciones económicas
+Coste incremental aproximado estimado CBM vs reactiva: € 48.700.525.
+Rango estimado del diferencial CBM vs reactiva: -€ 74.235.938 a -€ 44.730.809.
+Robustez del ahorro CBM en escenarios y sensibilidades: 0,0% de casos con ahorro positivo.
 
-1. Ejecutar primero `UNI0055 / COMP000438`, componente de familia `pantograph`, con score de prioridad 91,4 y riesgo de diferimiento 85,8.
-2. Adoptar la programación rediseñada a 35 días como baseline operativo: aumenta accionabilidad y reduce riesgo residual no atendido.
-3. Tratar los 43 casos de alto riesgo de diferimiento como cartera ejecutiva, con revisión diaria y excepción documentada.
-4. Rebalancear carga entre depósitos antes de solicitar capacidad estructural adicional.
-5. No presentar CBM como caso de ahorro hasta recalibrar costes reales, valor de hora de servicio, inventario, capacitación y coste de habilitación.
+## 8. Compensaciones principales
+Diferir 14 días incrementa coste en 329.610 EUR y la indisponibilidad en 441,0 h.
+Separación conceptual aplicada: pendientes físicos (cantidad/edad/severidad) y riesgo de diferimiento (puntuación de decisión) se reportan por separado.
 
-## Trade-off económico
+## 9. Prioridades de intervención
+- Unidad prioritaria: UNI0055.
+- Componente prioritario: COMP000438.
+- Familia técnica asociada: pantograph.
 
-Diferir 14 días añade 329.610 EUR de coste proxy y 441,0 horas de indisponibilidad frente a intervenir en día cero. CBM preserva servicio frente a reactiva, pero exige valorar cada hora de servicio preservada en al menos 2.618 EUR para compensar su coste incremental proxy. Ese umbral debe validarse con economía real del operador.
+## 10. Limitaciones
+Datos sintéticos y costes aproximados; los resultados no sustituyen calibración con datos reales de operación.
 
-## Riesgos y controles
-
-Los datos son sintéticos y los costes son proxies técnico-operativos. Los resultados demuestran arquitectura, lógica de decisión y trazabilidad; no validan precisión externa ni business case contractual. Antes de uso productivo se requiere backtesting temporal, recalibración por familia técnica, revisión de falsos positivos y cierre del circuito alerta-orden-ejecución-resultado.
-
-## Próximos 120 días
-
-- 0-30 días: ejecutar P1/P2, registrar excepciones y estabilizar la heurística de 35 días.
-- 31-60 días: rebalancear depósitos y lanzar planes de causa raíz para pantógrafos y fallos repetitivos.
-- 61-120 días: recalibrar riesgo, RUL y economía CBM con histórico real y preparar decisión de inversión.
+## 11. Acciones recomendadas
+Validar umbrales con histórico real, incorporar optimización matemática de la planificación y retroalimentar el modelo con órdenes ejecutadas.

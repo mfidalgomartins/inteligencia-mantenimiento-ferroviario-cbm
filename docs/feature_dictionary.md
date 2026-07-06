@@ -1,4 +1,4 @@
-# Diccionario de Features
+# Diccionario de Variables
 
 ## component_day_features
 - `sensor_mean`, `sensor_std`, `sensor_max`: señales observadas de condición por componente-día.
@@ -10,20 +10,20 @@
 - `maintenance_frequency_180d`: densidad de mantenimiento en 180 días.
 - `repetitive_failure_flag`: indica historial de repetición de fallas.
 - `age_ratio`, `cycles_ratio`: consumo relativo de vida útil por edad/ciclos.
-- `deterioration_input_index`: deterioro estructural base del mart SQL (0-100, mayor es peor).
+- `deterioration_input_index`: deterioro estructural base de la tabla analítica SQL (0-100, mayor es peor).
 - `estimated_health_index`: índice de salud interpretable (0-100, mayor es mejor).
 - `deterioration_index`: deterioro derivado de salud (0-100, mayor es peor).
-- `degradation_velocity`: velocidad proxy de degradación acumulada.
+- `degradation_velocity`: velocidad aproximada de degradación acumulada.
 - `maintenance_restoration_index`: efecto restaurativo tras mantenimiento reciente (0-100, mayor es mejor).
 - `operating_stress_index`, `environment_stress_proxy`: estrés de operación y contexto externo.
 - `alert_density`: concentración de alertas por componente.
-- `backlog_exposure_flag`: exposición a backlog crítico en componente.
+- `backlog_exposure_flag`: exposición a pendientes críticos en componente.
 
 ## unit_day_features
 - `critical_components_at_risk`: número de componentes críticos comprometidos en unidad.
 - `aggregated_health_score`: salud agregada de componentes de la unidad.
-- `predicted_unavailability_risk`: riesgo proxy de indisponibilidad operacional.
-- `maintenance_load_proxy`: presión combinada de mantenimiento y backlog.
+- `predicted_unavailability_risk`: riesgo aproximado de indisponibilidad operacional.
+- `maintenance_load_proxy`: presión combinada de mantenimiento y pendientes.
 - `service_exposure`: exposición operacional por carga y criticidad de servicio.
 - `substitution_difficulty`: dificultad estimada de sustitución de material.
 - `hours_lost_recent`: horas perdidas en ventana reciente.
@@ -32,8 +32,8 @@
 
 ## fleet_week_features
 - `availability_rate`, `mtbf_proxy`, `mttr_proxy`: fiabilidad/disponibilidad semanal por flota.
-- `backlog_pressure`: presión de backlog agregada.
-- `corrective_share`, `cbm_share`: mix de estrategia de intervención.
+- `backlog_pressure`: presión agregada de pendientes.
+- `corrective_share`, `cbm_share`: mezcla de estrategia de intervención.
 - `repetitive_failure_intensity`: intensidad de fallas repetitivas.
 - `capacity_pressure_by_depot`: presión media de capacidad de depósitos que atienden la flota.
 

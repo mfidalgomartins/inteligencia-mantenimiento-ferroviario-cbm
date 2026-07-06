@@ -1,10 +1,10 @@
-"""Genera el informe analítico final en prosa continua (estándar Big 4) vía WeasyPrint.
+"""Genera el informe analítico final en prosa continua vía WeasyPrint.
 
 Salida única:
     outputs/reports/informe_analitico_cbm_ferroviario.pdf
 
-El informe combina narrativa continua, evidencia cuantificada y los 19 gráficos del
-chart pack incrustados a lo largo del documento. Todas las cifras se calculan en tiempo
+El informe combina texto ejecutivo, evidencia cuantificada y los 19 gráficos del
+paquete de publicación incrustados a lo largo del documento. Todas las cifras se calculan en tiempo
 de construcción desde data/processed para garantizar trazabilidad y reproducibilidad.
 """
 from __future__ import annotations
@@ -112,7 +112,7 @@ def build() -> None:
     reactive = strategy.loc["reactiva"]
     preventive = strategy.loc["preventiva_rigida"]
     sched = read("scheduling_before_after_metrics.csv").set_index("scenario")
-    baseline = sched.loc["baseline_greedy_21d"]
+    baseline = sched.loc["base_inicial_voraz_21d"]
     redesigned = sched.loc["heuristica_redisenada_35d"]
     bottlenecks = read("scheduling_bottleneck_diagnosis.csv").sort_values("pending_rate_pct", ascending=False)
     sensitivity = read("comparativo_estrategias_sensibilidad.csv")
@@ -264,7 +264,7 @@ def build() -> None:
     d.add('<section class="body">')
     d.h(2, "Resumen ejecutivo", anchor="sec-resumen", section="Resumen ejecutivo")
     d.lead(
-        "La plataforma no produce una lista de indicadores: ordena una decisión operativa concreta. "
+        "El sistema no produce una lista de indicadores: ordena una decisión operativa concreta. "
         "La pregunta de gestión es qué unidades y componentes entran primero en taller, cuánto cuesta "
         "aplazar cada intervención y dónde la capacidad está mal asignada. Este informe responde a esas "
         "preguntas con evidencia cuantificada y separa con claridad el valor operativo de la condición "
@@ -276,7 +276,7 @@ def build() -> None:
 <div class="kpi-row">
   <div class="kpi"><div class="kpi-val">{fmt_pct(mv('fleet_availability_pct'), 1)}</div><div class="kpi-lab">Disponibilidad media de flota</div></div>
   <div class="kpi danger"><div class="kpi-val">{fmt_int(mv('high_deferral_risk_cases_count'))}</div><div class="kpi-lab">Casos con alto riesgo de diferimiento</div></div>
-  <div class="kpi positive"><div class="kpi-val">+{fmt_dec(float(redesigned['actionable_pct']) - float(baseline['actionable_pct']), 1)} p.p.</div><div class="kpi-lab">Mejora de casos accionables tras rediseño</div></div>
+  <div class="kpi positive"><div class="kpi-val">+{fmt_dec(float(redesigned['actionable_pct']) - float(baseline['actionable_pct']), 1)} p.p.</div><div class="kpi-lab">Mejora de casos ejecutables tras rediseño</div></div>
   <div class="kpi warning"><div class="kpi-val">{fmt_money_m(mv('cbm_operational_savings_eur'))}</div><div class="kpi-lab">Diferencial neto de CBM frente a reactiva</div></div>
 </div>
 """
@@ -295,7 +295,7 @@ def build() -> None:
             "Adoptar programación a 35 días",
             f"Accionabilidad +{fmt_dec(actionable_delta_pp, 1)} p.p.; riesgo residual no atendido "
             f"-{fmt_dec(residual_risk_delta_pp, 1)} p.p.; valor capturado +{fmt_money_m(captured_value_delta, 2)}.",
-            "Usar la heurística rediseñada como baseline operativo y medir restricciones residuales semanalmente.",
+            "Usar la heurística rediseñada como base inicial operativa y medir restricciones residuales semanalmente.",
         ),
         (
             "Rebalancear talleres",
@@ -330,20 +330,20 @@ def build() -> None:
         f"durante el periodo {m['coverage_start']} a {m['coverage_end']}. Ese nivel agregado es tranquilizador "
         f"y, por sí solo, engañoso. Detrás de él se acumulan {fmt_int(mv('backlog_physical_items_count'))} pendientes "
         f"físicos, de los cuales {fmt_int(mv('backlog_overdue_items_count'))} están vencidos y "
-        f"{fmt_int(mv('backlog_critical_physical_count'))} cumplen la definición de backlog crítico físico. La "
+        f"{fmt_int(mv('backlog_critical_physical_count'))} cumplen la definición de pendientes críticos físicos. La "
         "disponibilidad describe lo que ya ocurrió; no mide la exposición que se está acumulando. La gestión "
-        "necesita una segunda capa que ordene la cola por riesgo y no por volumen, porque tratar todo el "
-        "backlog con la misma urgencia consume capacidad sin reducir la probabilidad de fallo donde más importa."
+        "necesita una segunda capa que ordene la cola por riesgo y no por volumen, porque tratar todos los "
+        "pendientes con la misma urgencia consume capacidad sin reducir la probabilidad de fallo donde más importa."
     )
     d.p(
         f"El sistema identifica {high_risk} unidades en la cola estadística de alto riesgo y "
         f"{fmt_int(mv('high_deferral_risk_cases_count'))} intervenciones con riesgo de diferimiento igual o superior "
         f"a 70 puntos. La primera decisión está nominada sin ambigüedad: intervenir {top['unidad_id']} / "
-        f"{top['componente_id']}, familia {FAM_ES[top['component_family']]}, con un score de prioridad de "
+        f"{top['componente_id']}, familia {FAM_ES[top['component_family']]}, con una puntuación de prioridad de "
         f"{fmt_dec(top['intervention_priority_score'], 1)} y un riesgo de diferimiento de "
         f"{fmt_dec(top['deferral_risk_score'], 1)}. Su probabilidad estimada de fallo a 30 días es "
-        f"{fmt_pct(top['prob_fallo_30d'] * 100, 1)} y su vida remanente proxy es de {fmt_int(top['component_rul_estimate'])} "
-        "días. La cabeza de la cola presenta scores muy próximos entre sí, de modo que cualquier excepción en la "
+        f"{fmt_pct(top['prob_fallo_30d'] * 100, 1)} y su vida remanente aproximada es de {fmt_int(top['component_rul_estimate'])} "
+        "días. La cabeza de la cola presenta puntuaciones muy próximas entre sí, de modo que cualquier excepción en la "
         "secuencia desplaza protección de servicio real y debe documentarse."
     )
     d.callout(
@@ -384,7 +384,7 @@ def build() -> None:
     )
     d.p(
         f"Tercero, evitar aplazamientos no justificados. Diferir 14 días añade {fmt_money_m(mv('deferral_cost_delta_14d_eur'), 2)} "
-        f"de coste proxy y {fmt_dec(mv('deferral_downtime_delta_14d_h'), 0)} horas de indisponibilidad frente a intervenir en "
+        f"de coste aproximado y {fmt_dec(mv('deferral_downtime_delta_14d_h'), 0)} horas de indisponibilidad frente a intervenir en "
         "el día cero. Cuarto, concentrar la fiabilidad en pantógrafos, que combinan la peor salud media y el mayor riesgo "
         f"medio de fallo ({fmt_pct(families.loc['pantograph', 'failure_risk_avg'] * 100, 1)}). Quinto, tratar CBM como una "
         "decisión de nivel de servicio: bajo los supuestos vigentes mejora la disponibilidad en "
@@ -420,7 +420,7 @@ def build() -> None:
         "responde con un único número, y la arquitectura del sistema está deliberadamente construida para no forzarlo."
     )
     d.p(
-        "La estructura de salida evita mezclar conceptos que se confunden con frecuencia. El backlog físico mide carga "
+        "La estructura de salida evita mezclar conceptos que se confunden con frecuencia. Los pendientes físicos miden carga "
         "pendiente real. El riesgo de diferimiento mide el daño esperado de posponer una decisión. La salud describe "
         "condición. El riesgo de fallo ordena propensión a corto plazo. La vida remanente se utiliza como ventana "
         "relativa de intervención, no como fecha exacta de fallo. Mantener separadas estas definiciones es lo que "
@@ -431,25 +431,25 @@ def build() -> None:
     d.h(2, "2. Datos y metodología", anchor="sec-datos", section="Datos y metodología")
     d.p(
         "La capa analítica parte de datos sintéticos deterministas de sensores, inspecciones automáticas, fallos, "
-        "eventos de mantenimiento, disponibilidad, demanda de servicio y backlog. El determinismo es una decisión de "
-        "diseño: garantiza que cualquier persona que ejecute el pipeline obtenga exactamente las mismas cifras, lo "
+        "eventos de mantenimiento, disponibilidad, demanda de servicio y pendientes. El determinismo es una decisión de "
+        "diseño: garantiza que cualquier persona que ejecute el flujo obtenga exactamente las mismas cifras, lo "
         "que es condición necesaria para auditar definiciones y reproducir hallazgos. Las tablas procesadas preservan "
-        "granularidades separadas para componente-día, unidad-día, flota-semana, depósito-día e intervención-snapshot, "
+        "granularidades separadas para componente-día, unidad-día, flota-semana, depósito-día e intervención-corte, "
         "de modo que cada análisis opera al nivel correcto y no agrega magnitudes incompatibles."
     )
     d.p(
         "Esa separación de grano es la primera línea de defensa contra errores de interpretación. La disponibilidad "
         "se analiza por flota-semana; el riesgo y la vida remanente, por componente; la presión de taller, por "
-        "depósito-día; y la prioridad de intervención, por caso en el snapshot más reciente. Sumar un backlog "
-        "histórico acumulado y compararlo con un snapshot de pendientes actuales produciría una cifra sin significado, "
+        "depósito-día; y la prioridad de intervención, por caso en el corte más reciente. Sumar pendientes "
+        "históricos acumulados y compararlos con un corte de pendientes actuales produciría una cifra sin significado, "
         "y la arquitectura lo impide por construcción."
     )
     gran_rows = [
         ("Componente-día", "Salud, riesgo de fallo, vida remanente, deterioro", "Modelo de salud y riesgo"),
-        ("Unidad-día", "Riesgo de indisponibilidad, exposición de servicio", "Mart de unidad-día"),
-        ("Flota-semana", "Disponibilidad, MTBF y MTTR proxy", "Mart semanal de flota"),
-        ("Depósito-día", "Saturación, presión y capacidad de taller", "Mart de presión de talleres"),
-        ("Intervención-snapshot", "Prioridad, riesgo de diferimiento, decisión", "Modelo de priorización"),
+        ("Unidad-día", "Riesgo de indisponibilidad, exposición de servicio", "Tabla analítica de unidad-día"),
+        ("Flota-semana", "Disponibilidad, MTBF y MTTR aproximados", "Tabla analítica semanal de flota"),
+        ("Depósito-día", "Saturación, presión y capacidad de taller", "Tabla analítica de presión de talleres"),
+        ("Intervención-corte", "Prioridad, riesgo de diferimiento, decisión", "Modelo de priorización"),
     ]
     gran_html = "".join(
         f"<tr><td><strong>{escape(g)}</strong></td><td>{escape(c)}</td><td>{escape(s)}</td></tr>"
@@ -477,8 +477,8 @@ def build() -> None:
         "impide, por ejemplo, que la vida remanente se comunique como fecha garantizada de fallo."
     )
     d.p(
-        "La narrativa ejecutiva se alimenta de un registro oficial de métricas. La consecuencia práctica es que el "
-        "dashboard, el README y este informe comunican la misma cifra para disponibilidad, backlog, riesgo de "
+        "El resumen ejecutivo toma sus cifras de un registro oficial de métricas. La consecuencia práctica es que el "
+        "panel de control, el README y este informe comunican la misma cifra para disponibilidad, pendientes, riesgo de "
         "diferimiento o valor estratégico, porque todos leen del mismo origen. La divergencia de cifras entre "
         "documentos es uno de los fallos más frecuentes y más corrosivos para la credibilidad de un sistema analítico, "
         "y aquí se elimina en origen en lugar de corregirse a mano."
@@ -491,34 +491,34 @@ def build() -> None:
         for _, row in contracts.head(8).iterrows()
     )
     d.add(
-        "<table class='data'><thead><tr><th>Métrica gobernada</th><th>Owner</th><th>Grano válido</th>"
+        "<table class='data'><thead><tr><th>Métrica gobernada</th><th>Responsable</th><th>Grano válido</th>"
         "<th>Madurez</th></tr></thead><tbody>" + contract_rows + "</tbody></table>"
-        "<p class='tbl-note'>Extracto del registro de contratos de métricas. El owner define responsabilidad funcional; "
+        "<p class='tbl-note'>Extracto del registro de contratos de métricas. El responsable define responsabilidad funcional; "
         "el grano válido bloquea agregaciones incompatibles; la madurez separa métricas listas para comunicación "
         "ejecutiva de métricas que requieren calibración adicional.</p>"
     )
-    d.h(3, "Los scores son interpretables y están orientados a priorización")
+    d.h(3, "Las puntuaciones son interpretables y están orientadas a priorización")
     d.p(
         "La salud del componente combina condición estimada, índice de deterioro, velocidad de degradación, defectos "
         "recientes de inspección y restauración tras mantenimiento. El riesgo de fallo utiliza una combinación lineal "
-        "y sigmoide de señales de deterioro, estrés operativo, historial y exposición a backlog. El score de prioridad "
+        "y sigmoide de señales de deterioro, estrés operativo, historial y exposición a pendientes. La puntuación de prioridad "
         "de intervención añade el impacto de servicio, el riesgo de diferimiento y el ajuste al taller recomendado. "
         "Cada capa es legible: una recomendación conserva su regla, su señal dominante, su nivel de confianza y su "
-        "rationale, de forma que un planificador puede entender por qué un caso está por encima de otro."
+        "justificación, de forma que un planificador puede entender por qué un caso está por encima de otro."
     )
     d.p(
         "El diseño favorece la trazabilidad sobre la complejidad predictiva. Es una elección deliberada: "
         "un modelo legible y auditable tiene más valor operativo que uno más opaco con mayor precisión aparente "
         "sobre datos que no ofrecen señal de validación externa. La contrapartida es explícita: antes de un uso "
-        "operacional real, los scores requieren recalibración con histórico observado y validación temporal."
+        "operacional real, las puntuaciones requieren recalibración con histórico observado y validación temporal."
     )
     d.h(3, "La comparación estratégica separa servicio, técnica y economía")
     d.p(
         "Las estrategias reactiva, preventiva rígida y basada en condición se comparan bajo supuestos estructurales y "
-        "varios perfiles de escenario. La simulación incorpora indisponibilidad, correctivas evitables, backlog "
+        "varios perfiles de escenario. La simulación incorpora indisponibilidad, correctivas evitables, pendientes "
         "crítico, utilización de taller, coste técnico, coste económico y coste de habilitación. Los importes son "
-        "proxies técnico-operativos. No representan presupuesto, P&L ni oferta contractual, y su función no es producir "
-        "una cifra de ahorro sino hacer visibles los trade-offs y probar la estabilidad de una decisión ante variaciones "
+        "aproximaciones técnico-operativas. No representan presupuesto, cuenta de resultados ni oferta contractual, y su función no es producir "
+        "una cifra de ahorro sino hacer visibles las compensaciones y probar la estabilidad de una decisión ante variaciones "
         "de coste, capacidad, estrés de fallo y realización de la detección."
     )
 
@@ -526,16 +526,16 @@ def build() -> None:
     d.h(2, "3. Marco analítico", anchor="sec-marco", section="Marco analítico")
     d.p(
         "La cadena de decisión conecta evidencia con ejecución en una secuencia ordenada. Comienza en la calidad del "
-        "dato, transforma señales en estado y riesgo, estima una ventana relativa de intervención, ordena casos por "
-        "prioridad, asigna capacidad de taller y cuantifica el coste de diferir. El resultado final no es un score "
-        "aislado sino una recomendación ejecutable, con depósito sugerido, secuencia y ventana operativa. Un control "
+        "dato, convierte señales en estado y riesgo, estima una ventana relativa de intervención, ordena casos por "
+        "prioridad, asigna capacidad de taller y cuantifica el coste de diferir. El resultado final no es una puntuación "
+        "aislada sino una recomendación ejecutable, con depósito sugerido, secuencia y ventana operativa. Un control "
         "es esencial en toda la cadena: una señal técnica no genera por sí sola una orden de trabajo. La prioridad "
         "emerge de la combinación entre riesgo, impacto de servicio, oportunidad operativa y restricción de taller."
     )
     d.p(
         "Las métricas se interpretan dentro de límites explícitos. Disponibilidad alta no implica bajo riesgo futuro. "
-        "Un backlog elevado no convierte todas las órdenes en urgentes. La correlación de una señal con el riesgo no "
-        "demuestra causalidad física. La vida remanente no es una fecha de fallo. El ahorro proxy no es ahorro "
+        "Un volumen elevado de pendientes no convierte todas las órdenes en urgentes. La correlación de una señal con el riesgo no "
+        "prueba causalidad física. La vida remanente no es una fecha de fallo. El ahorro aproximado no es ahorro "
         "financiero. Estas distinciones no son matices académicos: cada una bloquea una decisión equivocada concreta, "
         "y el marco las mantiene activas en lugar de relajarlas para simplificar el mensaje."
     )
@@ -552,14 +552,14 @@ def build() -> None:
         "de señales que agrega. Por eso el marco separa recomendación, autorización y ejecución. El modelo prioriza; "
         "Planificación confirma factibilidad; Operaciones valida impacto de servicio; Finanzas revisa el caso "
         "económico; Fiabilidad aprende de la intervención ejecutada. Esta asignación reduce dos riesgos habituales: "
-        "automatizar una orden sin contexto operativo y, en el extremo opuesto, convertir el score en una recomendación "
+        "automatizar una orden sin contexto operativo y, en el extremo opuesto, convertir la puntuación en una recomendación "
         "decorativa que nadie tiene obligación de seguir."
     )
     decision_rows = [
-        ("Priorizar intervención", "Modelo + Reliability Analytics", "Score, RUL, fallo 30d, driver y confianza", "Ranking y nivel P1/P2/P3"),
+        ("Priorizar intervención", "Modelo + analítica de fiabilidad", "Puntuación, RUL, fallo 30d, factor y confianza", "Clasificación y nivel P1/P2/P3"),
         ("Autorizar excepción", "Dirección de Mantenimiento", "Motivo, restricción, coste de diferir y nueva fecha", "Excepción trazable"),
         ("Asignar capacidad", "Planificación de Taller", "Horas, depósito, repuesto, ventana y compatibilidad", "Plan de 35 días"),
-        ("Medir impacto", "Operaciones + Finanzas", "Disponibilidad, indisponibilidad, coste proxy y servicio preservado", "Revisión mensual"),
+        ("Medir impacto", "Operaciones + Finanzas", "Disponibilidad, indisponibilidad, coste aproximado y servicio preservado", "Revisión mensual"),
         ("Recalibrar modelo", "Reliability Analytics", "Orden ejecutada, resultado observado, falsa alerta y reincidencia", "Nuevo set de umbrales"),
     ]
     decision_html = "".join(
@@ -576,7 +576,7 @@ def build() -> None:
     # ----- 4. Diagnóstico operativo ------------------------------------- #
     d.h(2, "4. Diagnóstico operativo", anchor="sec-diagnostico", section="Diagnóstico operativo")
     d.lead(
-        "La disponibilidad agregada permanece alta y estable, pero el riesgo y el backlog se concentran en una parte "
+        "La disponibilidad agregada permanece alta y estable, pero el riesgo y los pendientes se concentran en una parte "
         "limitada de la red. El diagnóstico operativo consiste precisamente en localizar esa concentración para que la "
         "intervención sea focalizada en lugar de uniforme."
     )
@@ -584,15 +584,15 @@ def build() -> None:
         "01_tendencia_disponibilidad.png",
         f"La disponibilidad media del periodo es {fmt_pct(mv('fleet_availability_pct'), 2)} y la tendencia móvil "
         "de ocho semanas no muestra una ruptura estructural que por sí sola justifique una intervención estratégica.",
-        "mart semanal de flota",
+        "tabla analítica semanal de flota",
     )
     d.p(
-        f"La media del periodo es {fmt_pct(mv('fleet_availability_pct'), 2)}, con un tiempo medio entre fallos proxy de "
-        f"{fmt_dec(mv('mtbf_proxy_hours'), 0)} horas y un tiempo medio de reparación proxy de {fmt_dec(mv('mttr_proxy_hours'), 1)} "
+        f"La media del periodo es {fmt_pct(mv('fleet_availability_pct'), 2)}, con un tiempo medio entre fallos aproximado de "
+        f"{fmt_dec(mv('mtbf_proxy_hours'), 0)} horas y un tiempo medio de reparación aproximado de {fmt_dec(mv('mttr_proxy_hours'), 1)} "
         "horas. La serie semanal conserva un nivel alto sin quiebres abruptos. Esa estabilidad es real, pero es una "
         "medida retrospectiva: resume lo que ya ocurrió y no anticipa la exposición que se está acumulando en la cola "
         "de componentes deteriorados. La gestión debe usar las dos capas a la vez y evitar la tentación de sustituir el "
-        "score de riesgo por el indicador de disponibilidad solo porque este último resulta cómodo y conocido."
+        "puntuación de riesgo por el indicador de disponibilidad solo porque este último resulta cómodo y conocido."
     )
     d.figure(
         "06_distribucion_riesgo_unidades.png",
@@ -605,32 +605,32 @@ def build() -> None:
         f"{fmt_dec(threshold, 1)} puntos y captura {high_risk} unidades. Una cola tan acotada es una buena noticia "
         "operativa: permite concentrar la revisión técnica en un número manejable de casos sin convertir el modelo en "
         "una alarma generalizada que la organización aprendería a ignorar. El umbral, conviene insistir, es una regla "
-        "de segmentación y no una frontera física; la dirección debe vigilar la estabilidad del ranking entre semanas "
+        "de segmentación y no una frontera física; la dirección debe vigilar la estabilidad de la clasificación entre semanas "
         "antes de usarlo como criterio automático de parada."
     )
     d.figure(
         "11_concentracion_backlog.png",
-        f"Los tres depósitos con mayor backlog agregado concentran el {fmt_pct(top3_backlog_share, 1)} del total "
+        f"Los tres depósitos con mayor volumen agregado de pendientes concentran el {fmt_pct(top3_backlog_share, 1)} del total "
         f"histórico representado sobre los {n_depots_backlog} depósitos.",
-        "mart de backlog por depósito",
+        "tabla analítica de pendientes por depósito",
     )
     d.p(
-        f"La carga pendiente está geográficamente concentrada. Los tres depósitos con mayor backlog agregado reúnen el "
+        f"La carga pendiente está geográficamente concentrada. Los tres depósitos con mayor volumen agregado de pendientes reúnen el "
         f"{fmt_pct(top3_backlog_share, 1)} del total histórico representado. Esa concentración convierte un problema "
-        "difuso en uno tratable: en lugar de una campaña de cierre de backlog en toda la red, la intervención se dirige "
+        "difuso en uno tratable: en lugar de una campaña de cierre de pendientes en toda la red, la intervención se dirige "
         "a la disciplina de cierre, la antigüedad de las órdenes y la asignación en un puñado de instalaciones. El "
-        "backlog agregado por periodo no equivale al snapshot ejecutivo de pendientes físicos, y aquí se usa para "
+        "volumen agregado por periodo no equivale al corte ejecutivo de pendientes físicos, y aquí se usa para "
         "localizar concentración persistente, no para comunicar el volumen actual."
     )
     d.figure(
         "12_pareto_fallos_repetitivos.png",
         f"Los cinco modos con mayor repetición concentran el {fmt_pct(top5_fail_share, 1)} de los eventos repetitivos "
-        "incluidos en el ranking.",
-        "mart de fallos repetitivos",
+        "incluidos en la clasificación.",
+        "tabla analítica de fallos repetitivos",
     )
     d.p(
         f"La repetición de fallos también admite tratamiento de cartera priorizada. Los cinco modos más frecuentes "
-        f"concentran el {fmt_pct(top5_fail_share, 1)} de los eventos repetitivos del ranking, con el arco eléctrico, "
+        f"concentran el {fmt_pct(top5_fail_share, 1)} de los eventos repetitivos de la clasificación, con el arco eléctrico, "
         "los bloqueos de actuador y la pérdida de contacto entre los primeros casos. Reducir esta repetición no es "
         "cuestión de acelerar correctivas: requiere análisis de causa raíz, revisión del mantenimiento estándar y "
         "seguimiento de la reincidencia después de cada intervención. Una correctiva más rápida sobre el mismo modo "
@@ -639,11 +639,11 @@ def build() -> None:
     d.figure(
         "17_ranking_indisponibilidad.png",
         "Un conjunto reducido de unidades concentra una proporción desproporcionada de las horas históricas fuera de servicio.",
-        "mart de indisponibilidad por unidad",
+        "tabla analítica de indisponibilidad por unidad",
     )
     d.p(
         "La indisponibilidad histórica está concentrada en pocas unidades, lo que apunta a un problema de activo más "
-        "que a episodios independientes. Este ranking debe cruzarse con la cola de riesgo actual para distinguir la "
+        "que a episodios independientes. Esta clasificación debe cruzarse con la cola de riesgo actual para distinguir la "
         "persistencia estructural de los episodios ya corregidos. Las unidades que aparecen en ambas listas son "
         "candidatas a una revisión de causa raíz y a una estrategia de activo específica, porque repetir intervenciones "
         "aisladas sobre el mismo vehículo consume capacidad sin atacar el mecanismo que lo devuelve al taller."
@@ -652,7 +652,7 @@ def build() -> None:
         "Acción ejecutiva",
         "Operaciones debe abrir una revisión de las unidades de alto riesgo y explicar mensualmente la disponibilidad "
         "por flota; Mantenimiento debe lanzar planes de causa raíz para los cinco modos más repetitivos y depurar el "
-        "backlog antiguo en los tres depósitos que concentran la carga.",
+        "pendientes antiguos en los tres depósitos que concentran la carga.",
         "danger",
     )
 
@@ -660,7 +660,7 @@ def build() -> None:
     d.h(2, "5. Fiabilidad, inspección y vida remanente", anchor="sec-fiabilidad", section="Fiabilidad y vida remanente")
     d.lead(
         "Las políticas de mantenimiento deben diferenciar familias técnicas. Los pantógrafos concentran el riesgo, el "
-        "proxy de vida remanente ya distingue ventanas útiles de intervención y la inspección automática rinde de forma "
+        "cálculo aproximado de vida remanente ya distingue ventanas útiles de intervención y la inspección automática rinde de forma "
         "desigual según la familia. Una política uniforme diluiría todas estas diferencias."
     )
     d.figure(
@@ -679,7 +679,7 @@ def build() -> None:
         "coherente con la reducción de riesgo esperada tras una intervención efectiva."
     )
     d.p(
-        "Las variables con correlación próxima a cero no deben eliminarse de forma automática. La exposición a backlog, "
+        "Las variables con correlación próxima a cero no deben eliminarse de forma automática. La exposición a pendientes, "
         "los días desde el último fallo o desde el último mantenimiento no ordenan el riesgo de forma monotónica, pero "
         "pueden actuar como reglas de contexto o como restricciones que condicionan la decisión final. Confundir "
         "ausencia de correlación monotónica con ausencia de valor informativo es un error que empobrecería el modelo."
@@ -696,7 +696,7 @@ def build() -> None:
         "velocidad de degradación, de las anomalías, del estrés operativo y de la restauración tras mantenimiento. Una "
         "política basada solo en salud perdería componentes con trayectoria adversa que todavía exhiben una condición "
         "aceptable, y sobrerreaccionaría ante componentes estables de salud baja pero sin deterioro activo. La cola de "
-        "taller debe conservar el score de riesgo y la evidencia subyacente, no colapsar la decisión en una sola cifra."
+        "taller debe conservar la puntuación de riesgo y la evidencia subyacente, no colapsar la decisión en una sola cifra."
     )
     d.figure(
         "10_riesgo_por_familia.png",
@@ -716,9 +716,9 @@ def build() -> None:
     )
     d.figure(
         "13_cohortes_rul_familia.png",
-        f"La mediana de vida remanente proxy va de {fmt_int(rul_fam.loc['pantograph', 'new_p50'])} días en pantógrafos "
+        f"La mediana de vida remanente aproximada va de {fmt_int(rul_fam.loc['pantograph', 'new_p50'])} días en pantógrafos "
         f"a {fmt_int(rul_fam.loc['bogie', 'new_p50'])} días en bogies, con rangos P10-P90 también diferenciados.",
-        "validación del proxy de vida remanente",
+        "validación de la vida remanente aproximada",
     )
     d.p(
         f"Las ventanas de vida remanente difieren de forma material entre familias. La mediana del pantógrafo es "
@@ -731,20 +731,20 @@ def build() -> None:
     )
     d.figure(
         "14_rul_antes_despues.png",
-        f"El modelo legacy concentraba el {fmt_pct(rul_dist.loc['legacy_lineal_365', 'share_rul_cap'] * 100, 1)} de las "
-        f"observaciones en el tope de 365 días; el proxy por familia reduce ese tope al "
+        f"El modelo anterior concentraba el {fmt_pct(rul_dist.loc['legacy_lineal_365', 'share_rul_cap'] * 100, 1)} de las "
+        f"observaciones en el tope de 365 días; el cálculo aproximado por familia reduce ese tope al "
         f"{fmt_pct(rul_dist.loc['nuevo_proxy_familia', 'share_rul_cap'] * 100, 1)}.",
-        "validación del proxy de vida remanente",
+        "validación de la vida remanente aproximada",
     )
     d.p(
-        f"El rediseño del proxy de vida remanente corrige una distribución sin utilidad operativa. El modelo legacy "
+        f"El rediseño de la vida remanente aproximada corrige una distribución sin utilidad operativa. El modelo anterior "
         f"tenía una mediana de {fmt_int(rul_dist.loc['legacy_lineal_365', 'p50_rul'])} días y acumulaba el "
         f"{fmt_pct(rul_dist.loc['legacy_lineal_365', 'share_rul_cap'] * 100, 1)} de las observaciones en el tope, lo que "
-        "lo hacía inservible para secuenciar intervenciones. El proxy por familia reduce la mediana a "
+        "lo hacía inservible para secuenciar intervenciones. El cálculo aproximado por familia reduce la mediana a "
         f"{fmt_int(rul_dist.loc['nuevo_proxy_familia', 'p50_rul'])} días y deja prácticamente vacío el tope, con un "
         f"{fmt_pct(rul_dist.loc['nuevo_proxy_familia', 'share_rul_cap'] * 100, 2)}. La mejora principal no es de nivel "
-        "sino de discriminación: el nuevo proxy distribuye los casos entre ventanas útiles y permite combinar urgencia "
-        "técnica con capacidad disponible. Sigue siendo un proxy y no una cuenta atrás física, y así debe comunicarse."
+        "sino de discriminación: el nuevo cálculo distribuye los casos entre ventanas útiles y permite combinar urgencia "
+        "técnica con capacidad disponible. Sigue siendo una aproximación y no una cuenta atrás física, y así debe comunicarse."
     )
     d.figure(
         "15_inspeccion_por_familia.png",
@@ -763,7 +763,7 @@ def build() -> None:
     d.p(
         f"El módulo de inspección tiene valor operacional medible incluso antes de cerrar el caso financiero de CBM. "
         f"En el escenario comparativo reduce las correctivas estimadas en {fmt_dec(inspection_correctives_delta, 1)} "
-        f"eventos proxy, evita {fmt_dec(inspection_downtime_delta, 0)} horas de indisponibilidad y disminuye el backlog "
+        f"eventos aproximados, evita {fmt_dec(inspection_downtime_delta, 0)} horas de indisponibilidad y disminuye los pendientes "
         f"crítico estimado de {fmt_dec(inspection_value.loc['sin_inspeccion_automatica', 'backlog_critico_estimado'], 1)} "
         f"a {fmt_dec(inspection_value.loc['con_inspeccion_automatica', 'backlog_critico_estimado'], 1)}. La conclusión "
         "no es desplegar inspección indiscriminadamente; es instrumentar la cadena completa alerta → orden → ejecución "
@@ -784,7 +784,7 @@ def build() -> None:
         "<th class='num'>Riesgo medio</th><th class='num'>Salud media</th><th class='num'>RUL mediana</th>"
         "<th class='num'>Detección previa</th></tr></thead><tbody>" + fam_rows + "</tbody></table>"
         "<p class='tbl-note'>Perfil técnico por familia. El riesgo medio y la salud proceden de la segmentación de "
-        "componentes; la mediana de vida remanente, del proxy rediseñado; la detección previa, del módulo de "
+        "componentes; la mediana de vida remanente, del cálculo rediseñado; la detección previa, del módulo de "
         "inspección automática.</p>"
     )
     d.callout(
@@ -811,9 +811,9 @@ def build() -> None:
     d.p(
         f"La primera decisión está claramente identificada. {top['unidad_id']} / {top['componente_id']} encabeza la cola "
         f"con una prioridad de {fmt_dec(top['intervention_priority_score'], 1)}, un riesgo de fallo a 30 días de "
-        f"{fmt_pct(top['prob_fallo_30d'] * 100, 1)} y una vida remanente proxy de {fmt_int(top['component_rul_estimate'])} "
+        f"{fmt_pct(top['prob_fallo_30d'] * 100, 1)} y una vida remanente aproximada de {fmt_int(top['component_rul_estimate'])} "
         f"días. La recomendación es {str(top['decision_type'])} en el depósito {top['deposito_recomendado']}, dentro de "
-        f"una ventana de {fmt_int(top['suggested_window_days'])} días. La cola superior presenta scores próximos entre sí, "
+        f"una ventana de {fmt_int(top['suggested_window_days'])} días. La cola superior presenta puntuaciones próximas entre sí, "
         "de modo que la ejecución debe conservar la secuencia y registrar cualquier excepción con su motivo y su "
         "autorizador. La tabla siguiente recoge los diez primeros casos con su nivel de prioridad asignado."
     )
@@ -844,7 +844,7 @@ def build() -> None:
         "<table class='data'><thead><tr><th>Nivel</th><th>Unidad / componente</th><th>Familia</th>"
         "<th class='num'>Prioridad</th><th class='num'>Riesgo de diferir</th><th class='num'>Ventana</th>"
         "<th>Depósito</th></tr></thead><tbody>" + "".join(rows_html) + "</tbody></table>"
-        "<p class='tbl-note'>Cola priorizada de intervención. Niveles P1 a P3 según posición en el ranking compuesto. "
+        "<p class='tbl-note'>Cola priorizada de intervención. Niveles P1 a P3 según posición en la clasificación compuesta. "
         "Fuente: modelo de priorización de taller.</p>"
     )
 
@@ -855,11 +855,11 @@ def build() -> None:
         "simulación de programación de taller",
     )
     d.p(
-        f"El scheduling rediseñado cambia la naturaleza del cuello de botella. Los casos accionables aumentan "
+        f"La planificación rediseñada cambia la naturaleza del cuello de botella. Los casos accionables aumentan "
         f"{fmt_dec(actionable_delta_pp, 1)} puntos porcentuales, del "
         f"{fmt_pct(float(baseline['actionable_pct']), 1)} al {fmt_pct(float(redesigned['actionable_pct']), 1)}. Los "
         f"pendientes por capacidad bajan del {fmt_pct(float(baseline['pendiente_capacidad_pct']), 1)} al "
-        f"{fmt_pct(float(redesigned['pendiente_capacidad_pct']), 1)}, y el valor capturado proxy sube de "
+        f"{fmt_pct(float(redesigned['pendiente_capacidad_pct']), 1)}, y el valor capturado aproximado sube de "
         f"{fmt_money_m(float(baseline['valor_capturado_proxy']), 2)} a {fmt_money_m(float(redesigned['valor_capturado_proxy']), 2)}. "
         f"El rediseño introduce un {fmt_pct(float(redesigned['pendiente_repuesto_pct']), 1)} de casos pendientes de "
         "repuesto, lo que no es un defecto sino un cambio de problema: parte de la restricción se desplaza de la "
@@ -896,7 +896,7 @@ def build() -> None:
     )
     d.p(
         f"La capacidad disponible y la cola priorizada no están plenamente alineadas. La utilización agregada del "
-        f"calendario de 35 días es {fmt_pct(avg_capacity_use, 1)}. Frente al baseline, el rediseño utiliza "
+        f"calendario de 35 días es {fmt_pct(avg_capacity_use, 1)}. Frente a la base inicial, el rediseño utiliza "
         f"{fmt_dec(workshop_hours_delta, 0)} horas adicionales de taller y eleva la utilización "
         f"{fmt_dec(capacity_use_delta_pp, 1)} puntos porcentuales, sin agotar la red. Intervienen la compatibilidad "
         "técnica, la secuencia, la ventana operativa y el depósito asignado. La prioridad inmediata es mejorar la "
@@ -907,14 +907,14 @@ def build() -> None:
     d.figure(
         "05_saturacion_depositos.png",
         f"La saturación de taller está desigualmente distribuida; el depósito más exigido es {m['top_depot_by_saturation']} "
-        f"con {fmt_pct(mv('top_depot_saturation_pct'), 1)} en el snapshot.",
-        "mart de presión de talleres",
+        f"con {fmt_pct(mv('top_depot_saturation_pct'), 1)} en el corte.",
+        "tabla analítica de presión de talleres",
     )
     d.p(
         f"La presión de depósito exige rebalanceo antes que expansión. El depósito más exigido es "
-        f"{m['top_depot_by_saturation']}, con {fmt_pct(mv('top_depot_saturation_pct'), 1)} de saturación en el snapshot, "
+        f"{m['top_depot_by_saturation']}, con {fmt_pct(mv('top_depot_saturation_pct'), 1)} de saturación en el corte, "
         f"frente a una saturación media de la red del {fmt_pct(mv('mean_depot_saturation_pct'), 1)}. Ese nivel no "
-        "demuestra una insuficiencia estructural de capacidad a escala de red, sino una dispersión que apunta primero a "
+        "prueba una insuficiencia estructural de capacidad a escala de red, sino una dispersión que apunta primero a "
         "reasignación controlada, compatibilidad técnica y ajuste del calendario. Invertir en capacidad antes de "
         "corregir la asignación consolidaría las ineficiencias existentes en lugar de eliminarlas."
     )
@@ -942,16 +942,16 @@ def build() -> None:
         f"CBM compra disponibilidad, no ahorro, bajo el escenario vigente. Alcanza un {fmt_pct(cbm_av, 2)} de "
         f"disponibilidad frente al {fmt_pct(re_av, 2)} de la estrategia reactiva, una mejora de {fmt_dec(av_gap, 2)} "
         f"puntos porcentuales, y preserva del orden de {fmt_int(cbm['horas_servicio_preservadas_vs_reactiva'])} horas de "
-        "servicio adicionales. El coste, sin embargo, también es mayor: el coste total esperado proxy de CBM es "
+        "servicio adicionales. El coste, sin embargo, también es mayor: el coste total esperado aproximado de CBM es "
         f"{fmt_money_m(cbm_cost)}, frente a {fmt_money_m(re_cost)} de la reactiva y {fmt_money_m(pv_cost)} de la "
         f"preventiva rígida. El diferencial neto esperado de CBM frente a reactiva es {fmt_money_m(mv('cbm_operational_savings_eur'))}, "
-        f"con un rango plausible entre {fmt_money_m(mv('cbm_value_range_min_eur'))} y {fmt_money_m(mv('cbm_value_range_max_eur'))} "
+        f"con un rango estimado entre {fmt_money_m(mv('cbm_value_range_min_eur'))} y {fmt_money_m(mv('cbm_value_range_max_eur'))} "
         f"y una probabilidad modelada de ahorro positivo del {fmt_pct(mv('cbm_prob_positive_savings') * 100, 0)}."
     )
     d.p(
         f"La comparación con la preventiva rígida endurece la tesis financiera. CBM aporta solo "
         f"{fmt_dec(cbm_vs_preventive_av_gap, 2)} puntos porcentuales adicionales de disponibilidad frente a preventiva, "
-        f"pero añade {fmt_money_m(cbm_vs_preventive_cost_gap)} de coste proxy esperado. Frente a reactiva, cada punto "
+        f"pero añade {fmt_money_m(cbm_vs_preventive_cost_gap)} de coste esperado aproximado. Frente a reactiva, cada punto "
         f"porcentual adicional de disponibilidad cuesta aproximadamente {fmt_money_m(cbm_cost_per_availability_pp)} "
         "en el escenario base. Ese precio puede estar justificado si la disponibilidad tiene valor corporativo alto; "
         "lo que no está justificado es presentarlo como ahorro sin validar ese valor."
@@ -969,7 +969,7 @@ def build() -> None:
     )
     d.add(
         "<table class='data'><thead><tr><th>Estrategia</th><th class='num'>Disponibilidad</th>"
-        "<th class='num'>Coste total proxy</th><th class='num'>Diferencial vs reactiva</th>"
+        "<th class='num'>Coste total aproximado</th><th class='num'>Diferencial vs reactiva</th>"
         "<th class='num'>Prob. ahorro &gt;0</th><th class='num'>Horas servicio preservadas</th></tr></thead><tbody>"
         + strat_rows + "</tbody></table>"
         "<p class='tbl-note'>Comparación de estrategias sobre el escenario base. El diferencial y las horas preservadas "
@@ -981,7 +981,7 @@ def build() -> None:
     d.p(
         "La decisión necesita un precio sombra explícito para la disponibilidad y para las horas de servicio preservadas. "
         "Bajo el escenario base, ese "
-        f"umbral es calculable: el coste incremental proxy de CBM queda compensado si la organización valora cada hora "
+        f"umbral es calculable: el coste incremental aproximado de CBM queda compensado si la organización valora cada hora "
         f"de servicio preservada en al menos € {fmt_int(mv('cbm_breakeven_value_per_service_hour_eur'))} por hora; "
         "por debajo de ese umbral, la mejora de disponibilidad no justifica el mayor coste, y no debe comprometerse "
         "capital sobre la base de un ahorro que el modelo no muestra. Este umbral es un punto de partida para la "
@@ -1012,7 +1012,7 @@ def build() -> None:
         "<th class='num'>Peor caso</th><th class='num'>Mejor caso</th><th class='num'>Ahorro positivo</th>"
         "</tr></thead><tbody>" + sensitivity_rows + "</tbody></table>"
         "<p class='tbl-note'>Sensibilidad de CBM frente a reactiva en los perfiles conservador, base y agresivo. "
-        "Los importes son diferenciales netos proxy; valores negativos indican coste incremental.</p>"
+        "Los importes son diferenciales netos aproximados; valores negativos indican coste incremental.</p>"
     )
     d.figure(
         "18_variancia_escenarios.png",
@@ -1023,14 +1023,14 @@ def build() -> None:
     d.p(
         "La incertidumbre económica cambia la confianza, no la dirección operativa. Los perfiles de escenario desplazan "
         "el coste P50 de cada estrategia y amplían el rango de comparación; la preventiva rígida se aproxima al coste "
-        "reactivo en algunos perfiles, mientras que CBM conserva el mayor coste proxy bajo los supuestos vigentes. La "
+        "reactivo en algunos perfiles, mientras que CBM conserva el mayor coste aproximado bajo los supuestos vigentes. La "
         "dirección operativa, en cambio, permanece estable a través de los escenarios: reducir correctivas, proteger "
         "horas de servicio y anticipar componentes críticos. Esa estabilidad es la que permite actuar ya en lo "
         "operativo mientras la decisión de inversión espera una calibración financiera con costes reales."
     )
     d.figure(
         "03_coste_diferimiento.png",
-        f"El coste de aplazar crece de forma monotónica: a 45 días el coste proxy alcanza "
+        f"El coste de aplazar crece de forma monotónica: a 45 días el coste aproximado alcanza "
         f"{fmt_money_m(defer.loc[45, 'costo_total_eur'], 2)} y la indisponibilidad {fmt_dec(defer.loc[45, 'downtime_total_h'], 0)} horas.",
         "simulación de diferimiento",
     )
@@ -1055,7 +1055,7 @@ def build() -> None:
     )
     d.add(
         "<table class='data'><thead><tr><th class='num'>Diferimiento</th><th class='num'>Prob. fallo media</th>"
-        "<th class='num'>Indisponibilidad</th><th class='num'>Coste total proxy</th></tr></thead><tbody>"
+        "<th class='num'>Indisponibilidad</th><th class='num'>Coste total aproximado</th></tr></thead><tbody>"
         + defer_rows + "</tbody></table>"
         "<p class='tbl-note'>Escenarios de diferimiento de la cola priorizada. Cada fila acumula el efecto de posponer "
         "la intervención el número de días indicado. Fuente: simulación de diferimiento.</p>"
@@ -1073,32 +1073,32 @@ def build() -> None:
     d.p(
         "Los resultados son rigurosos dentro de un entorno sintético, pero no son evidencia de producción. Los datos "
         "reproducen relaciones plausibles entre deterioro, fallo, inspección y mantenimiento, pero no una red "
-        "ferroviaria real. Los scores, umbrales y distribuciones demuestran arquitectura y lógica de decisión; no "
+        "ferroviaria real. Las puntuaciones, umbrales y distribuciones demuestran arquitectura y lógica de decisión; no "
         "validan precisión externa, causalidad física ni impacto financiero. Esta distinción es la cautela central del "
         "informe y debe acompañar cualquier comunicación de sus cifras."
     )
     d.p(
         "Antes de un uso en producción deben recalibrarse los modelos de fallo, los costes, la disponibilidad, los "
         "tiempos de reparación, la capacidad, las ventanas operativas y las taxonomías con datos observados. La "
-        "validación debe incluir backtesting temporal, estabilidad del ranking por flota y depósito, revisión de "
+        "validación debe incluir validación retrospectiva temporal, estabilidad de la clasificación por flota y depósito, revisión de "
         "falsos positivos y, sobre todo, el resultado de las órdenes efectivamente ejecutadas, que es la única prueba "
-        "de que el score ordena casos cuya intervención reduce de verdad fallos e indisponibilidad."
+        "de que la puntuación ordena casos cuya intervención reduce de verdad fallos e indisponibilidad."
     )
     production_gate_rows = [
         (
             "Datos reales integrados",
-            "Sensores, órdenes, fallos, disponibilidad, repuestos y capacidad con linaje y ownership funcional.",
-            "Usar scores solo en piloto controlado; no automatizar órdenes.",
+            "Sensores, órdenes, fallos, disponibilidad, repuestos y capacidad con linaje y responsabilidad funcional.",
+            "Usar puntuaciones solo en piloto controlado; no automatizar órdenes.",
         ),
         (
             "Validación temporal",
-            "Backtesting por familia, flota y depósito; estabilidad de ranking; falsos positivos y falsos negativos.",
+            "Validación retrospectiva por familia, flota y depósito; estabilidad de clasificación; falsos positivos y falsos negativos.",
             "Ajustar umbrales por familia antes de escalar.",
         ),
         (
             "Economía calibrada",
             "Costes corporativos, valor de hora de servicio, coste de habilitación, inventario y capacitación.",
-            "No aprobar CBM como business case de ahorro.",
+            "No aprobar CBM como caso de negocio de ahorro.",
         ),
         (
             "Modelo operativo aprobado",
@@ -1125,16 +1125,16 @@ def build() -> None:
     d.h(3, "Cuatro interpretaciones incorrectas deben bloquearse")
     d.p(
         "Primera, tratar la vida remanente como fecha exacta de fallo en lugar de como bucket relativo de ventana. "
-        "Segunda, interpretar el coste proxy como un caso financiero cerrado y no como un instrumento para visualizar "
-        "trade-offs. Tercera, confundir el backlog físico con el riesgo de diferimiento, que miden cosas distintas. "
-        "Cuarta, asumir que la correlación de una señal con el score identifica una causa física. Cada una de estas "
+        "Segunda, interpretar el coste aproximado como un caso financiero cerrado y no como un instrumento para visualizar "
+        "compensaciones. Tercera, confundir los pendientes físicos con el riesgo de diferimiento, que miden cosas distintas. "
+        "Cuarta, asumir que la correlación de una señal con la puntuación identifica una causa física. Cada una de estas "
         "lecturas está explícitamente prohibida en los contratos de métricas, y mantener esa prohibición activa es "
         "parte del diseño, no una nota a pie de página."
     )
     d.p(
-        "Existen además limitaciones de método que conviene declarar. El scheduling es heurístico y no garantiza un "
+        "Existen además limitaciones de método que conviene declarar. La planificación es heurística y no garantiza un "
         "óptimo global; su valor está en mejorar la asignación, no en demostrar optimalidad. La inspección automática "
-        "se evalúa con métricas proxy sobre cobertura sintética. La recomendación de depósito requiere validar "
+        "se evalúa con métricas aproximadas sobre cobertura sintética. La recomendación de depósito requiere validar "
         "competencias técnicas, disponibilidad de repuesto, logística y restricciones contractuales que el modelo no "
         "incorpora. Ninguna de estas limitaciones invalida las conclusiones operativas, pero todas acotan el grado de "
         "automatización admisible antes de la calibración."
@@ -1150,11 +1150,11 @@ def build() -> None:
     d.p(
         f"Ejecutar la intervención de {top['unidad_id']} / {top['componente_id']} y revisar diariamente la cola de "
         f"{fmt_int(mv('high_deferral_risk_cases_count'))} casos con alto riesgo de diferimiento, registrando motivo y "
-        "autorizador para cualquier excepción. Adoptar la heurística de 35 días como baseline operativo controlado y "
+        "autorizador para cualquier excepción. Adoptar la heurística de 35 días como base inicial operativa controlada y "
         "medir semanalmente la accionabilidad, los pendientes por capacidad, los pendientes por repuesto, el riesgo "
         f"residual y el valor capturado. Abrir el rebalanceo en dos frentes: aliviar {m['top_depot_by_saturation']} "
-        f"por saturación del snapshot y revisar {primary_bottleneck['deposito_id']} como cuello de botella del "
-        "scheduling rediseñado, reasignando trabajo compatible a instalaciones con holgura."
+        f"por saturación del corte y revisar {primary_bottleneck['deposito_id']} como cuello de botella de la "
+        "planificación rediseñada, reasignando trabajo compatible a instalaciones con holgura."
     )
     d.p(
         "Crear un frente específico para pantógrafos y para los cinco modos de fallo más repetitivos, vinculando cada "
@@ -1193,7 +1193,7 @@ def build() -> None:
         for horizon, owner, action, control in execution_rows
     )
     d.add(
-        "<table class='data'><thead><tr><th>Horizonte</th><th>Owner</th><th>Mandato</th><th>Control ejecutivo</th>"
+        "<table class='data'><thead><tr><th>Horizonte</th><th>Responsable</th><th>Mandato</th><th>Control ejecutivo</th>"
         "</tr></thead><tbody>" + execution_html + "</tbody></table>"
         "<p class='tbl-note'>Agenda de ejecución propuesta para comité. Los controles son métricas de gobierno, no "
         "promesas de impacto financiero sin calibración real.</p>"
@@ -1207,14 +1207,14 @@ def build() -> None:
     d.h(3, "Decisiones de 60 a 120 días")
     d.p(
         "Calibrar el riesgo de fallo y los buckets de vida remanente con histórico real, usando cortes temporales y "
-        "métricas por familia, e incorporar la respuesta a la intervención para comprobar si el score ordena casos que "
+        "métricas por familia, e incorporar la respuesta a la intervención para comprobar si la puntuación ordena casos que "
         "efectivamente reducen fallos e indisponibilidad. Construir el caso económico con costes corporativos "
         "auditables, valorando de forma explícita las horas de servicio preservadas, las correctivas evitadas, el coste "
         "de habilitación, el inventario, la capacitación y el riesgo de ejecución. Sin ese paso, la estrategia CBM no "
         "debe presentarse como ahorro."
     )
     d.p(
-        "Evaluar la optimización matemática del scheduling solo después de estabilizar reglas, datos y restricciones. "
+        "Evaluar la optimización matemática de la planificación solo después de estabilizar reglas, datos y restricciones. "
         "Un optimizador construido sobre supuestos débiles produce precisión aparente, no una mejor decisión, y "
         "trasladaría a la organización una falsa sensación de rigor. La hoja de ruta, en síntesis, ejecuta de inmediato "
         "lo que la evidencia operativa ya soporta y reserva la inversión para cuando exista calibración financiera."
@@ -1245,33 +1245,33 @@ utilización por depósito, reincidencia por modo y diferencial económico recal
     d.p(
         "La tabla siguiente recoge las métricas oficiales utilizadas para comunicar resultados, con su valor y su "
         "fuente de verdad. Las definiciones completas, los filtros y las reglas de agregación permanecen en el registro "
-        "procesado de métricas, que es el origen único del que leen el dashboard, el README y este informe."
+        "procesado de métricas, que es el origen único del que leen el panel de control, el README y este informe."
     )
     source_label = {
-        "fleet_availability_pct": "Mart semanal de flota",
-        "mtbf_proxy_hours": "Mart semanal de flota",
-        "mttr_proxy_hours": "Mart semanal de flota",
+        "fleet_availability_pct": "Tabla analítica semanal de flota",
+        "mtbf_proxy_hours": "Tabla analítica semanal de flota",
+        "mttr_proxy_hours": "Tabla analítica semanal de flota",
         "high_risk_units_count": "Modelo de riesgo de unidad",
-        "backlog_physical_items_count": "Registro de backlog",
-        "backlog_overdue_items_count": "Registro de backlog",
-        "backlog_critical_physical_count": "Registro de backlog",
+        "backlog_physical_items_count": "Registro de pendientes",
+        "backlog_overdue_items_count": "Registro de pendientes",
+        "backlog_critical_physical_count": "Registro de pendientes",
         "high_deferral_risk_cases_count": "Modelo de priorización",
         "cbm_vs_reactiva_availability_pp": "Simulación estratégica",
         "cbm_operational_savings_eur": "Simulación estratégica",
         "cbm_breakeven_value_per_service_hour_eur": "Simulación estratégica",
         "deferral_cost_delta_14d_eur": "Simulación de diferimiento",
         "deferral_downtime_delta_14d_h": "Simulación de diferimiento",
-        "mean_depot_saturation_pct": "Mart de presión de talleres",
-        "top_depot_saturation_pct": "Mart de presión de talleres",
+        "mean_depot_saturation_pct": "Tabla analítica de presión de talleres",
+        "top_depot_saturation_pct": "Tabla analítica de presión de talleres",
     }
     metric_selection = [
         ("fleet_availability_pct", "Disponibilidad media de flota", lambda v: fmt_pct(v, 2)),
-        ("mtbf_proxy_hours", "Tiempo medio entre fallos (proxy)", lambda v: f"{fmt_dec(v, 1)} h"),
-        ("mttr_proxy_hours", "Tiempo medio de reparación (proxy)", lambda v: f"{fmt_dec(v, 1)} h"),
+        ("mtbf_proxy_hours", "Tiempo medio entre fallos (aproximado)", lambda v: f"{fmt_dec(v, 1)} h"),
+        ("mttr_proxy_hours", "Tiempo medio de reparación (aproximado)", lambda v: f"{fmt_dec(v, 1)} h"),
         ("high_risk_units_count", "Unidades de alto riesgo", fmt_int),
-        ("backlog_physical_items_count", "Backlog físico", fmt_int),
-        ("backlog_overdue_items_count", "Backlog vencido", fmt_int),
-        ("backlog_critical_physical_count", "Backlog crítico físico", fmt_int),
+        ("backlog_physical_items_count", "Pendientes físicos", fmt_int),
+        ("backlog_overdue_items_count", "Pendientes vencidos", fmt_int),
+        ("backlog_critical_physical_count", "Pendientes críticos físicos", fmt_int),
         ("high_deferral_risk_cases_count", "Casos con alto riesgo de diferimiento", fmt_int),
         ("mean_depot_saturation_pct", "Saturación media de depósito", lambda v: fmt_pct(v, 1)),
         ("top_depot_saturation_pct", "Saturación del depósito más exigido", lambda v: fmt_pct(v, 1)),
@@ -1297,15 +1297,15 @@ utilización por depósito, reincidencia por modo y diferencial económico recal
     d.h(3, "Guía de interpretación", anchor="guia-interpretacion")
     d.p(
         "Cada indicador tiene una función de decisión y una interpretación explícitamente bloqueada. Esta disciplina "
-        "debe mantenerse en cualquier extensión del dashboard o del informe, porque es la que impide que una cifra útil "
+        "debe mantenerse en cualquier extensión del panel de control o del informe, porque es la que impide que una cifra útil "
         "para un fin se utilice para otro que no soporta."
     )
     method_rows = [
         ("Salud", "Condición técnica actual del componente", "No es probabilidad de fallo"),
-        ("Riesgo a 30 días", "Ordenar propensión a fallo a corto plazo", "No demuestra causalidad física"),
+        ("Riesgo a 30 días", "Ordenar propensión a fallo a corto plazo", "No prueba causalidad física"),
         ("Vida remanente", "Bucket relativo de ventana de intervención", "No es fecha exacta de fallo"),
-        ("Backlog físico", "Carga de mantenimiento pendiente real", "No equivale a riesgo de diferimiento"),
-        ("Riesgo de diferimiento", "Daño esperado de aplazar una decisión", "No equivale a backlog crítico"),
+        ("Pendientes físicos", "Carga de mantenimiento pendiente real", "No equivale a riesgo de diferimiento"),
+        ("Riesgo de diferimiento", "Daño esperado de aplazar una decisión", "No equivale a pendientes críticos"),
         ("Saturación de taller", "Uso relativo de la capacidad del depósito", "No mide productividad"),
         ("Valor estratégico", "Comparar compensaciones entre estrategias", "No es P&L ni ahorro contractual"),
         (
@@ -1323,11 +1323,10 @@ utilización por depósito, reincidencia por modo y diferencial económico recal
         f"<tbody>{method_html}</tbody></table>"
     )
     d.p(
-        f"El informe se cierra sobre la misma base con la que se abre. La plataforma ordena una decisión: ejecutar una "
-        f"cola de intervención basada en riesgo, corregir la asignación de capacidad y condicionar la inversión en CBM "
-        f"a una calibración económica honesta. Las cifras que sostienen esa decisión proceden de "
+        f"Conclusión: ejecutar la cola de intervención basada en riesgo, corregir la asignación de capacidad y condicionar "
+        f"la inversión en CBM a una calibración económica honesta. Las cifras que sostienen esa decisión proceden de "
         f"{fmt_int(mv('n_componentes'))} componentes críticos, {fmt_int(mv('n_unidades'))} unidades y "
-        f"{len(checks)} controles de gobernanza sin bloqueos activos, y todas son reproducibles desde el pipeline."
+        f"{len(checks)} controles de gobernanza sin bloqueos activos, y todas son reproducibles desde el flujo."
     )
     d.add("</section>")
 
@@ -1406,7 +1405,7 @@ h2{ string-set:section attr(data-section); }
 .toc-list a::after{ content:target-counter(attr(href), page); font-family:'IBM Plex Mono'; font-size:9.5pt; color:var(--muted); }
 
 /* ---------- Cuerpo ---------- */
-/* Las secciones fluyen de forma continua (estándar Big Four): un salto de página
+/* Las secciones fluyen de forma continua: un salto de página
    forzado en cada h2 desperdicia espacio cuando una sección termina temprano.
    break-after:avoid basta para que un título nunca quede huérfano al pie de página. */
 .body h2{ font-size:19pt; font-weight:700; color:var(--ink); margin:14mm 0 3mm 0; padding-bottom:2.5mm;
@@ -1416,7 +1415,7 @@ h2{ string-set:section attr(data-section); }
 .lead{ font-size:11.5pt; line-height:1.6; color:var(--ink); font-weight:500; margin-bottom:7pt;
   border-left:2.5pt solid var(--accent); padding-left:5mm; text-align:left; }
 
-/* KPI cards */
+/* Tarjetas de indicadores */
 .kpi-row{ display:flex; gap:4mm; margin:5mm 0 6mm 0; }
 .kpi{ flex:1; background:var(--panel); border:.5pt solid var(--light); border-top:2.5pt solid var(--muted); padding:4mm; }
 .kpi.danger{ border-top-color:var(--danger); } .kpi.positive{ border-top-color:var(--positive); }

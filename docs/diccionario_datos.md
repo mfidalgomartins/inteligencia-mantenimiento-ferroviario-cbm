@@ -1,6 +1,6 @@
 # Diccionario de Datos
 
-## Tablas Raw (data/raw)
+## Tablas de Datos Brutos (data/raw)
 
 ### `flotas`
 - `flota_id`: identificador de flota.
@@ -8,7 +8,7 @@
 - `tipo_material`: EMU/DMU/LRV.
 - `operador`, `region`.
 - `ano_fabricacion_base`: año de referencia del parque.
-- `uso_intensidad`: índice proxy de uso.
+- `uso_intensidad`: índice aproximado de uso.
 - `criticidad_operativa`: criticidad de flota para operación.
 - `estrategia_mantenimiento_actual`: estrategia dominante actual.
 
@@ -28,7 +28,8 @@
 ### `componentes_criticos`
 - `componente_id`, `unidad_id`.
 - `sistema_principal`, `subsistema`, `tipo_componente`.
-- `fabricante_proxy`, `fecha_instalacion`.
+- `fabricante_proxy`: fabricante aproximado o normalizado.
+- `fecha_instalacion`.
 - `edad_componente_dias`, `ciclos_acumulados`.
 - `criticidad_componente`, `vida_util_teorica_dias`, `vida_util_teorica_ciclos`.
 
@@ -39,7 +40,7 @@
 
 ### `inspecciones_automaticas`
 - `inspeccion_id`, `timestamp`, `unidad_id`, `componente_id`.
-- `familia_inspeccion` (wheel/brake/bogie/pantograph).
+- `familia_inspeccion` (valores técnicos del sistema: wheel/brake/bogie/pantograph).
 - `detector_origen`, `severidad_hallazgo`, `score_defecto`, `defecto_detectado`.
 - `confianza_deteccion`, `recomendacion_inicial`.
 
@@ -86,7 +87,7 @@
 - `fecha`, `escenario`.
 - `intensidad_operacion_indice`, `tension_backlog_indice`, `disponibilidad_recursos_indice`, `presion_coste_indice`.
 
-## Tablas Processed Principales
+## Tablas Procesadas Principales
 - `component_day_features`, `unit_day_features`, `fleet_week_features`, `workshop_priority_features`
 - `component_health_score`, `component_failure_risk_score`, `component_rul_estimate`, `unit_unavailability_risk_score`
 - `workshop_priority_table`, `workshop_scheduling_recommendation`

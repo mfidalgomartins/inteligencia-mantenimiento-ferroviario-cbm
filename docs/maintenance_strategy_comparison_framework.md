@@ -1,7 +1,7 @@
 # Marco de Comparación de Estrategias de Mantenimiento
 
 ## Objetivo
-Comparar estrategias de mantenimiento con separación explícita entre evidencia observada, hipótesis operativas y proxies económicos.
+Comparar estrategias de mantenimiento con separación explícita entre evidencia observada, hipótesis operativas y aproximaciones económicas.
 
 ## 1) Datos observados
 | variable                 |     valor | tipo      | fuente                               |
@@ -32,15 +32,15 @@ Comparar estrategias de mantenimiento con separación explícita entre evidencia
 | base               |             1.00 |              1.00 |                    1.00 |            1.00 |              1.00 |              1.00 |                   1.00 | condición operativa esperada                                               |
 | agresivo           |             0.93 |              1.08 |                    1.12 |            0.92 |              0.94 |              0.96 |                   0.92 | mejor ejecución operativa y mayor calidad de señal                         |
 
-## 4) Proxies económicos
-| variable                        |     valor | tipo            | fuente     |
-|:--------------------------------|----------:|:----------------|:-----------|
-| cost_downtime_hour_base         |  1,300.00 | proxy_economico | assumption |
-| cost_corrective_event_base      | 16,000.00 | proxy_economico | assumption |
-| cost_preventive_event_base      |  8,000.00 | proxy_economico | assumption |
-| cost_backlog_critical_case_base |  2,500.00 | proxy_economico | assumption |
-| cost_deferral_case_base         |  5,200.00 | proxy_economico | assumption |
-| cost_service_impact_unit_base   | 42,000.00 | proxy_economico | assumption |
+## 4) Aproximaciones económicas
+| variable                        |     valor | tipo                   | fuente   |
+|:--------------------------------|----------:|:-----------------------|:---------|
+| cost_downtime_hour_base         |  1,300.00 | aproximacion_economica | supuesto |
+| cost_corrective_event_base      | 16,000.00 | aproximacion_economica | supuesto |
+| cost_preventive_event_base      |  8,000.00 | aproximacion_economica | supuesto |
+| cost_backlog_critical_case_base |  2,500.00 | aproximacion_economica | supuesto |
+| cost_deferral_case_base         |  5,200.00 | aproximacion_economica | supuesto |
+| cost_service_impact_unit_base   | 42,000.00 | aproximacion_economica | supuesto |
 
 ## 5) Resultados por escenario (P10/P50/P90)
 | scenario_profile   | estrategia          |   coste_total_p10 |   coste_total_p50 |   coste_total_p90 |   downtime_p50 |   correctivas_evitables_p50 |   horas_servicio_preservadas_p50 |   ahorro_neto_p50_vs_reactiva |   downside_ahorro_p10_vs_reactiva |   upside_ahorro_p90_vs_reactiva |   prob_ahorro_positivo |
@@ -55,7 +55,7 @@ Comparar estrategias de mantenimiento con separación explícita entre evidencia
 | conservador        | preventiva_rigida   |    230,728,566.11 |    263,869,055.48 |    303,039,917.78 |      83,274.10 |                       98.81 |                         1,884.49 |                  6,056,240.16 |                     -3,784,449.59 |                   16,748,805.71 |                   0.78 |
 | conservador        | reactiva            |    228,043,951.99 |    270,421,423.59 |    318,050,330.37 |     103,587.03 |                        0.00 |                             0.00 |                          0.00 |                              0.00 |                            0.00 |                   0.00 |
 
-## 6) Rango plausible de valor
+## 6) Rango estimado de valor
 | estrategia          |   coste_total_p10 |   coste_total_p50 |   coste_total_p90 |   ahorro_neto_p10_vs_reactiva |   ahorro_neto_p50_vs_reactiva |   ahorro_neto_p90_vs_reactiva |   downside_case |    upside_case |   prob_ahorro_positivo |
 |:--------------------|------------------:|------------------:|------------------:|------------------------------:|------------------------------:|------------------------------:|----------------:|---------------:|-----------------------:|
 | basada_en_condicion |    209,322,168.02 |    252,594,604.49 |    356,084,798.44 |                -74,235,937.98 |                -53,777,290.47 |                -44,730,808.85 |  -92,226,128.76 | -34,808,335.85 |                   0.00 |
@@ -64,7 +64,7 @@ Comparar estrategias de mantenimiento con separación explícita entre evidencia
 
 ## 7) Reglas de interpretación
 - `ahorro_neto_vs_reactiva > 0`: mejora económica frente a reactiva en ese escenario/sensibilidad.
-- `downside_case < 0`: existe cola de riesgo económica donde la estrategia puede no compensar.
+- `downside_case < 0`: existe una zona de riesgo económico donde la estrategia puede no compensar.
 - `prob_ahorro_positivo`: robustez de la estrategia bajo incertidumbre.
 
 ## 8) Nota metodológica

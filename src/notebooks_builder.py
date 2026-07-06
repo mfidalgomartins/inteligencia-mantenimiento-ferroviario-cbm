@@ -48,10 +48,10 @@ charts = root / "outputs" / "charts"
 # 01 - Exploración y Auditoría de Datos
 
 ## Pregunta analítica
-¿La base sintética tiene calidad suficiente para soportar scoring, RUL, priorización y decisiones de taller?
+¿La base sintética tiene calidad suficiente para soportar puntuación, RUL, priorización y decisiones de taller?
 
 ## Hipótesis
-La mayor parte de problemas de credibilidad no estarán en nulls/duplicados básicos, sino en coherencia semántica y distribución de señales.
+La mayor parte de problemas de credibilidad no estarán en nulos/duplicados básicos, sino en coherencia semántica y distribución de señales.
             """
         ),
         common_setup,
@@ -67,7 +67,7 @@ summary
         _md(
             """
 ## Metodología
-1. Profiling estructural por tabla (grain, clave candidata, cobertura temporal, null rate).
+1. Perfilado estructural por tabla (grano, clave candidata, cobertura temporal, tasa de nulos).
 2. Clasificación de columnas y perfil de distribución de métricas.
 3. Validación de claves foráneas y chequeos de dominio específicos del negocio.
 4. Priorización de hallazgos por severidad (alta / media / baja).
@@ -87,7 +87,7 @@ cols.groupby("clasificacion", observed=True).size().reset_index(name="n_columnas
         _md(
             """
 ## Interpretación
-- Los hallazgos de severidad alta (duplicados o nulls en clave, orfandad de FK) condicionan la fiabilidad de marts y scoring.
+- Los hallazgos de severidad alta (duplicados o nulos en clave, orfandad de FK) condicionan la fiabilidad de tablas analíticas y puntuación.
 - La clasificación de columnas separa identificadores, métricas y temporales para enfocar dónde mirar.
 
 ## Limitaciones
@@ -95,7 +95,7 @@ cols.groupby("clasificacion", observed=True).size().reset_index(name="n_columnas
 - La auditoría no sustituye la calibración con histórico contractual.
 
 ## Decisión resultante
-Avanzar a scoring solo si no quedan hallazgos de severidad alta sin mitigar.
+Avanzar a puntuación solo si no quedan hallazgos de severidad alta sin mitigar.
             """
         ),
     ]
@@ -138,11 +138,11 @@ rul_dist, rul_fam
         _md(
             """
 ## Interpretación
-- Health score y deterioration index no son equivalentes: uno resume estado, el otro intensidad de daño.
-- RUL se usa por buckets de planificación, no como fecha exacta de fallo.
+- `health_score` y `deterioration_index` no son equivalentes: uno resume estado, el otro intensidad de daño.
+- RUL se usa por grupos de planificación, no como fecha exacta de fallo.
 
 ## Limitaciones
-- El backtest de falla está condicionado por el entorno sintético.
+- La validación retrospectiva de falla está condicionada por el entorno sintético.
 - La discriminación por familia mejora, pero requiere calibración por material real.
 
 ## Decisión resultante
@@ -154,13 +154,13 @@ Usar riesgo + RUL + criticidad para clasificar intervención inmediata vs próxi
     nb3 = [
         _md(
             """
-# 03 - Priorización y Scheduling de Taller
+# 03 - Priorización y Planificación de Taller
 
 ## Pregunta analítica
-¿Qué intervenir primero, dónde y con qué estado de programación bajo capacidad limitada?
+¿Qué intervenir primero, dónde y con qué estado de planificación bajo capacidad limitada?
 
 ## Hipótesis
-Una cola jerárquica con aging y ajuste por capacidad mejora ejecutabilidad frente al colapso en `pendiente_capacidad`.
+Una cola jerárquica con antigüedad y ajuste por capacidad mejora ejecutabilidad frente al colapso en `pendiente_capacidad`.
             """
         ),
         common_setup,
@@ -187,7 +187,7 @@ plan.groupby(["estado_intervencion","deposito_recomendado"], observed=True).size
         _md(
             """
 ## Interpretación
-- No toda prioridad alta es programable inmediata: capacidad, ventana y conflicto operativo mandan.
+- No toda prioridad alta es programable de inmediato: capacidad, ventana y conflicto operativo mandan.
 - `pendiente_capacidad` se monitorea junto con riesgo residual no atendido.
 
 ## Limitaciones
@@ -235,22 +235,22 @@ sens.groupby("estrategia", observed=True)["ahorro_neto_vs_reactiva"].agg(["media
         _md(
             """
 ## Interpretación
-- Se separa output observado de hipótesis estructural/proxy económico.
+- Se separa resultado observado de hipótesis estructural/económica aproximada.
 - El valor CBM se reporta en rangos plausibles (no en punto único sobrevendido).
 
 ## Limitaciones
-- Costes y ahorro en proxy.
+- Costes y ahorro expresados como aproximación.
 - Sensibilidades OFAT no capturan toda interacción no lineal.
 
 ## Decisión resultante
-Escalar CBM donde el downside sea acotado y el upside operativo supere coste incremental.
+Escalar CBM donde el riesgo a la baja sea acotado y el potencial operativo supere el coste incremental.
             """
         ),
     ]
 
     _build_notebook(nb1, "01_exploracion_y_auditoria.ipynb")
     _build_notebook(nb2, "02_degradacion_riesgo_rul.ipynb")
-    _build_notebook(nb3, "03_priorizacion_y_scheduling.ipynb")
+    _build_notebook(nb3, "03_priorizacion_y_planificacion.ipynb")
     _build_notebook(nb4, "04_estrategias_y_diferimiento.ipynb")
 
 

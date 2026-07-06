@@ -21,20 +21,20 @@ from src.workshop_prioritization import run_workshop_prioritization
 
 PIPELINE_STEPS: list[tuple[str, Callable[[], object]]] = [
     ("Generar datos sintéticos", generate_synthetic_data),
-    ("Auditar datos raw", run_explore_data_audit),
+    ("Auditar datos brutos", run_explore_data_audit),
     ("Construir capa SQL", run_sql_layer),
-    ("Construir features", build_feature_tables),
-    ("Calcular scoring de riesgo", run_risk_scoring),
+    ("Construir variables", build_feature_tables),
+    ("Calcular puntuación de riesgo", run_risk_scoring),
     ("Estimar RUL", estimate_rul),
-    ("Aplicar reglas early warning", run_early_warning_rules),
-    ("Priorizar taller y scheduling", run_workshop_prioritization),
+    ("Aplicar reglas de alerta temprana", run_early_warning_rules),
+    ("Priorizar taller y planificación", run_workshop_prioritization),
     ("Evaluar inspección automática", run_inspection_module),
     ("Comparar estrategias", run_strategy_comparison),
     ("Analizar diferimiento", run_defer_impact_analysis),
-    ("Sincronizar métricas y narrativa", lambda: sync_narrative_artifacts(force_recompute=True)),
+    ("Sincronizar métricas y texto ejecutivo", lambda: sync_narrative_artifacts(force_recompute=True)),
     ("Construir notebooks", build_notebooks),
-    ("Validar contratos de governance", lambda: run_governance_contracts(fail_on_blocker=True)),
-    ("Construir dashboard", build_dashboard),
+    ("Validar contratos de gobernanza", lambda: run_governance_contracts(fail_on_blocker=True)),
+    ("Construir panel de control", build_dashboard),
 ]
 
 
@@ -46,9 +46,9 @@ def run_pipeline() -> None:
         print(f"[{idx:02d}/{total:02d}] {label}...", flush=True)
         func()
         elapsed = perf_counter() - step_started
-        print(f"[{idx:02d}/{total:02d}] OK {label} ({elapsed:.1f}s)", flush=True)
+        print(f"[{idx:02d}/{total:02d}] Correcto {label} ({elapsed:.1f}s)", flush=True)
 
-    print(f"Pipeline completa ({perf_counter() - started:.1f}s)", flush=True)
+    print(f"Flujo completo ({perf_counter() - started:.1f}s)", flush=True)
 
 
 if __name__ == "__main__":

@@ -1,33 +1,33 @@
 # Semántica Oficial de Salud, Deterioro y Degradación
 
 ## Objetivo
-Mantener una convención de signos única entre SQL, Python, marts, scoring, dashboard y documentación.
+Mantener una convención de signos única entre SQL, Python, tablas analíticas, puntuación, panel de control y documentación.
 
 ## Taxonomía oficial
 
-### 1) Health metrics (alto = mejor)
-- `estimated_health_input_index` (SQL mart)
-- `estimated_health_index` (feature layer)
-- `component_health_score` / `health_score` (scoring)
+### 1) Métricas de salud (alto = mejor)
+- `estimated_health_input_index` (tabla analítica SQL)
+- `estimated_health_index` (capa de variables)
+- `component_health_score` / `health_score` (puntuación)
 
-### 2) Deterioration metrics (alto = peor)
-- `deterioration_input_index` (SQL mart y features)
-- `deterioration_index` (features y scoring)
-- `degradation_velocity` (features, scoring y priorización)
+### 2) Métricas de deterioro (alto = peor)
+- `deterioration_input_index` (tabla analítica SQL y variables)
+- `deterioration_index` (variables y puntuación)
+- `degradation_velocity` (variables, puntuación y priorización)
 
-### 3) Stress metrics (alto = peor)
+### 3) Métricas de estrés (alto = peor)
 - `operating_stress_index`
 - `environment_stress_proxy`
 - `shock_event_count`, `anomaly_count_30d`
 - `backlog_exposure_flag`
 
-### 4) Failure propensity metrics (alto = peor)
+### 4) Métricas de propensión a fallo (alto = peor)
 - `component_failure_risk_score` / `prob_fallo_30d`
 - `unit_unavailability_risk_score`
 - `predicted_unavailability_risk`
 - `deferral_risk_score`
 
-### 5) Maintenance restoration metrics (alto = mejor)
+### 5) Métricas de restauración por mantenimiento (alto = mejor)
 - `maintenance_restoration_index`
 
 ## Reglas obligatorias de signo y rango
@@ -44,11 +44,11 @@ Mantener una convención de signos única entre SQL, Python, marts, scoring, das
 - `critical_components_at_risk` cuenta componentes con salud baja (`<=35`).
 - `predicted_unavailability_risk` usa explícitamente `100 - aggregated_health_input`.
 - `component_health_score` penaliza deterioro y degradación, y reconoce restauración reciente.
-- `component_failure_risk_score` combina deterioro, estrés, anomalías, backlog, repetitividad y restauración.
+- `component_failure_risk_score` combina deterioro, estrés, anomalías, pendientes, repetitividad y restauración.
 
 ## Fuentes oficiales
 La definición semántica oficial se consume en:
-- SQL marts y validación:
+- Tablas analíticas SQL y validación:
   - `sql/07_analytical_mart_component_day.sql`
   - `sql/08_analytical_mart_unit_day.sql`
   - `sql/10_kpi_queries.sql`
@@ -65,7 +65,7 @@ La definición semántica oficial se consume en:
 
 ## Validaciones implementadas
 - Test SQL: `val_semantic_health_deterioration`:
-  - balance health+deterioration y rangos.
+  - balance salud+deterioro y rangos.
 - Test de signos:
   - `rho(health_score, prob_fallo_30d) < 0`
   - `rho(deterioration_index, prob_fallo_30d) > 0`
@@ -76,4 +76,4 @@ La definición semántica oficial se consume en:
   - control de saturación en `impact_on_service_proxy`.
 
 ## Nota metodológica
-El sistema sigue siendo interpretable y proxy (dato sintético). La semántica ya es consistente entre capas, pero la calibración final de umbrales/pesos debe hacerse con histórico real de operación y mantenimiento.
+El sistema sigue siendo interpretable y aproximado (dato sintético). La semántica ya es consistente entre capas, pero la calibración final de umbrales/pesos debe hacerse con histórico real de operación y mantenimiento.

@@ -20,7 +20,7 @@ def test_scheduling_artifacts_exist():
         DOCS / "scheduling_framework.md",
     ]
     for path in expected:
-        assert path.exists(), f"Falta artefacto de scheduling hardening: {path}"
+        assert path.exists(), f"Falta artefacto de robustez de planificación: {path}"
 
 
 def test_scheduling_status_taxonomy_and_temporal_consistency():
@@ -52,6 +52,6 @@ def test_scheduling_capacity_sanity():
 
 def test_scheduling_before_after_actionability_improves():
     metrics = pd.read_csv(PROCESSED / "scheduling_before_after_metrics.csv")
-    before = float(metrics.loc[metrics["scenario"] == "baseline_greedy_21d", "actionable_pct"].iloc[0])
+    before = float(metrics.loc[metrics["scenario"] == "base_inicial_voraz_21d", "actionable_pct"].iloc[0])
     after = float(metrics.loc[metrics["scenario"] == "heuristica_redisenada_35d", "actionable_pct"].iloc[0])
     assert after >= before + 5.0

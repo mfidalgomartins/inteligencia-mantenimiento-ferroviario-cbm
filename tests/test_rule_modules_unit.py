@@ -47,7 +47,7 @@ def test_run_early_warning_rules_merges_confidence_and_writes_alerts(tmp_path, m
             "health_score": [96, 72, 48, 24, 35],
             "prob_fallo_30d": [0.05, 0.46, 0.68, 0.88, 0.70],
             "riesgo_ajustado_negocio": [5, 40, 65, 95, 70],
-            "main_risk_driver": ["degradacion", "degradacion", "backlog", "anomalias", "repetitividad"],
+            "main_risk_driver": ["degradacion", "degradacion", "pendientes", "anomalias", "repetitividad"],
             "confidence_flag": ["alta", None, "media", None, "baja"],
         }
     )
@@ -75,7 +75,7 @@ def test_run_early_warning_rules_merges_confidence_and_writes_alerts(tmp_path, m
 
 
 def test_run_early_warning_rules_takes_confidence_from_rul_when_scoring_lacks_it(tmp_path, monkeypatch):
-    # Sin colisión de columnas: scoring no trae confidence_flag, así que el merge
+    # Sin colisión de columnas: la puntuación no trae confidence_flag, así que la unión
     # produce una única columna confidence_flag proveniente del RUL.
     monkeypatch.setattr(early_warning, "DATA_PROCESSED_DIR", tmp_path)
     scoring = pd.DataFrame(

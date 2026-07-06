@@ -1,7 +1,7 @@
 # Comparación de Estrategias de Mantenimiento
 
 ## Método
-- Separación explícita entre evidencia observada, supuestos estructurales y proxies económicos.
+- Separación explícita entre evidencia observada, supuestos estructurales y aproximaciones económicas.
 - Escenarios operativos: conservador, base y agresivo.
 - Sensibilidad multidimensional: coste de indisponibilidad, tasa de fallo, capacidad de taller, detección temprana, costes correctivo/preventivo.
 
@@ -25,7 +25,7 @@
 | conservador        | preventiva_rigida   |    230,728,566.11 |    263,869,055.48 |    303,039,917.78 |      83,274.10 |                       98.81 |                         1,884.49 |                  6,056,240.16 |                     -3,784,449.59 |                   16,748,805.71 |                   0.78 |
 | conservador        | reactiva            |    228,043,951.99 |    270,421,423.59 |    318,050,330.37 |     103,587.03 |                        0.00 |                             0.00 |                          0.00 |                              0.00 |                            0.00 |                   0.00 |
 
-## Rango plausible de valor
+## Rango estimado de valor
 | estrategia          |   coste_total_p10 |   coste_total_p50 |   coste_total_p90 |   ahorro_neto_p10_vs_reactiva |   ahorro_neto_p50_vs_reactiva |   ahorro_neto_p90_vs_reactiva |   downside_case |    upside_case |   prob_ahorro_positivo |
 |:--------------------|------------------:|------------------:|------------------:|------------------------------:|------------------------------:|------------------------------:|----------------:|---------------:|-----------------------:|
 | basada_en_condicion |    209,322,168.02 |    252,594,604.49 |    356,084,798.44 |                -74,235,937.98 |                -53,777,290.47 |                -44,730,808.85 |  -92,226,128.76 | -34,808,335.85 |                   0.00 |
@@ -40,7 +40,7 @@
 - Mejor estrategia por coste esperado (P50) en agresivo: reactiva.
 
 ## Limitaciones económicas
-- El ahorro es proxy y depende de costes unitarios asumidos.
+- El ahorro es aproximado y depende de costes unitarios asumidos.
 - El desempeño de CBM es sensible a la calidad de detección temprana y a la capacidad efectiva de taller.
 - En escenarios conservadores, CBM puede perder ventaja frente a preventiva rígida si el coste de habilitación domina.
 

@@ -81,9 +81,9 @@ def test_readme_consistent_with_ssot_metrics():
 
     avail = _extract_float(readme, r"\| Disponibilidad media de flota \| \*\*([0-9]+(?:[\.,][0-9]+)?) %\*\*")
     high = _extract_int(readme, r"\| Unidades de alto riesgo .* \| \*\*([0-9\.,]+)\*\*")
-    backlog_physical = _extract_int(readme, r"\| Backlog f[ií]sico \| \*\*([0-9\.,]+) pendientes\*\*")
-    backlog_overdue = _extract_int(readme, r"\| Backlog vencido \| \*\*([0-9\.,]+) pendientes\*\*")
-    backlog_critical = _extract_int(readme, r"\| Backlog cr[ií]tico f[ií]sico \| \*\*([0-9\.,]+) pendientes\*\*")
+    backlog_physical = _extract_int(readme, r"\| Pendientes f[ií]sicos \| \*\*([0-9\.,]+) pendientes\*\*")
+    backlog_overdue = _extract_int(readme, r"\| Pendientes vencidos \| \*\*([0-9\.,]+) pendientes\*\*")
+    backlog_critical = _extract_int(readme, r"\| Pendientes cr[ií]ticos f[ií]sicos \| \*\*([0-9\.,]+) pendientes\*\*")
     deferral_high = _extract_int(readme, r"\| Casos de alto riesgo de diferimiento \| \*\*([0-9\.,]+)\*\*")
     top_unit = _extract_token(readme, r"intervenir primero la unidad `([A-Z0-9]+)`")
     top_comp = _extract_token(readme, r"componente `([A-Z0-9]+)`")
@@ -119,8 +119,8 @@ def test_signed_cbm_differential_is_labeled_honestly():
     readme = (ROOT / "README.md").read_text(encoding="utf-8")
     memo = (DOCS / "memo_ejecutivo_es.md").read_text(encoding="utf-8")
     if delta < 0:
-        assert "Coste incremental proxy CBM vs reactiva" in readme
-        assert "Coste incremental proxy estimado CBM vs reactiva" in memo
+        assert "Coste incremental aproximado CBM vs reactiva" in readme
+        assert "Coste incremental aproximado estimado CBM vs reactiva" in memo
     else:
-        assert "Ahorro operativo proxy CBM vs reactiva" in readme
-        assert "Ahorro operativo proxy estimado CBM vs reactiva" in memo
+        assert "Ahorro operativo aproximado CBM vs reactiva" in readme
+        assert "Ahorro operativo aproximado estimado CBM vs reactiva" in memo

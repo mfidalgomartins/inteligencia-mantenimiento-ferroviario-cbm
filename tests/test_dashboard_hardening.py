@@ -4,13 +4,13 @@ import re
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-DASHBOARD = ROOT / "outputs" / "dashboard" / "centro-control-mantenimiento-ferroviario.html"
+PANEL = ROOT / "outputs" / "dashboard" / "centro-control-mantenimiento-ferroviario.html"
 ROOT_INDEX = ROOT / "index.html"
 
 
 def _html() -> str:
-    assert DASHBOARD.exists(), f"Dashboard oficial no existe: {DASHBOARD}"
-    return DASHBOARD.read_text(encoding="utf-8")
+    assert PANEL.exists(), f"Panel de control oficial no existe: {PANEL}"
+    return PANEL.read_text(encoding="utf-8")
 
 
 def _root_index_html() -> str:
@@ -94,8 +94,8 @@ def test_dashboard_filter_and_pagination_controls_exist():
 
 
 def test_dashboard_performance_payload_ceiling():
-    size_bytes = DASHBOARD.stat().st_size
-    assert size_bytes < 2_000_000, f"Dashboard demasiado pesado ({size_bytes} bytes)"
+    size_bytes = PANEL.stat().st_size
+    assert size_bytes < 2_000_000, f"Panel de control demasiado pesado ({size_bytes} bytes)"
 
 
 def test_dashboard_responsive_redraw_debounce():

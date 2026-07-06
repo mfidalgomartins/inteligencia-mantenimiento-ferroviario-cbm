@@ -3,7 +3,7 @@
 
 Falla con código 1 si algún paquete fijado está ausente, tiene otra versión, o si
 alguna entrada del lock no usa un pin exacto (``==``). Se usa como puerta de calidad
-en local (run_tests.sh) y en CI.
+en local (`run_tests.sh`) y en CI.
 """
 
 from __future__ import annotations
@@ -44,7 +44,7 @@ def check_drift() -> list[str]:
 def main() -> int:
     drift = check_drift()
     if drift:
-        print("Drift entre requirements-lock.txt y el entorno activo:", file=sys.stderr)
+        print("Deriva entre requirements-lock.txt y el entorno activo:", file=sys.stderr)
         for item in drift:
             print(f"- {item}", file=sys.stderr)
         return 1
