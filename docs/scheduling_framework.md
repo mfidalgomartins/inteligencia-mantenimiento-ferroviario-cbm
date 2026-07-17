@@ -37,18 +37,18 @@ Reducir salida no ejecutable del plan de taller sin forzar programaciones irreal
 | pendiente_conflicto_operativo_pct |              0           |                 0           |                 0           |
 | escalar_decision_pct              |              0           |                 0           |                 0           |
 | actionable_pct                    |             29.774       |                50.26        |                20.486       |
-| capacidad_utilizada_pct           |             16.753       |                45.807       |                29.054       |
-| horas_taller_usadas               |           1748.01        |              3955.25        |              2207.23        |
-| riesgo_residual_no_atendido_pct   |             69.025       |                44.856       |               -24.169       |
-| valor_capturado_proxy             |              6.23653e+06 |                 7.27594e+06 |                 1.03942e+06 |
-| valor_no_capturado_proxy          |              8.76899e+06 |                 7.72957e+06 |                -1.03942e+06 |
+| capacidad_utilizada_pct           |             16.753       |                45.81        |                29.057       |
+| horas_taller_usadas               |           1748.04        |              3955.52        |              2207.48        |
+| riesgo_residual_no_atendido_pct   |             69.026       |                44.847       |               -24.179       |
+| valor_capturado_proxy             |              6.23706e+06 |                 7.27741e+06 |                 1.04034e+06 |
+| valor_no_capturado_proxy          |              8.7701e+06  |                 7.72975e+06 |                -1.04034e+06 |
 
 ## Cuellos de botella principales (base inicial)
 | deposito_id   |   casos |   horas_requeridas |   pendientes_capacidad |   pending_rate_pct |
 |:--------------|--------:|-------------------:|-----------------------:|-------------------:|
-| DEP01         |     864 |           4471.54  |                    660 |              76.39 |
-| DEP10         |     144 |            830.311 |                     87 |              60.42 |
-| DEP08         |     144 |            699.295 |                     62 |              43.06 |
+| DEP01         |     864 |           4471.63  |                    660 |              76.39 |
+| DEP10         |     144 |            830.324 |                     87 |              60.42 |
+| DEP08         |     144 |            699.312 |                     62 |              43.06 |
 
 ## Distribución de estados del plan rediseñado
 | estado_intervencion         |   share_pct |

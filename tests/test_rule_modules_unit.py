@@ -2,15 +2,13 @@ from __future__ import annotations
 
 import pandas as pd
 
-from src import early_warning, impact_analysis
+from railway_cbm import early_warning, impact_analysis
 
 
 def test_run_defer_impact_analysis_writes_monotonic_scenarios(tmp_path, monkeypatch):
     processed_dir = tmp_path / "processed"
-    reports_dir = tmp_path / "reports"
     processed_dir.mkdir()
     monkeypatch.setattr(impact_analysis, "DATA_PROCESSED_DIR", processed_dir)
-    monkeypatch.setattr(impact_analysis, "OUTPUTS_REPORTS_DIR", reports_dir)
 
     priorities = pd.DataFrame(
         {
@@ -33,7 +31,7 @@ def test_run_defer_impact_analysis_writes_monotonic_scenarios(tmp_path, monkeypa
     assert resumen["downtime_total_h"].is_monotonic_increasing
     assert detalle["prob_fallo_ajustada"].between(0, 0.98).all()
     assert (processed_dir / "impacto_diferimiento_detalle.csv").exists()
-    assert (reports_dir / "impacto_diferimiento_resumen.csv").exists()
+    assert (processed_dir / "impacto_diferimiento_resumen.csv").exists()
 
 
 def test_run_early_warning_rules_merges_confidence_and_writes_alerts(tmp_path, monkeypatch):

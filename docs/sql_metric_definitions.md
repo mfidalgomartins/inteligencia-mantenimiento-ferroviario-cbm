@@ -27,7 +27,7 @@
 ### `operating_stress_index`
 Índice de estrés operacional (alto=peor).
 - Construcción: carga operativa + congestión + desviación térmica.
-- Uso: aceleración de degradación y probabilidad de falla.
+- Uso: aceleración de degradación y puntuaciones relativas de riesgo.
 
 ### `predicted_unavailability_risk`
 Riesgo aproximado de indisponibilidad por unidad (0-1, alto=peor).

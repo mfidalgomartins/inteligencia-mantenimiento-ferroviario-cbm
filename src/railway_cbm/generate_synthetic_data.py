@@ -1,12 +1,13 @@
+"""Simula una flota ferroviaria coherente y determinista para la demostración."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Dict, List, Tuple
 
 import numpy as np
 import pandas as pd
 
-from src.config import DATA_RAW_DIR, END_DATE, RANDOM_SEED, START_DATE
+from railway_cbm.config import DATA_RAW_DIR, END_DATE, RANDOM_SEED, START_DATE
 
 HISTORY_START = START_DATE
 HISTORY_END = END_DATE
@@ -42,7 +43,17 @@ def _build_flotas() -> pd.DataFrame:
             ("FLOTA02", "Intercity Este", "EMU", "Operador Iberia Rail", "Este", 2015, 0.82, 4.1, "preventiva"),
             ("FLOTA03", "Regional Centro", "DMU", "Operador Iberia Rail", "Centro", 2010, 0.86, 4.3, "mixta"),
             ("FLOTA04", "Alta Demanda Sur", "EMU", "Operador Iberia Rail", "Sur", 2018, 0.93, 4.7, "basada_condicion"),
-            ("FLOTA05", "Tram-Train Mediterraneo", "LRV", "Operador Iberia Rail", "Este", 2016, 0.79, 3.8, "preventiva"),
+            (
+                "FLOTA05",
+                "Tram-Train Mediterraneo",
+                "LRV",
+                "Operador Iberia Rail",
+                "Este",
+                2016,
+                0.79,
+                3.8,
+                "preventiva",
+            ),
             ("FLOTA06", "Suburbana Atlantica", "EMU", "Operador Iberia Rail", "Norte", 2014, 0.84, 4.0, "mixta"),
         ],
         columns=[
@@ -234,8 +245,7 @@ def _generate_componentes_criticos(
             age_days = int((history_end - install_date).days)
 
             ciclos = int(
-                (unidad.horas_operacion_acumuladas * rng.uniform(1.1, 2.6))
-                * (0.7 + 0.5 * rng.uniform(0.6, 1.3))
+                (unidad.horas_operacion_acumuladas * rng.uniform(1.1, 2.6)) * (0.7 + 0.5 * rng.uniform(0.6, 1.3))
             )
 
             rows.append(
@@ -375,9 +385,7 @@ def _build_unit_day_context(
     congestion = unit_days["nivel_congestion_operativa_proxy"].astype(float)
 
     horas_planificadas = np.clip(
-        base_hours
-        * (0.82 + 0.30 * intensity)
-        * (0.88 + 0.18 * uso_intensity)
+        base_hours * (0.82 + 0.30 * intensity) * (0.88 + 0.18 * uso_intensity)
         + rng.normal(0, 0.9, size=len(unit_days)),
         6,
         22,
@@ -408,7 +416,7 @@ def _build_unit_day_context(
     return unit_days
 
 
-def _sensor_types_for_subsystem(subsystem: str) -> List[str]:
+def _sensor_types_for_subsystem(subsystem: str) -> list[str]:
     sensor_map = {
         "motor": ["temperatura", "corriente", "vibracion"],
         "gearbox": ["vibracion", "temperatura", "ruido"],
@@ -426,7 +434,7 @@ def _simulate_component_states_and_sensors(
     componentes: pd.DataFrame,
     unit_day_context: pd.DataFrame,
     rng: np.random.Generator,
-) -> Tuple[pd.DataFrame, pd.DataFrame]:
+) -> tuple[pd.DataFrame, pd.DataFrame]:
     rows_daily = []
     sensor_rows = []
 
@@ -452,9 +460,13 @@ def _simulate_component_states_and_sensors(
         fechas = pd.to_datetime(ctx["fecha"]).to_numpy()
         active_mask = fechas >= np.datetime64(install_date)
 
-        init_wear = np.clip(comp.edad_componente_dias / max(comp.vida_util_teorica_dias, 1) * rng.uniform(0.72, 1.08), 0.03, 1.1)
+        init_wear = np.clip(
+            comp.edad_componente_dias / max(comp.vida_util_teorica_dias, 1) * rng.uniform(0.72, 1.08), 0.03, 1.1
+        )
 
-        env_factor = 1.0 + 0.08 * np.clip((temp_amb - 18) / 20, -0.5, 1.6) + 0.05 * np.clip((humedad - 60) / 20, -1, 1.5)
+        env_factor = (
+            1.0 + 0.08 * np.clip((temp_amb - 18) / 20, -0.5, 1.6) + 0.05 * np.clip((humedad - 60) / 20, -1, 1.5)
+        )
         load_factor = 0.92 + 0.55 * carga + 0.20 * congestion
         deg_increment = comp.base_degradacion_diaria * env_factor * load_factor
 
@@ -464,8 +476,15 @@ def _simulate_component_states_and_sensors(
         wear = np.clip(init_wear + np.cumsum(deg_increment + shocks), 0.01, 1.42)
         wear[~active_mask] = np.nan
 
-        temperatura = 41 + 28 * np.nan_to_num(wear, nan=0.0) + 4.2 * intensidad + 0.30 * temp_amb + rng.normal(0, 1.8, n)
-        vibracion = 1.1 + 2.6 * np.nan_to_num(wear, nan=0.0) * comp.sensibilidad_vibracion + 1.4 * carga + rng.normal(0, 0.30, n)
+        temperatura = (
+            41 + 28 * np.nan_to_num(wear, nan=0.0) + 4.2 * intensidad + 0.30 * temp_amb + rng.normal(0, 1.8, n)
+        )
+        vibracion = (
+            1.1
+            + 2.6 * np.nan_to_num(wear, nan=0.0) * comp.sensibilidad_vibracion
+            + 1.4 * carga
+            + rng.normal(0, 0.30, n)
+        )
 
         base_pressure = {
             "brake": 6.7,
@@ -475,7 +494,9 @@ def _simulate_component_states_and_sensors(
         presion = base_pressure + 0.7 * intensidad - 1.4 * np.nan_to_num(wear, nan=0.0) + rng.normal(0, 0.18, n)
 
         desgaste = np.clip(np.nan_to_num(wear, nan=0.0) * 100 + rng.normal(0, 3.2, n), 0, 145)
-        corriente = 74 + 88 * carga + 70 * np.nan_to_num(wear, nan=0.0) * comp.sensibilidad_corriente + rng.normal(0, 5.0, n)
+        corriente = (
+            74 + 88 * carga + 70 * np.nan_to_num(wear, nan=0.0) * comp.sensibilidad_corriente + rng.normal(0, 5.0, n)
+        )
         ruido = 44 + 9.5 * np.nan_to_num(wear, nan=0.0) + 0.18 * velocidad + rng.normal(0, 1.6, n)
         ambiente_ext = temp_amb + 0.09 * humedad + rng.normal(0, 1.3, n)
 
@@ -606,7 +627,10 @@ def _generate_fallas_historicas(
     prob = np.clip(_sigmoid(logit) * 0.008, 0.00001, 0.03)
     failures = rng.random(len(d)) < prob
 
-    fallas = d.loc[failures, ["fecha", "unidad_id", "componente_id", "subsistema", "degradacion_acumulada", "componente_repetitivo_base"]].copy()
+    fallas = d.loc[
+        failures,
+        ["fecha", "unidad_id", "componente_id", "subsistema", "degradacion_acumulada", "componente_repetitivo_base"],
+    ].copy()
 
     def _severity(w: float, repetitive_flag: int) -> int:
         latent = 1.0 + 1.9 * np.clip(w / 1.42, 0, 1) + 0.55 * repetitive_flag + rng.normal(0, 0.55)
@@ -686,7 +710,7 @@ def _generate_inspecciones_automaticas(
     subset["fecha_dt"] = pd.to_datetime(subset["fecha"])
     subset["day_index"] = (subset["fecha_dt"] - subset["fecha_dt"].min()).dt.days
 
-    base_schedule = ((subset["day_index"] + subset["componente_id"].str[-2:].astype(int)) % 42 == 0)
+    base_schedule = (subset["day_index"] + subset["componente_id"].str[-2:].astype(int)) % 42 == 0
     risk_trigger = (subset["degradacion_acumulada"] > 0.82) & (rng.random(len(subset)) < 0.04)
     inspect_mask = base_schedule | risk_trigger
 
@@ -774,7 +798,9 @@ def _generate_alertas_operativas(
     cond_vibr = (d["vibracion_proxy"] > 6.4) & (rng.random(len(d)) < 0.10)
     cond_wear = (d["desgaste_proxy"] > 92) & (rng.random(len(d)) < 0.16)
 
-    sensor_alerts = d.loc[cond_temp | cond_vibr | cond_wear, ["fecha", "unidad_id", "componente_id", "degradacion_acumulada"]].copy()
+    sensor_alerts = d.loc[
+        cond_temp | cond_vibr | cond_wear, ["fecha", "unidad_id", "componente_id", "degradacion_acumulada"]
+    ].copy()
 
     type_values = np.where(
         cond_wear.loc[sensor_alerts.index],
@@ -1006,9 +1032,7 @@ def _generate_eventos_mantenimiento(
     end_hist = pd.Timestamp(HISTORY_END)
     eventos["fecha_inicio"] = pd.to_datetime(eventos["fecha_inicio"], format="mixed", errors="coerce")
     eventos["fecha_fin"] = pd.to_datetime(eventos["fecha_fin"], format="mixed", errors="coerce")
-    eventos = eventos[
-        (eventos["fecha_inicio"] >= start_hist) & (eventos["fecha_inicio"] <= end_hist)
-    ].copy()
+    eventos = eventos[(eventos["fecha_inicio"] >= start_hist) & (eventos["fecha_inicio"] <= end_hist)].copy()
     eventos["fecha_inicio"] = eventos["fecha_inicio"].dt.strftime("%Y-%m-%d %H:%M:%S")
     eventos["fecha_fin"] = eventos["fecha_fin"].dt.strftime("%Y-%m-%d %H:%M:%S")
     eventos = eventos.sort_values("fecha_inicio").reset_index(drop=True)
@@ -1095,8 +1119,7 @@ def _generate_intervenciones_programadas(
     end_hist = pd.Timestamp(HISTORY_END)
     intervenciones["fecha_programada"] = pd.to_datetime(intervenciones["fecha_programada"], errors="coerce")
     intervenciones = intervenciones[
-        (intervenciones["fecha_programada"] >= start_hist)
-        & (intervenciones["fecha_programada"] <= end_hist)
+        (intervenciones["fecha_programada"] >= start_hist) & (intervenciones["fecha_programada"] <= end_hist)
     ].copy()
     intervenciones["fecha_programada"] = intervenciones["fecha_programada"].dt.date.astype(str)
     return intervenciones
@@ -1105,20 +1128,21 @@ def _generate_intervenciones_programadas(
 def _generate_disponibilidad_y_asignacion(
     unit_day_context: pd.DataFrame,
     unidades: pd.DataFrame,
-    flotas: pd.DataFrame,
     fallas: pd.DataFrame,
     eventos: pd.DataFrame,
     rng: np.random.Generator,
-) -> Tuple[pd.DataFrame, pd.DataFrame]:
-    base = unit_day_context[[
-        "fecha",
-        "unidad_id",
-        "linea_servicio",
-        "horas_planificadas",
-        "servicio_planificado",
-        "reserva_flag",
-        "nivel_congestion_operativa_proxy",
-    ]].copy()
+) -> tuple[pd.DataFrame, pd.DataFrame]:
+    base = unit_day_context[
+        [
+            "fecha",
+            "unidad_id",
+            "linea_servicio",
+            "horas_planificadas",
+            "servicio_planificado",
+            "reserva_flag",
+            "nivel_congestion_operativa_proxy",
+        ]
+    ].copy()
 
     unit_to_flota = unidades.set_index("unidad_id")["flota_id"].to_dict()
     base["flota_id"] = base["unidad_id"].map(unit_to_flota)
@@ -1137,13 +1161,10 @@ def _generate_disponibilidad_y_asignacion(
     eventos_aux["fecha_inicio"] = pd.to_datetime(eventos_aux["fecha_inicio"])
     eventos_aux["fecha"] = eventos_aux["fecha_inicio"].dt.date.astype(str)
 
-    mnt_agg = (
-        eventos_aux.groupby(["fecha", "unidad_id"], as_index=False)
-        .agg(
-            downtime_mnt=("horas_taller", "sum"),
-            n_mnt=("mantenimiento_id", "count"),
-            pct_correctivo=("correctiva_flag", "mean"),
-        )
+    mnt_agg = eventos_aux.groupby(["fecha", "unidad_id"], as_index=False).agg(
+        downtime_mnt=("horas_taller", "sum"),
+        n_mnt=("mantenimiento_id", "count"),
+        pct_correctivo=("correctiva_flag", "mean"),
     )
 
     df = base.merge(falla_agg, on=["fecha", "unidad_id"], how="left")
@@ -1190,7 +1211,9 @@ def _generate_disponibilidad_y_asignacion(
         }
     )
 
-    servicio_realizado = np.maximum(0, df["servicio_planificado"] - cancelaciones.astype(int) - (no_disp > 4.0).astype(int))
+    servicio_realizado = np.maximum(
+        0, df["servicio_planificado"] - cancelaciones.astype(int) - (no_disp > 4.0).astype(int)
+    )
     sustitucion = ((servicio_realizado < (df["servicio_planificado"] * 0.84)) & (df["reserva_flag"] == 0)).astype(int)
 
     asignacion = pd.DataFrame(
@@ -1223,7 +1246,9 @@ def _generate_backlog_mantenimiento(
         active = pending[pending["fecha_programada_dt"] <= snap]
         for row in active.itertuples(index=False):
             age = int((snap - row.fecha_programada_dt).days)
-            severidad = "critica" if row.prioridad_planificada >= 5 else ("alta" if row.prioridad_planificada >= 4 else "media")
+            severidad = (
+                "critica" if row.prioridad_planificada >= 5 else ("alta" if row.prioridad_planificada >= 4 else "media")
+            )
             riesgo = np.clip(row.impacto_si_no_se_ejecuta + age * 0.52 + rng.normal(0, 3), 0, 180)
             pendencia = "correctiva_pendiente" if row.prioridad_planificada >= 5 else "preventiva_pendiente"
             rows.append(
@@ -1308,7 +1333,7 @@ def _generate_escenarios_mantenimiento(
 
 
 def _build_plausibility_validations(
-    tables: Dict[str, pd.DataFrame],
+    tables: dict[str, pd.DataFrame],
 ) -> pd.DataFrame:
     checks = []
 
@@ -1320,43 +1345,69 @@ def _build_plausibility_validations(
     unit_keys = set(tables["unidades"]["unidad_id"])
     dep_keys = set(tables["depositos"]["deposito_id"])
 
-    checks.append((
-        "sensores_componentes_fk_componente",
-        tables["sensores_componentes"]["componente_id"].isin(comp_keys).all(),
-        int((~tables["sensores_componentes"]["componente_id"].isin(comp_keys)).sum()),
-        "0_orphans",
-    ))
-    checks.append((
-        "fallas_fk_unidad",
-        tables["fallas_historicas"]["unidad_id"].isin(unit_keys).all(),
-        int((~tables["fallas_historicas"]["unidad_id"].isin(unit_keys)).sum()),
-        "0_orphans",
-    ))
-    checks.append((
-        "mantenimiento_fk_deposito",
-        tables["eventos_mantenimiento"]["deposito_id"].isin(dep_keys).all(),
-        int((~tables["eventos_mantenimiento"]["deposito_id"].isin(dep_keys)).sum()),
-        "0_orphans",
-    ))
+    checks.append(
+        (
+            "sensores_componentes_fk_componente",
+            tables["sensores_componentes"]["componente_id"].isin(comp_keys).all(),
+            int((~tables["sensores_componentes"]["componente_id"].isin(comp_keys)).sum()),
+            "0_orphans",
+        )
+    )
+    checks.append(
+        (
+            "fallas_fk_unidad",
+            tables["fallas_historicas"]["unidad_id"].isin(unit_keys).all(),
+            int((~tables["fallas_historicas"]["unidad_id"].isin(unit_keys)).sum()),
+            "0_orphans",
+        )
+    )
+    checks.append(
+        (
+            "mantenimiento_fk_deposito",
+            tables["eventos_mantenimiento"]["deposito_id"].isin(dep_keys).all(),
+            int((~tables["eventos_mantenimiento"]["deposito_id"].isin(dep_keys)).sum()),
+            "0_orphans",
+        )
+    )
 
     disp = tables["disponibilidad_servicio"]
-    reconciliation_error = (disp["horas_planificadas"] - (disp["horas_disponibles"] + disp["horas_no_disponibles"])).abs().mean()
-    checks.append(("disponibilidad_reconciliada", reconciliation_error < 0.01, round(float(reconciliation_error), 6), "<0.01"))
+    reconciliation_error = (
+        (disp["horas_planificadas"] - (disp["horas_disponibles"] + disp["horas_no_disponibles"])).abs().mean()
+    )
+    checks.append(
+        ("disponibilidad_reconciliada", reconciliation_error < 0.01, round(float(reconciliation_error), 6), "<0.01")
+    )
 
     required_families = {"wheel", "brake", "bogie", "pantograph"}
     families_present = set(tables["inspecciones_automaticas"]["familia_inspeccion"].unique())
-    checks.append((
-        "familias_inspeccion_requeridas",
-        required_families.issubset(families_present),
-        ",".join(sorted(families_present)),
-        "wheel,brake,bogie,pantograph",
-    ))
+    checks.append(
+        (
+            "familias_inspeccion_requeridas",
+            required_families.issubset(families_present),
+            ",".join(sorted(families_present)),
+            "wheel,brake,bogie,pantograph",
+        )
+    )
 
     temp_range_ok = tables["sensores_componentes"]["temperatura_operacion"].between(-20, 170).all()
-    checks.append(("temperatura_sensor_rango", temp_range_ok, int((~tables["sensores_componentes"]["temperatura_operacion"].between(-20, 170)).sum()), "0_outliers"))
+    checks.append(
+        (
+            "temperatura_sensor_rango",
+            temp_range_ok,
+            int((~tables["sensores_componentes"]["temperatura_operacion"].between(-20, 170)).sum()),
+            "0_outliers",
+        )
+    )
 
     fail_downtime_positive = (tables["fallas_historicas"]["tiempo_fuera_servicio_horas"] > 0).all()
-    checks.append(("downtime_fallas_positivo", fail_downtime_positive, int((tables["fallas_historicas"]["tiempo_fuera_servicio_horas"] <= 0).sum()), "0_nonpositive"))
+    checks.append(
+        (
+            "downtime_fallas_positivo",
+            fail_downtime_positive,
+            int((tables["fallas_historicas"]["tiempo_fuera_servicio_horas"] <= 0).sum()),
+            "0_nonpositive",
+        )
+    )
 
     failures = tables["fallas_historicas"]
     critical_failure_share = float(failures["severidad_falla"].ge(4).mean())
@@ -1391,7 +1442,7 @@ def _assert_plausibility_validations(validations: pd.DataFrame) -> None:
     raise RuntimeError(f"Validaciones de plausibilidad sintética fallidas: {detail}")
 
 
-def _build_cardinality_summary(tables: Dict[str, pd.DataFrame]) -> pd.DataFrame:
+def _build_cardinality_summary(tables: dict[str, pd.DataFrame]) -> pd.DataFrame:
     rows = []
     for name, df in tables.items():
         date_col = None
@@ -1423,7 +1474,6 @@ def _build_cardinality_summary(tables: Dict[str, pd.DataFrame]) -> pd.DataFrame:
 
 
 def _write_generation_logic_summary(
-    tables: Dict[str, pd.DataFrame],
     validations: pd.DataFrame,
     summary: pd.DataFrame,
 ) -> None:
@@ -1444,8 +1494,10 @@ def _write_generation_logic_summary(
         "## Cardinalidades clave",
     ]
 
-    for row in summary.sort_values("n_filas", ascending=False).head(8).itertuples(index=False):
-        lines.append(f"- {row.tabla}: {row.n_filas:,} filas | {row.n_columnas} columnas")
+    lines.extend(
+        f"- {row.tabla}: {row.n_filas:,} filas | {row.n_columnas} columnas"
+        for row in summary.sort_values("n_filas", ascending=False).head(8).itertuples(index=False)
+    )
 
     lines.extend(["", "## Estado de validaciones"])
     for row in validations.itertuples(index=False):
@@ -1455,7 +1507,7 @@ def _write_generation_logic_summary(
     (DATA_RAW_DIR / "resumen_generacion_sintetica.md").write_text("\n".join(lines), encoding="utf-8")
 
 
-def _save_required_tables(data: SyntheticRailwayData) -> Dict[str, pd.DataFrame]:
+def _save_required_tables(data: SyntheticRailwayData) -> dict[str, pd.DataFrame]:
     tables = {
         "flotas": data.flotas,
         "unidades": data.unidades,
@@ -1481,6 +1533,7 @@ def _save_required_tables(data: SyntheticRailwayData) -> Dict[str, pd.DataFrame]
 
 
 def generate_synthetic_data(seed: int = RANDOM_SEED) -> SyntheticRailwayData:
+    """Regenera el dataset sintético completo con una semilla reproducible."""
     rng = np.random.default_rng(seed)
     fechas = pd.date_range(HISTORY_START, HISTORY_END, freq="D")
 
@@ -1499,7 +1552,7 @@ def generate_synthetic_data(seed: int = RANDOM_SEED) -> SyntheticRailwayData:
     alertas = _generate_alertas_operativas(daily_state, fallas, inspecciones, rng)
     eventos = _generate_eventos_mantenimiento(componentes, flotas, unidades, fallas, alertas, rng)
     intervenciones = _generate_intervenciones_programadas(eventos, alertas, unidades, rng)
-    disponibilidad, asignacion = _generate_disponibilidad_y_asignacion(unit_day_context, unidades, flotas, fallas, eventos, rng)
+    disponibilidad, asignacion = _generate_disponibilidad_y_asignacion(unit_day_context, unidades, fallas, eventos, rng)
     backlog = _generate_backlog_mantenimiento(intervenciones, fechas, rng)
     escenarios = _generate_escenarios_mantenimiento(parametros, backlog, fechas, rng)
 
@@ -1542,7 +1595,7 @@ def generate_synthetic_data(seed: int = RANDOM_SEED) -> SyntheticRailwayData:
 
     validations.to_csv(DATA_RAW_DIR / "validaciones_plausibilidad.csv", index=False)
     summary.to_csv(DATA_RAW_DIR / "resumen_dimensiones_cardinalidades.csv", index=False)
-    _write_generation_logic_summary(tables, validations, summary)
+    _write_generation_logic_summary(validations, summary)
     _assert_plausibility_validations(validations)
 
     return data

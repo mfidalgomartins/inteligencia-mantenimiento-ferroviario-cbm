@@ -1,3 +1,5 @@
+"""Evalúa cobertura, detección y valor operativo de la inspección automática."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -5,7 +7,7 @@ from dataclasses import dataclass
 import numpy as np
 import pandas as pd
 
-from src.config import DATA_PROCESSED_DIR, DATA_RAW_DIR, DOCS_DIR
+from railway_cbm.config import DATA_PROCESSED_DIR, DATA_RAW_DIR, DOCS_DIR
 
 TARGET_FAMILIES = ("wheel", "brake", "bogie", "pantograph")
 PRE_FAILURE_WINDOW_DAYS = 30
@@ -34,7 +36,11 @@ def _normalize_family(name: str) -> str:
 
 
 def _family_from_component_meta(componentes: pd.DataFrame) -> pd.DataFrame:
-    comp = componentes[["componente_id", "unidad_id", "sistema_principal", "subsistema", "tipo_componente"]].drop_duplicates().copy()
+    comp = (
+        componentes[["componente_id", "unidad_id", "sistema_principal", "subsistema", "tipo_componente"]]
+        .drop_duplicates()
+        .copy()
+    )
     txt = (
         comp["sistema_principal"].fillna("").astype(str).str.lower()
         + " "
@@ -63,7 +69,9 @@ def _prepare_tables() -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.Data
     comp_map = _family_from_component_meta(componentes)
 
     insp["family_reported"] = insp["familia_inspeccion"].map(_normalize_family)
-    insp = insp.merge(comp_map[["componente_id", "unidad_id", "family_technical"]], on=["componente_id", "unidad_id"], how="left")
+    insp = insp.merge(
+        comp_map[["componente_id", "unidad_id", "family_technical"]], on=["componente_id", "unidad_id"], how="left"
+    )
     insp["family"] = insp["family_technical"].fillna(insp["family_reported"]).map(_normalize_family)
     insp["family_consistency_flag"] = (
         (insp["family_technical"].isna() & insp["family_reported"].isin(TARGET_FAMILIES))
@@ -71,7 +79,9 @@ def _prepare_tables() -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.Data
     ).astype(int)
     insp = insp[insp["family"].isin(TARGET_FAMILIES)].copy()
 
-    failures = failures.merge(comp_map[["componente_id", "unidad_id", "family_technical"]], on=["componente_id", "unidad_id"], how="left")
+    failures = failures.merge(
+        comp_map[["componente_id", "unidad_id", "family_technical"]], on=["componente_id", "unidad_id"], how="left"
+    )
     failures["family_from_mode"] = failures["modo_falla"].map(_normalize_family)
     failures["family"] = failures["family_technical"].fillna(failures["family_from_mode"]).map(_normalize_family)
     failures = failures[failures["family"].isin(TARGET_FAMILIES)].copy()
@@ -127,7 +137,9 @@ def _failure_linkage(insp: pd.DataFrame, failures: pd.DataFrame) -> pd.DataFrame
             ]
         )
 
-    valid = valid.sort_values(["falla_id", "timestamp"], ascending=[True, False]).drop_duplicates("falla_id", keep="first")
+    valid = valid.sort_values(["falla_id", "timestamp"], ascending=[True, False]).drop_duplicates(
+        "falla_id", keep="first"
+    )
     valid = valid.rename(columns={"timestamp": "inspection_ts"})
     return valid[
         [
@@ -158,13 +170,37 @@ def _detection_outcomes(insp: pd.DataFrame, failures: pd.DataFrame) -> pd.DataFr
     valid_future = merged[merged["days_to_failure"].between(0, FALSE_ALERT_HORIZON_DAYS, inclusive="both")].copy()
 
     if valid_future.empty:
-        out = detections[["inspeccion_id", "unidad_id", "componente_id", "family", "timestamp", "score_defecto", "confianza_deteccion", "severity_num"]].copy()
+        out = detections[
+            [
+                "inspeccion_id",
+                "unidad_id",
+                "componente_id",
+                "family",
+                "timestamp",
+                "score_defecto",
+                "confianza_deteccion",
+                "severity_num",
+            ]
+        ].copy()
         out["failure_within_horizon_flag"] = 0
         out["days_to_failure"] = np.nan
         return out
 
-    future_best = valid_future.sort_values(["inspeccion_id", "fecha_falla"], ascending=[True, True]).drop_duplicates("inspeccion_id", keep="first")
-    out = detections[["inspeccion_id", "unidad_id", "componente_id", "family", "timestamp", "score_defecto", "confianza_deteccion", "severity_num"]].copy()
+    future_best = valid_future.sort_values(["inspeccion_id", "fecha_falla"], ascending=[True, True]).drop_duplicates(
+        "inspeccion_id", keep="first"
+    )
+    out = detections[
+        [
+            "inspeccion_id",
+            "unidad_id",
+            "componente_id",
+            "family",
+            "timestamp",
+            "score_defecto",
+            "confianza_deteccion",
+            "severity_num",
+        ]
+    ].copy()
     out = out.merge(
         future_best[["inspeccion_id", "days_to_failure"]],
         on="inspeccion_id",
@@ -190,10 +226,11 @@ def _temporal_coherence(
         how="left",
     )
     in_chain = link_alert[
-        (link_alert["alert_ts"] >= link_alert["inspection_ts"])
-        & (link_alert["alert_ts"] <= link_alert["fecha_falla"])
+        (link_alert["alert_ts"] >= link_alert["inspection_ts"]) & (link_alert["alert_ts"] <= link_alert["fecha_falla"])
     ].copy()
-    link_best = in_chain.sort_values(["falla_id", "alert_ts"], ascending=[True, True]).drop_duplicates("falla_id", keep="first")
+    link_best = in_chain.sort_values(["falla_id", "alert_ts"], ascending=[True, True]).drop_duplicates(
+        "falla_id", keep="first"
+    )
 
     chain = linkage[["falla_id", "family", "inspection_ts", "fecha_falla"]].copy()
     chain = chain.merge(
@@ -206,7 +243,9 @@ def _temporal_coherence(
     chain["alert_to_failure_h"] = (chain["fecha_falla"] - chain["alert_ts"]).dt.total_seconds() / 3600.0
 
     # Coherencia inspección -> mantenimiento para detecciones severas.
-    severe_detections = insp[(insp["defecto_detectado"] == 1) & (insp["severidad_hallazgo"].isin(["alta", "critica"]))].copy()
+    severe_detections = insp[
+        (insp["defecto_detectado"] == 1) & (insp["severidad_hallazgo"].isin(["alta", "critica"]))
+    ].copy()
     follow = severe_detections.merge(
         maint[["unidad_id", "componente_id", "fecha_inicio"]],
         on=["unidad_id", "componente_id"],
@@ -214,11 +253,17 @@ def _temporal_coherence(
     )
     follow["days_to_maintenance"] = (follow["fecha_inicio"] - follow["timestamp"]).dt.total_seconds() / 86400.0
     follow_valid = follow[follow["days_to_maintenance"].between(0, MAINT_FOLLOW_UP_DAYS, inclusive="both")].copy()
-    follow_best = follow_valid.sort_values(["inspeccion_id", "fecha_inicio"], ascending=[True, True]).drop_duplicates("inspeccion_id", keep="first")
-    severe = severe_detections[["inspeccion_id", "family", "timestamp"]].copy().merge(
-        follow_best[["inspeccion_id", "days_to_maintenance"]],
-        on="inspeccion_id",
-        how="left",
+    follow_best = follow_valid.sort_values(["inspeccion_id", "fecha_inicio"], ascending=[True, True]).drop_duplicates(
+        "inspeccion_id", keep="first"
+    )
+    severe = (
+        severe_detections[["inspeccion_id", "family", "timestamp"]]
+        .copy()
+        .merge(
+            follow_best[["inspeccion_id", "days_to_maintenance"]],
+            on="inspeccion_id",
+            how="left",
+        )
     )
     severe["maintenance_followthrough_flag"] = severe["days_to_maintenance"].notna().astype(int)
 
@@ -240,14 +285,20 @@ def _build_family_metrics(
         .nunique()
         .rename(columns={"family_technical": "family", "componente_id": "monitored_components"})
     )
-    inspected = insp.groupby("family", as_index=False)["componente_id"].nunique().rename(columns={"componente_id": "inspected_components"})
+    inspected = (
+        insp.groupby("family", as_index=False)["componente_id"]
+        .nunique()
+        .rename(columns={"componente_id": "inspected_components"})
+    )
     insp_base = insp.groupby("family", as_index=False).agg(
         total_inspections=("inspeccion_id", "nunique"),
         detections=("defecto_detectado", "sum"),
         avg_confidence_all=("confianza_deteccion", "mean"),
         family_mapping_consistency_rate=("family_consistency_flag", "mean"),
     )
-    fail_base = failures.groupby("family", as_index=False)["falla_id"].nunique().rename(columns={"falla_id": "total_failures"})
+    fail_base = (
+        failures.groupby("family", as_index=False)["falla_id"].nunique().rename(columns={"falla_id": "total_failures"})
+    )
     pre = linkage.groupby("family", as_index=False).agg(
         failures_with_pre_detection=("falla_id", "nunique"),
         lead_time_medio_dias=("days_before_failure", "mean"),
@@ -266,7 +317,11 @@ def _build_family_metrics(
         maintenance_followthrough_rate=("maintenance_followthrough_flag", "mean"),
     )
 
-    family_perf = monitored.merge(inspected, on="family", how="left").merge(insp_base, on="family", how="left").merge(fail_base, on="family", how="left")
+    family_perf = (
+        monitored.merge(inspected, on="family", how="left")
+        .merge(insp_base, on="family", how="left")
+        .merge(fail_base, on="family", how="left")
+    )
     family_perf = (
         family_perf.merge(pre, on="family", how="left")
         .merge(det_out, on="family", how="left")
@@ -277,9 +332,15 @@ def _build_family_metrics(
         if col != "family":
             family_perf[col] = family_perf[col].fillna(0)
 
-    family_perf["inspection_coverage"] = family_perf["inspected_components"] / family_perf["monitored_components"].replace(0, np.nan)
-    family_perf["defect_detection_rate"] = family_perf["detections"] / family_perf["total_inspections"].replace(0, np.nan)
-    family_perf["pre_failure_detection_rate"] = family_perf["failures_with_pre_detection"] / family_perf["total_failures"].replace(0, np.nan)
+    family_perf["inspection_coverage"] = family_perf["inspected_components"] / family_perf[
+        "monitored_components"
+    ].replace(0, np.nan)
+    family_perf["defect_detection_rate"] = family_perf["detections"] / family_perf["total_inspections"].replace(
+        0, np.nan
+    )
+    family_perf["pre_failure_detection_rate"] = family_perf["failures_with_pre_detection"] / family_perf[
+        "total_failures"
+    ].replace(0, np.nan)
     family_perf["false_alert_proxy"] = 1.0 - (
         family_perf["detections_with_future_failure"] / family_perf["total_detections"].replace(0, np.nan)
     )
@@ -348,15 +409,23 @@ def _build_component_signals(
         comp[c] = comp[c].fillna(0)
 
     comp["defect_detection_rate"] = comp["detections_count"] / comp["inspections_count"].replace(0, np.nan)
-    comp["false_alert_proxy_component"] = 1 - (comp["true_positive_detections"] / comp["total_detections"].replace(0, np.nan))
+    comp["false_alert_proxy_component"] = 1 - (
+        comp["true_positive_detections"] / comp["total_detections"].replace(0, np.nan)
+    )
     comp["confidence_adjusted_detection_value_component"] = (
         comp["defect_detection_rate"].fillna(0)
         * comp["confianza_media"].fillna(0)
         * (1 - comp["false_alert_proxy_component"].fillna(1))
     )
-    comp["false_alert_proxy_component"] = comp["false_alert_proxy_component"].replace([np.inf, -np.inf], np.nan).fillna(0).clip(0, 1)
-    comp["defect_detection_rate"] = comp["defect_detection_rate"].replace([np.inf, -np.inf], np.nan).fillna(0).clip(0, 1)
-    comp["confidence_adjusted_detection_value_component"] = comp["confidence_adjusted_detection_value_component"].clip(0, 1)
+    comp["false_alert_proxy_component"] = (
+        comp["false_alert_proxy_component"].replace([np.inf, -np.inf], np.nan).fillna(0).clip(0, 1)
+    )
+    comp["defect_detection_rate"] = (
+        comp["defect_detection_rate"].replace([np.inf, -np.inf], np.nan).fillna(0).clip(0, 1)
+    )
+    comp["confidence_adjusted_detection_value_component"] = comp["confidence_adjusted_detection_value_component"].clip(
+        0, 1
+    )
 
     comp = comp.merge(
         scoring[["unidad_id", "componente_id", "prob_fallo_30d", "health_score"]],
@@ -365,8 +434,7 @@ def _build_component_signals(
     )
 
     comp["inspection_priority_flag"] = (
-        (comp["confidence_adjusted_detection_value_component"] >= 0.12)
-        & (comp["prob_fallo_30d"].fillna(0) >= 0.45)
+        (comp["confidence_adjusted_detection_value_component"] >= 0.12) & (comp["prob_fallo_30d"].fillna(0) >= 0.45)
     ).astype(int)
 
     return comp.sort_values(["unidad_id", "componente_id"]).reset_index(drop=True)
@@ -425,7 +493,11 @@ def _build_value_comparison(
     )
     value["ahorro_operativo_proxy_eur"] = [
         0.0,
-        round((baseline_downtime - with_inspection_downtime) * 950 + (baseline_correctivas - with_inspection_correctivas) * 1400, 2),
+        round(
+            (baseline_downtime - with_inspection_downtime) * 950
+            + (baseline_correctivas - with_inspection_correctivas) * 1400,
+            2,
+        ),
     ]
     return value
 
@@ -566,6 +638,7 @@ def _assert_consistency_checks(checks_df: pd.DataFrame) -> None:
 
 
 def run_inspection_module() -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
+    """Ejecuta la evaluación de inspección y persiste sus resultados."""
     insp, failures, alerts, maint, scoring, priorities = _prepare_tables()
     comp_monitored = _family_from_component_meta(pd.read_csv(DATA_RAW_DIR / "componentes_criticos.csv"))
 
@@ -573,7 +646,9 @@ def run_inspection_module() -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
     detection_outcomes = _detection_outcomes(insp, failures)
     chain, severe_follow = _temporal_coherence(linkage, alerts, maint, insp)
 
-    family_perf = _build_family_metrics(insp, failures, linkage, detection_outcomes, chain, severe_follow, comp_monitored)
+    family_perf = _build_family_metrics(
+        insp, failures, linkage, detection_outcomes, chain, severe_follow, comp_monitored
+    )
     component_signals = _build_component_signals(insp, linkage, detection_outcomes, scoring)
     value = _build_value_comparison(family_perf, failures, scoring, priorities)
 

@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import duckdb
 
-from src.run_sql_layer import _configure_connection
+from railway_cbm.run_sql_layer import _configure_connection
 
 
 def test_sql_connection_is_single_threaded_for_determinism():

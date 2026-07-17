@@ -1,3 +1,5 @@
+"""Compara estrategias de mantenimiento bajo escenarios e incertidumbre."""
+
 from __future__ import annotations
 
 from itertools import product
@@ -5,7 +7,7 @@ from itertools import product
 import numpy as np
 import pandas as pd
 
-from src.config import DATA_PROCESSED_DIR, DATA_RAW_DIR, DOCS_DIR
+from railway_cbm.config import DATA_PROCESSED_DIR, DATA_RAW_DIR, DOCS_DIR
 
 STRATEGIES = ["reactiva", "preventiva_rigida", "basada_en_condicion"]
 SCENARIOS = ["conservador", "base", "agresivo"]
@@ -61,8 +63,16 @@ def _build_inputs_tables(
     if preventive_events_base <= 0:
         preventive_events_base = max(1.0, corrective_events_base * 0.35)
 
-    ew_precision = float(early_warning["precision"].iloc[0]) if not early_warning.empty and "precision" in early_warning.columns else 0.42
-    ew_recall = float(early_warning["recall"].iloc[0]) if not early_warning.empty and "recall" in early_warning.columns else 0.30
+    ew_precision = (
+        float(early_warning["precision"].iloc[0])
+        if not early_warning.empty and "precision" in early_warning.columns
+        else 0.42
+    )
+    ew_recall = (
+        float(early_warning["recall"].iloc[0])
+        if not early_warning.empty and "recall" in early_warning.columns
+        else 0.30
+    )
     if not inspection_perf.empty and "confidence_adjusted_detection_value" in inspection_perf.columns:
         inspection_quality = float(inspection_perf["confidence_adjusted_detection_value"].mean())
     else:
@@ -105,18 +115,48 @@ def _build_inputs_tables(
             ("downtime_h_base", observed["downtime_h_base"], "observado", "disponibilidad_servicio"),
             ("backlog_critical_base", observed["backlog_critical_base"], "observado", "backlog_mantenimiento"),
             ("deferral_high_observed", observed["deferral_high_observed"], "observado", "workshop_priority_table"),
-            ("deferral_high_reference", observed["deferral_high_reference"], "hipotesis_operativa", "pendientes+prioridades"),
+            (
+                "deferral_high_reference",
+                observed["deferral_high_reference"],
+                "hipotesis_operativa",
+                "pendientes+prioridades",
+            ),
             ("failures_total", observed["failures_total"], "observado", "fallas_historicas"),
             ("corrective_events_base", observed["corrective_events_base"], "observado", "eventos_mantenimiento"),
             ("preventive_events_base", observed["preventive_events_base"], "observado", "eventos_mantenimiento"),
-            ("inspection_quality_index", observed["inspection_quality_index"], "observado", "inspection_module_family_performance"),
+            (
+                "inspection_quality_index",
+                observed["inspection_quality_index"],
+                "observado",
+                "inspection_module_family_performance",
+            ),
             ("ew_precision", observed["ew_precision"], "observado", "early_warning_practical_accuracy"),
             ("cost_downtime_hour_base", observed["cost_downtime_hour_base"], "aproximacion_economica", "supuesto"),
-            ("cost_corrective_event_base", observed["cost_corrective_event_base"], "aproximacion_economica", "supuesto"),
-            ("cost_preventive_event_base", observed["cost_preventive_event_base"], "aproximacion_economica", "supuesto"),
-            ("cost_backlog_critical_case_base", observed["cost_backlog_critical_case_base"], "aproximacion_economica", "supuesto"),
+            (
+                "cost_corrective_event_base",
+                observed["cost_corrective_event_base"],
+                "aproximacion_economica",
+                "supuesto",
+            ),
+            (
+                "cost_preventive_event_base",
+                observed["cost_preventive_event_base"],
+                "aproximacion_economica",
+                "supuesto",
+            ),
+            (
+                "cost_backlog_critical_case_base",
+                observed["cost_backlog_critical_case_base"],
+                "aproximacion_economica",
+                "supuesto",
+            ),
             ("cost_deferral_case_base", observed["cost_deferral_case_base"], "aproximacion_economica", "supuesto"),
-            ("cost_service_impact_unit_base", observed["cost_service_impact_unit_base"], "aproximacion_economica", "supuesto"),
+            (
+                "cost_service_impact_unit_base",
+                observed["cost_service_impact_unit_base"],
+                "aproximacion_economica",
+                "supuesto",
+            ),
         ],
         columns=["variable", "valor", "tipo", "fuente"],
     )
@@ -226,7 +266,9 @@ def _evaluate_strategy(
     detection_mult = float(scenario_row["detection_realization"]) * sens["early_detection_mult"]
 
     detection_quality = _clip(observed["inspection_quality_index"] * detection_mult, 0.25, 1.40)
-    predictive_effective = predictive * (0.55 + 0.45 * detection_quality) if strategy == "basada_en_condicion" else predictive
+    predictive_effective = (
+        predictive * (0.55 + 0.45 * detection_quality) if strategy == "basada_en_condicion" else predictive
+    )
     failure_factor = (
         failure_rate_mult
         * (1 - 0.18 * proactive - 0.10 * preventive_intensity)
@@ -240,7 +282,9 @@ def _evaluate_strategy(
     downtime_factor = failure_factor * mttr_factor
 
     corrective_events = observed["corrective_events_base"] * failure_factor * (0.82 + 0.36 * corrective_dependence)
-    preventive_events = observed["preventive_events_base"] * (0.35 + preventive_intensity) * (1.03 - 0.10 * capacity_effective)
+    preventive_events = (
+        observed["preventive_events_base"] * (0.35 + preventive_intensity) * (1.03 - 0.10 * capacity_effective)
+    )
 
     backlog_critical = observed["backlog_critical_base"] * (
         0.58 * failure_factor
@@ -261,10 +305,14 @@ def _evaluate_strategy(
     mtbf = observed["mtbf_base"] * (1 / max(failure_factor, 0.55))
     mttr = observed["mttr_base"] * mttr_factor
     service_hours_preserved = max(0.0, observed["downtime_h_base"] - downtime_h)
-    impact_service_proxy = observed["service_impact_base"] * (0.60 + 0.40 * (downtime_h / max(observed["downtime_h_base"], 1.0)))
+    impact_service_proxy = observed["service_impact_base"] * (
+        0.60 + 0.40 * (downtime_h / max(observed["downtime_h_base"], 1.0))
+    )
 
-    repetitive_failures = observed["repetitive_failures_base"] * failure_factor * (
-        0.92 + 0.18 * corrective_dependence - 0.14 * predictive
+    repetitive_failures = (
+        observed["repetitive_failures_base"]
+        * failure_factor
+        * (0.92 + 0.18 * corrective_dependence - 0.14 * predictive)
     )
     correctivas_evitables = max(0.0, observed["corrective_events_base"] - corrective_events)
 
@@ -278,9 +326,15 @@ def _evaluate_strategy(
     interv_temprana_ratio = _clip(preventive_events / interventions_total, 0.02, 0.98)
     interv_tardia_ratio = _clip(corrective_events / interventions_total, 0.02, 0.98)
 
-    downtime_cost_unit = observed["cost_downtime_hour_base"] * float(scenario_row["downtime_cost"]) * sens["downtime_cost_mult"]
-    corrective_cost_unit = observed["cost_corrective_event_base"] * float(scenario_row["corrective_cost"]) * sens["corrective_cost_mult"]
-    preventive_cost_unit = observed["cost_preventive_event_base"] * float(scenario_row["preventive_cost"]) * sens["preventive_cost_mult"]
+    downtime_cost_unit = (
+        observed["cost_downtime_hour_base"] * float(scenario_row["downtime_cost"]) * sens["downtime_cost_mult"]
+    )
+    corrective_cost_unit = (
+        observed["cost_corrective_event_base"] * float(scenario_row["corrective_cost"]) * sens["corrective_cost_mult"]
+    )
+    preventive_cost_unit = (
+        observed["cost_preventive_event_base"] * float(scenario_row["preventive_cost"]) * sens["preventive_cost_mult"]
+    )
     backlog_cost_unit = observed["cost_backlog_critical_case_base"] * (1 + 0.15 * (1 / capacity_effective - 1))
     deferral_cost_unit = observed["cost_deferral_case_base"]
     enablement_cost_effective = enablement_cost * float(scenario_row["enablement_cost_mult"])
@@ -296,7 +350,9 @@ def _evaluate_strategy(
         + deferral_high * deferral_cost_unit
         + enablement_cost_effective
     )
-    coste_economico_proxy = downtime_h * downtime_cost_unit + impact_service_proxy * observed["cost_service_impact_unit_base"]
+    coste_economico_proxy = (
+        downtime_h * downtime_cost_unit + impact_service_proxy * observed["cost_service_impact_unit_base"]
+    )
     coste_total_esperado = coste_tecnico_proxy + coste_economico_proxy
 
     return {
@@ -326,8 +382,7 @@ def _evaluate_strategy(
         "corrective_cost_mult": sens["corrective_cost_mult"],
         "preventive_cost_mult": sens["preventive_cost_mult"],
         "is_base_point": int(
-            all(abs(sens[k] - 1.0) < 1e-9 for k in sens)
-            and str(scenario_row["scenario_profile"]) == "base"
+            all(abs(sens[k] - 1.0) < 1e-9 for k in sens) and str(scenario_row["scenario_profile"]) == "base"
         ),
     }
 
@@ -368,7 +423,9 @@ def _run_sensitivity_simulation(
                 )
     out = pd.DataFrame(rows)
 
-    ref = out[out["estrategia"] == "reactiva"][["scenario_profile", "sensitivity_id", "coste_total_esperado", "downtime_expected_h"]].rename(
+    ref = out[out["estrategia"] == "reactiva"][
+        ["scenario_profile", "sensitivity_id", "coste_total_esperado", "downtime_expected_h"]
+    ].rename(
         columns={
             "coste_total_esperado": "coste_total_esperado_reactiva",
             "downtime_expected_h": "downtime_expected_h_reactiva",
@@ -532,7 +589,9 @@ def _write_strategy_doc(
     cons = summary[summary["scenario_profile"] == "conservador"].copy()
     best_cons = cons.sort_values("coste_total_p50", ascending=True).iloc[0]["estrategia"] if not cons.empty else "n/a"
     base_prof = summary[summary["scenario_profile"] == "base"].copy()
-    best_base = base_prof.sort_values("coste_total_p50", ascending=True).iloc[0]["estrategia"] if not base_prof.empty else "n/a"
+    best_base = (
+        base_prof.sort_values("coste_total_p50", ascending=True).iloc[0]["estrategia"] if not base_prof.empty else "n/a"
+    )
     aggr = summary[summary["scenario_profile"] == "agresivo"].copy()
     best_aggr = aggr.sort_values("coste_total_p50", ascending=True).iloc[0]["estrategia"] if not aggr.empty else "n/a"
 
@@ -573,6 +632,7 @@ def _write_strategy_doc(
 
 
 def run_strategy_comparison() -> pd.DataFrame:
+    """Evalúa estrategias, sensibilidad y rangos de valor económico."""
     fleet_week = pd.read_csv(DATA_PROCESSED_DIR / "fleet_week_features.csv")
     unit_day = pd.read_csv(DATA_PROCESSED_DIR / "unit_day_features.csv")
     priorities = pd.read_csv(DATA_PROCESSED_DIR / "workshop_priority_table.csv")
@@ -615,7 +675,14 @@ def run_strategy_comparison() -> pd.DataFrame:
 
     # Incorpora la distribución de sensibilidad al comparativo base.
     robust_cols = value_ranges[
-        ["estrategia", "ahorro_neto_p50_vs_reactiva", "ahorro_neto_p10_vs_reactiva", "ahorro_neto_p90_vs_reactiva", "downside_case", "prob_ahorro_positivo"]
+        [
+            "estrategia",
+            "ahorro_neto_p50_vs_reactiva",
+            "ahorro_neto_p10_vs_reactiva",
+            "ahorro_neto_p90_vs_reactiva",
+            "downside_case",
+            "prob_ahorro_positivo",
+        ]
     ].copy()
     base = base.merge(robust_cols, on="estrategia", how="left")
     base["downside_case_ahorro_vs_reactiva"] = base["ahorro_neto_p10_vs_reactiva"]

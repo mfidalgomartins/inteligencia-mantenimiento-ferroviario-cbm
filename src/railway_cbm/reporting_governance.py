@@ -1,3 +1,5 @@
+"""Gobierna la fuente única de métricas y los textos ejecutivos derivados."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -7,7 +9,7 @@ from typing import Any
 import numpy as np
 import pandas as pd
 
-from src.config import DATA_PROCESSED_DIR, DATA_RAW_DIR, DOCS_DIR, ROOT_DIR
+from railway_cbm.config import DATA_PROCESSED_DIR, DATA_RAW_DIR, DOCS_DIR, ROOT_DIR
 
 
 @dataclass(frozen=True)
@@ -433,9 +435,7 @@ def _compute_metrics_values(inputs: dict[str, pd.DataFrame]) -> dict[str, Any]:
     backlog_physical_items_count = int(len(backlog_latest))
     backlog_overdue_items_count = int((backlog_latest["antiguedad_backlog_dias"].fillna(0) >= 14).sum())
     backlog_critical_mask = (
-        (
-            backlog_latest["antiguedad_backlog_dias"].fillna(0) >= 21
-        )
+        (backlog_latest["antiguedad_backlog_dias"].fillna(0) >= 21)
         & backlog_latest["severidad_pendiente"].isin(["alta", "critica"])
     ) | (backlog_latest["riesgo_acumulado"].fillna(0) >= 70)
     backlog_critical_physical_count = int(backlog_critical_mask.sum())
@@ -447,7 +447,8 @@ def _compute_metrics_values(inputs: dict[str, pd.DataFrame]) -> dict[str, Any]:
     ).iloc[0]
 
     top_family_row = scoring[
-        (scoring["unidad_id"] == top_priority["unidad_id"]) & (scoring["componente_id"] == top_priority["componente_id"])
+        (scoring["unidad_id"] == top_priority["unidad_id"])
+        & (scoring["componente_id"] == top_priority["componente_id"])
     ]
     top_component_family = top_family_row.iloc[0]["component_family"] if not top_family_row.empty else "unknown"
 
@@ -479,7 +480,9 @@ def _compute_metrics_values(inputs: dict[str, pd.DataFrame]) -> dict[str, Any]:
         "avoidable_downtime_hours_inspection": float(
             sin_insp["horas_indisponibilidad_estimadas"] - con_insp["horas_indisponibilidad_estimadas"]
         ),
-        "avoidable_correctives_inspection": float(sin_insp["correctivas_estimadas"] - con_insp["correctivas_estimadas"]),
+        "avoidable_correctives_inspection": float(
+            sin_insp["correctivas_estimadas"] - con_insp["correctivas_estimadas"]
+        ),
         "mean_depot_saturation_pct": float(latest_depot["saturation_ratio"].mean() * 100),
         "backlog_exposure_adjusted_mean": float(backlog_depot["backlog_exposure_adjusted_score"].mean()),
         "top_unit_by_priority": str(top_priority["unidad_id"]),
@@ -544,6 +547,7 @@ def _metric_lookup(df: pd.DataFrame) -> dict[str, Any]:
 
 
 def load_or_compute_narrative_metrics(force_recompute: bool = False) -> dict[str, Any]:
+    """Carga la fuente única de métricas o la reconstruye desde sus entradas."""
     metrics_path = DATA_PROCESSED_DIR / "narrative_metrics_official.csv"
     if metrics_path.exists() and not force_recompute:
         return _metric_lookup(pd.read_csv(metrics_path))
@@ -806,6 +810,7 @@ def _build_backlog_metric_taxonomy(metrics: dict[str, Any]) -> pd.DataFrame:
 
 
 def write_backlog_metric_governance_doc(taxonomy_df: pd.DataFrame) -> Path:
+    """Escribe la taxonomía oficial de pendientes y riesgo de diferimiento."""
     DOCS_DIR.mkdir(parents=True, exist_ok=True)
     lines = [
         "# Gobierno de Métricas de Pendientes",
@@ -846,6 +851,7 @@ def write_backlog_metric_governance_doc(taxonomy_df: pd.DataFrame) -> Path:
 
 
 def sync_narrative_artifacts(force_recompute: bool = True) -> dict[str, Path]:
+    """Sincroniza métricas oficiales, README, memorando y gobierno de pendientes."""
     metrics = load_or_compute_narrative_metrics(force_recompute=force_recompute)
     backlog_taxonomy_df = _build_backlog_metric_taxonomy(metrics)
 

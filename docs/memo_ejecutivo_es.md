@@ -31,7 +31,7 @@ Rango estimado del diferencial CBM vs reactiva: -€ 74.235.938 a -€ 44.730.80
 Robustez del ahorro CBM en escenarios y sensibilidades: 0,0% de casos con ahorro positivo.
 
 ## 8. Compensaciones principales
-Diferir 14 días incrementa coste en 329.610 EUR y la indisponibilidad en 441,0 h.
+Diferir 14 días incrementa coste en 329.629 EUR y la indisponibilidad en 441,0 h.
 Separación conceptual aplicada: pendientes físicos (cantidad/edad/severidad) y riesgo de diferimiento (puntuación de decisión) se reportan por separado.
 
 ## 9. Prioridades de intervención

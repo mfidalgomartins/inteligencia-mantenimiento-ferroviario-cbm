@@ -5,8 +5,10 @@ Salida estricta:
     outputs/dashboard/centro-control-mantenimiento-ferroviario.html
     outputs/reports/informe_analitico_cbm_ferroviario.pdf
 """
+
 from __future__ import annotations
 
+import atexit
 import os
 import shutil
 import tempfile
@@ -15,11 +17,17 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
+_MATPLOTLIB_CACHE: tempfile.TemporaryDirectory[str] | None = None
+
 
 def configure_matplotlib_cache() -> None:
-    cache_dir = Path(tempfile.gettempdir()) / "railway_cbm_matplotlib"
-    cache_dir.mkdir(parents=True, exist_ok=True)
-    os.environ.setdefault("MPLCONFIGDIR", str(cache_dir))
+    """Aísla la caché de Matplotlib y la elimina al terminar el proceso."""
+    global _MATPLOTLIB_CACHE
+    if "MPLCONFIGDIR" in os.environ:
+        return
+    _MATPLOTLIB_CACHE = tempfile.TemporaryDirectory(prefix="railway_cbm_matplotlib_")
+    atexit.register(_MATPLOTLIB_CACHE.cleanup)
+    os.environ["MPLCONFIGDIR"] = _MATPLOTLIB_CACHE.name
 
 
 configure_matplotlib_cache()
@@ -185,14 +193,16 @@ def build_charts() -> list[dict[str, str]]:
     ax.plot(trend["week_start"], trend["availability_rate"] * 100, color=NEUTRAL, lw=1.1, alpha=0.55)
     ax.plot(trend["week_start"], trend["rolling"], color=ACCENT, lw=2.5)
     ax.axhline(trend["availability_rate"].mean() * 100, color=INK, lw=1, ls=(0, (4, 3)))
-    # Ticks forzados a enteros: el locator automático elegía un paso fino (p. ej.
-    # 0.5 p.p.) que el formateador sin decimales redondeaba a etiquetas duplicadas.
+    # La precisión del eje debe coincidir con la de sus etiquetas.
     ax.yaxis.set_major_locator(MaxNLocator(integer=True))
     ax.yaxis.set_major_formatter(FuncFormatter(lambda v, _: f"{v:.0f}%"))
     ax.set_ylabel("Disponibilidad")
     clean_axis(ax, "y")
-    chart_title(ax, "La disponibilidad se mantiene alta, pero no elimina la presión operativa",
-                "Media semanal y tendencia móvil de ocho semanas")
+    chart_title(
+        ax,
+        "La disponibilidad se mantiene alta, pero no elimina la presión operativa",
+        "Media semanal y tendencia móvil de ocho semanas",
+    )
     save_chart(fig, "01_tendencia_disponibilidad.png", "fleet_week_features.csv")
     charts.append({"file": "01_tendencia_disponibilidad.png", "title": "Tendencia de disponibilidad"})
 
@@ -206,17 +216,35 @@ def build_charts() -> list[dict[str, str]]:
     x = np.arange(3)
     colors = [NEUTRAL, ACCENT, INK]
     ax.bar(x, net, color=colors, width=0.56, zorder=3)
-    ax.errorbar(x[:2], net.iloc[:2], yerr=[net.iloc[:2] - p10.iloc[:2], p90.iloc[:2] - net.iloc[:2]],
-                fmt="none", ecolor=INK, capsize=5, lw=1.3, zorder=4)
+    ax.errorbar(
+        x[:2],
+        net.iloc[:2],
+        yerr=[net.iloc[:2] - p10.iloc[:2], p90.iloc[:2] - net.iloc[:2]],
+        fmt="none",
+        ecolor=INK,
+        capsize=5,
+        lw=1.3,
+        zorder=4,
+    )
     ax.axhline(0, color=INK, lw=1)
     ax.set_xticks(x, labels)
     ax.set_ylabel("Diferencial neto frente a reactiva, M€")
     for i, value in enumerate(net):
-        ax.text(i, value - 2 if value < 0 else value + 2, f"{fmt_dec(value, 1)} M€",
-                ha="center", va="top" if value < 0 else "bottom", fontweight="bold", fontsize=10)
+        ax.text(
+            i,
+            value - 2 if value < 0 else value + 2,
+            f"{fmt_dec(value, 1)} M€",
+            ha="center",
+            va="top" if value < 0 else "bottom",
+            fontweight="bold",
+            fontsize=10,
+        )
     clean_axis(ax, "y")
-    chart_title(ax, "La ventaja de servicio de CBM no se traduce en ahorro bajo los supuestos actuales",
-                "Valor esperado y rango P10-P90 frente a la estrategia reactiva")
+    chart_title(
+        ax,
+        "La ventaja de servicio de CBM no se traduce en ahorro bajo los supuestos actuales",
+        "Valor esperado y rango P10-P90 frente a la estrategia reactiva",
+    )
     save_chart(fig, "02_valor_estrategias.png", "comparativo_estrategias.csv")
     charts.append({"file": "02_valor_estrategias.png", "title": "Valor y variancia estratégica"})
 
@@ -232,18 +260,21 @@ def build_charts() -> list[dict[str, str]]:
     ax2.spines["top"].set_visible(False)
     ax2.spines["right"].set_color(LIGHT)
     clean_axis(ax, "y")
-    chart_title(ax, "Aplazar traslada coste al servicio y amplifica la indisponibilidad",
-                "Escenarios de diferimiento de la cola priorizada")
+    chart_title(
+        ax,
+        "Aplazar traslada coste al servicio y amplifica la indisponibilidad",
+        "Escenarios de diferimiento de la cola priorizada",
+    )
     save_chart(fig, "03_coste_diferimiento.png", "impacto_diferimiento_resumen.csv")
     charts.append({"file": "03_coste_diferimiento.png", "title": "Coste del diferimiento"})
 
-    priority = read("workshop_priority_table.csv").nlargest(15, "intervention_priority_score").sort_values(
-        "intervention_priority_score"
+    priority = (
+        read("workshop_priority_table.csv")
+        .nlargest(15, "intervention_priority_score")
+        .sort_values("intervention_priority_score")
     )
     fig, ax = plt.subplots(figsize=(9.2, 6.1))
-    # componente_id incluido para garantizar etiquetas únicas: varias intervenciones
-    # comparten unidad y familia (p. ej. dos bogies de la misma unidad), y barh con
-    # etiquetas de texto repetidas colapsa esas filas en una sola barra.
+    # El componente completa una etiqueta que debe ser única por intervención.
     labels_p = (
         priority["unidad_id"]
         + " · "
@@ -261,8 +292,11 @@ def build_charts() -> list[dict[str, str]]:
     ax.set_xlim(78, 94)
     ax.set_xlabel("Índice de prioridad")
     clean_axis(ax, "x")
-    chart_title(ax, "La cola ejecutiva está dominada por pocos casos de prioridad muy alta",
-                "Quince primeras intervenciones por puntuación compuesta")
+    chart_title(
+        ax,
+        "La cola ejecutiva está dominada por pocos casos de prioridad muy alta",
+        "Quince primeras intervenciones por puntuación compuesta",
+    )
     save_chart(fig, "04_ranking_intervenciones.png", "workshop_priority_table.csv")
     charts.append({"file": "04_ranking_intervenciones.png", "title": "Clasificación de intervenciones"})
 
@@ -277,8 +311,11 @@ def build_charts() -> list[dict[str, str]]:
     ax.set_xlabel("Saturación del taller")
     ax.set_xlim(0, max(55, snap["saturation_ratio"].max() * 115))
     clean_axis(ax, "x")
-    chart_title(ax, "La presión de taller está desigualmente distribuida entre depósitos",
-                f"Corte a {snap['fecha'].max().date()}")
+    chart_title(
+        ax,
+        "La presión de taller está desigualmente distribuida entre depósitos",
+        f"Corte a {snap['fecha'].max().date()}",
+    )
     save_chart(fig, "05_saturacion_depositos.png", "vw_depot_maintenance_pressure.csv")
     charts.append({"file": "05_saturacion_depositos.png", "title": "Presión por depósito"})
 
@@ -291,8 +328,11 @@ def build_charts() -> list[dict[str, str]]:
     ax.set_xlabel("Puntuación de riesgo de indisponibilidad")
     ax.set_ylabel("Unidades")
     clean_axis(ax, "y")
-    chart_title(ax, "El riesgo de unidad se concentra en una cola estrecha",
-                f"{int((risk >= threshold).sum())} de {len(risk)} unidades superan media + 1,5σ")
+    chart_title(
+        ax,
+        "El riesgo de unidad se concentra en una cola estrecha",
+        f"{int((risk >= threshold).sum())} de {len(risk)} unidades superan media + 1,5σ",
+    )
     save_chart(fig, "06_distribucion_riesgo_unidades.png", "unit_unavailability_risk_score.csv")
     charts.append({"file": "06_distribucion_riesgo_unidades.png", "title": "Distribución de riesgo"})
 
@@ -311,19 +351,35 @@ def build_charts() -> list[dict[str, str]]:
     left = np.zeros(2)
     for state, color in zip(state_order, state_colors, strict=True):
         values = pivot.reindex(scenario_order).get(state, pd.Series([0, 0], index=scenario_order)).values
-        ax.barh(["Secuencia básica · 21 días", "Heurística rediseñada · 35 días"], values, left=left, color=color,
-                label=state_labels[state])
+        ax.barh(
+            ["Secuencia básica · 21 días", "Heurística rediseñada · 35 días"],
+            values,
+            left=left,
+            color=color,
+            label=state_labels[state],
+        )
         for i, value in enumerate(values):
             if value >= 7:
-                ax.text(left[i] + value / 2, i, f"{value:.0f}%", ha="center", va="center", color=WHITE,
-                        fontsize=9, fontweight="bold")
+                ax.text(
+                    left[i] + value / 2,
+                    i,
+                    f"{value:.0f}%",
+                    ha="center",
+                    va="center",
+                    color=WHITE,
+                    fontsize=9,
+                    fontweight="bold",
+                )
         left += values
     ax.set_xlim(0, 100)
     ax.set_xlabel("Distribución de casos")
     ax.legend(frameon=False, ncol=2, loc="upper center", bbox_to_anchor=(0.5, -0.16), fontsize=8.5)
     clean_axis(ax, "x")
-    chart_title(ax, "El rediseño de la planificación convierte capacidad bloqueada en casos accionables",
-                "Comparación de estados antes y después")
+    chart_title(
+        ax,
+        "El rediseño de la planificación convierte capacidad bloqueada en casos accionables",
+        "Comparación de estados antes y después",
+    )
     save_chart(fig, "07_scheduling_antes_despues.png", "scheduling_status_distribution.csv")
     charts.append({"file": "07_scheduling_antes_despues.png", "title": "Planificación antes y después"})
 
@@ -342,38 +398,54 @@ def build_charts() -> list[dict[str, str]]:
     }
     fig, ax = plt.subplots(figsize=(9.2, 5.6))
     driver_colors = [DANGER if x < 0 else ACCENT for x in drivers["spearman_corr_with_failure_risk"]]
-    ax.barh(drivers["feature"].map(driver_labels), drivers["spearman_corr_with_failure_risk"],
-            color=driver_colors, zorder=3)
+    ax.barh(
+        drivers["feature"].map(driver_labels), drivers["spearman_corr_with_failure_risk"], color=driver_colors, zorder=3
+    )
     ax.axvline(0, color=INK, lw=0.8)
     ax.set_xlabel("Correlación de Spearman con riesgo de fallo")
     clean_axis(ax, "x")
-    chart_title(ax, "Deterioro y velocidad explican la mayor parte del ordenamiento de riesgo",
-                "Relación monotónica entre señales y puntuación de fallo")
+    chart_title(
+        ax,
+        "Deterioro y velocidad explican la mayor parte del ordenamiento de riesgo",
+        "Relación monotónica entre señales y puntuación de fallo",
+    )
     save_chart(fig, "08_determinantes_riesgo.png", "risk_signal_determinants.csv")
     charts.append({"file": "08_determinantes_riesgo.png", "title": "Determinantes del riesgo"})
 
     components = read("component_model_scores.csv")
     fig, ax = plt.subplots(figsize=(9.2, 5.5))
-    ax.scatter(components["component_health_score"], components["component_failure_risk_score"] * 100,
-               c=components["deterioration_index"], cmap="Blues", s=15, alpha=0.62, edgecolors="none")
+    ax.scatter(
+        components["component_health_score"],
+        components["component_failure_risk_score"] * 100,
+        c=components["deterioration_index"],
+        cmap="Blues",
+        s=15,
+        alpha=0.62,
+        edgecolors="none",
+    )
     ax.set_xlabel("Salud del componente")
     ax.set_ylabel("Riesgo de fallo, %")
     clean_axis(ax, "both")
-    chart_title(ax, "La salud baja separa el riesgo, pero no sustituye la evidencia de deterioro",
-                "Cada punto representa un componente crítico")
+    chart_title(
+        ax,
+        "La salud baja separa el riesgo, pero no sustituye la evidencia de deterioro",
+        "Cada punto representa un componente crítico",
+    )
     save_chart(fig, "09_salud_vs_riesgo.png", "component_model_scores.csv")
     charts.append({"file": "09_salud_vs_riesgo.png", "title": "Correlación salud y riesgo"})
 
     families = read("risk_segmentation_component_family.csv").sort_values("failure_risk_avg")
     fig, ax = plt.subplots(figsize=(9.2, 5.1))
-    ax.barh(families["component_family"].map(family_es), families["failure_risk_avg"] * 100,
-            color=[NEUTRAL, NEUTRAL, NEUTRAL, ACCENT])
+    ax.barh(
+        families["component_family"].map(family_es),
+        families["failure_risk_avg"] * 100,
+        color=[NEUTRAL, NEUTRAL, NEUTRAL, ACCENT],
+    )
     for y, value in enumerate(families["failure_risk_avg"] * 100):
         ax.text(value + 0.4, y, f"{fmt_dec(value, 1)}%", va="center", fontsize=9, fontfamily=MONO)
     ax.set_xlabel("Riesgo medio de fallo")
     clean_axis(ax, "x")
-    chart_title(ax, "Pantógrafos combinan peor salud y mayor riesgo medio",
-                "Segmentación por familia técnica")
+    chart_title(ax, "Pantógrafos combinan peor salud y mayor riesgo medio", "Segmentación por familia técnica")
     save_chart(fig, "10_riesgo_por_familia.png", "risk_segmentation_component_family.csv")
     charts.append({"file": "10_riesgo_por_familia.png", "title": "Composición del riesgo por familia"})
 
@@ -390,12 +462,17 @@ def build_charts() -> list[dict[str, str]]:
     ax2.tick_params(colors=DANGER, length=0)
     ax2.spines["top"].set_visible(False)
     clean_axis(ax, "y")
-    chart_title(ax, "Los pendientes se concentran en pocos depósitos",
-                "Participación y curva acumulada sobre el histórico agregado")
+    chart_title(
+        ax,
+        "Los pendientes se concentran en pocos depósitos",
+        "Participación y curva acumulada sobre el histórico agregado",
+    )
     save_chart(fig, "11_concentracion_backlog.png", "kpi_backlog_mas_critico.csv")
     charts.append({"file": "11_concentracion_backlog.png", "title": "Concentración de pendientes"})
 
-    failures = read("kpi_fallas_repetitivas_mas_frecuentes.csv").sort_values("repetitive_events", ascending=False).head(15)
+    failures = (
+        read("kpi_fallas_repetitivas_mas_frecuentes.csv").sort_values("repetitive_events", ascending=False).head(15)
+    )
     failures = failures.iloc[::-1]
     labels_f = (
         failures["subsistema"].map(SUBSISTEMA_ES).fillna(failures["subsistema"])
@@ -406,8 +483,11 @@ def build_charts() -> list[dict[str, str]]:
     ax.barh(labels_f, failures["repetitive_events"], color=ACCENT)
     ax.set_xlabel("Eventos repetitivos")
     clean_axis(ax, "x")
-    chart_title(ax, "Un conjunto limitado de modos concentra la repetición de fallos",
-                "Quince combinaciones subsistema y modo con mayor frecuencia repetitiva")
+    chart_title(
+        ax,
+        "Un conjunto limitado de modos concentra la repetición de fallos",
+        "Quince combinaciones subsistema y modo con mayor frecuencia repetitiva",
+    )
     save_chart(fig, "12_pareto_fallos_repetitivos.png", "kpi_fallas_repetitivas_mas_frecuentes.csv")
     charts.append({"file": "12_pareto_fallos_repetitivos.png", "title": "Concentración de fallos repetitivos"})
 
@@ -419,8 +499,9 @@ def build_charts() -> list[dict[str, str]]:
     ax.set_yticks(y, rul["component_family"].map(family_es))
     ax.set_xlabel("RUL aproximado, días")
     clean_axis(ax, "x")
-    chart_title(ax, "El RUL discrimina ventanas de intervención por familia",
-                "Mediana y rango P10-P90 del cálculo rediseñado")
+    chart_title(
+        ax, "El RUL discrimina ventanas de intervención por familia", "Mediana y rango P10-P90 del cálculo rediseñado"
+    )
     save_chart(fig, "13_cohortes_rul_familia.png", "rul_family_discrimination_before_after.csv")
     charts.append({"file": "13_cohortes_rul_familia.png", "title": "Coortes RUL por familia"})
 
@@ -436,8 +517,9 @@ def build_charts() -> list[dict[str, str]]:
     ax.set_xticks(x, methods)
     ax.set_ylabel("RUL, días")
     clean_axis(ax, "y")
-    chart_title(ax, "El rediseño elimina la saturación artificial del RUL anterior",
-                "Mediana y rango P10-P90 antes y después")
+    chart_title(
+        ax, "El rediseño elimina la saturación artificial del RUL anterior", "Mediana y rango P10-P90 antes y después"
+    )
     save_chart(fig, "14_rul_antes_despues.png", "rul_distribution_before_after.csv")
     charts.append({"file": "14_rul_antes_despues.png", "title": "RUL antes y después"})
 
@@ -449,13 +531,18 @@ def build_charts() -> list[dict[str, str]]:
     ax.set_xlim(0, 105)
     ax.set_xlabel("Fallos con detección previa, %")
     clean_axis(ax, "x")
-    chart_title(ax, "La inspección automática tiene cobertura desigual por familia",
-                "Tasa observada de detección previa a fallo")
+    chart_title(
+        ax,
+        "La inspección automática tiene cobertura desigual por familia",
+        "Tasa observada de detección previa a fallo",
+    )
     save_chart(fig, "15_inspeccion_por_familia.png", "inspection_module_family_performance.csv")
     charts.append({"file": "15_inspeccion_por_familia.png", "title": "Cobertura de inspección"})
 
-    capacity = read("workshop_capacity_calendar.csv").groupby("deposito_id", as_index=False).agg(
-        capacity=("total_capacity_h", "sum"), used=("total_used_h", "sum")
+    capacity = (
+        read("workshop_capacity_calendar.csv")
+        .groupby("deposito_id", as_index=False)
+        .agg(capacity=("total_capacity_h", "sum"), used=("total_used_h", "sum"))
     )
     capacity["utilization"] = capacity["used"] / capacity["capacity"] * 100
     capacity = capacity.sort_values("utilization")
@@ -465,20 +552,28 @@ def build_charts() -> list[dict[str, str]]:
         ax.text(value + 0.5, y, f"{fmt_dec(value, 1)}%", va="center", fontsize=9, fontfamily=MONO)
     ax.set_xlabel("Utilización programada de capacidad, %")
     clean_axis(ax, "x")
-    chart_title(ax, "La capacidad programada conserva holgura, pero no está alineada con la cola",
-                "Utilización acumulada del calendario de 35 días")
+    chart_title(
+        ax,
+        "La capacidad programada conserva holgura, pero no está alineada con la cola",
+        "Utilización acumulada del calendario de 35 días",
+    )
     save_chart(fig, "16_utilizacion_capacidad.png", "workshop_capacity_calendar.csv")
     charts.append({"file": "16_utilizacion_capacidad.png", "title": "Utilización de capacidad"})
 
-    unavailable = read("kpi_unidades_mayor_indisponibilidad.csv").nlargest(15, "horas_no_disponibles_total").sort_values(
-        "horas_no_disponibles_total"
+    unavailable = (
+        read("kpi_unidades_mayor_indisponibilidad.csv")
+        .nlargest(15, "horas_no_disponibles_total")
+        .sort_values("horas_no_disponibles_total")
     )
     fig, ax = plt.subplots(figsize=(9.2, 5.8))
     ax.barh(unavailable["unidad_id"], unavailable["horas_no_disponibles_total"], color=ACCENT)
     ax.set_xlabel("Horas no disponibles acumuladas")
     clean_axis(ax, "x")
-    chart_title(ax, "La indisponibilidad histórica también está concentrada",
-                "Quince unidades con mayor tiempo fuera de servicio")
+    chart_title(
+        ax,
+        "La indisponibilidad histórica también está concentrada",
+        "Quince unidades con mayor tiempo fuera de servicio",
+    )
     save_chart(fig, "17_ranking_indisponibilidad.png", "kpi_unidades_mayor_indisponibilidad.csv")
     charts.append({"file": "17_ranking_indisponibilidad.png", "title": "Clasificación de indisponibilidad"})
 
@@ -487,15 +582,25 @@ def build_charts() -> list[dict[str, str]]:
     fig, ax = plt.subplots(figsize=(9.2, 5.2))
     for i, (strategy_name, group) in enumerate(scenarios.groupby("estrategia")):
         group = group.sort_values("coste_total_p50")
-        ax.scatter(group["coste_total_p50"] / 1e6, [i] * len(group), color=ACCENT if strategy_name == "basada_en_condicion" else NEUTRAL,
-                   s=70, alpha=0.85)
-        ax.hlines(i, group["coste_total_p50"].min() / 1e6, group["coste_total_p50"].max() / 1e6, color=LIGHT, lw=5, zorder=0)
+        ax.scatter(
+            group["coste_total_p50"] / 1e6,
+            [i] * len(group),
+            color=ACCENT if strategy_name == "basada_en_condicion" else NEUTRAL,
+            s=70,
+            alpha=0.85,
+        )
+        ax.hlines(
+            i, group["coste_total_p50"].min() / 1e6, group["coste_total_p50"].max() / 1e6, color=LIGHT, lw=5, zorder=0
+        )
     strategies_sorted = sorted(scenarios["estrategia"].unique())
     ax.set_yticks(range(len(strategies_sorted)), [labels_s[s] for s in strategies_sorted])
     ax.set_xlabel("Coste total P50, M€")
     clean_axis(ax, "x")
-    chart_title(ax, "La conclusión económica depende del perfil de escenario",
-                "Dispersión del coste P50 entre perfiles de sensibilidad")
+    chart_title(
+        ax,
+        "La conclusión económica depende del perfil de escenario",
+        "Dispersión del coste P50 entre perfiles de sensibilidad",
+    )
     save_chart(fig, "18_variancia_escenarios.png", "comparativo_estrategias_escenarios.csv")
     charts.append({"file": "18_variancia_escenarios.png", "title": "Variancia entre escenarios"})
 
@@ -512,8 +617,9 @@ def build_charts() -> list[dict[str, str]]:
     ax.set_ylabel("Contratos verificados")
     ax.legend(["Fallidos", "Aprobados"], frameon=False, ncol=2)
     clean_axis(ax, "y")
-    chart_title(ax, "Los contratos de publicación no presentan bloqueos activos",
-                "Resultado de validaciones por severidad")
+    chart_title(
+        ax, "Los contratos de publicación no presentan bloqueos activos", "Resultado de validaciones por severidad"
+    )
     save_chart(fig, "19_gobernanza_validaciones.png", "governance_contract_checks.csv")
     charts.append({"file": "19_gobernanza_validaciones.png", "title": "Gobernanza y validaciones"})
 

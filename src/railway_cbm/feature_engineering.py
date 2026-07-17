@@ -1,3 +1,5 @@
+"""Construye las variables canónicas por componente, unidad, flota y taller."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -5,7 +7,7 @@ from dataclasses import dataclass
 import numpy as np
 import pandas as pd
 
-from src.config import DATA_PROCESSED_DIR, DATA_RAW_DIR, DOCS_DIR
+from railway_cbm.config import DATA_PROCESSED_DIR, DATA_RAW_DIR, DOCS_DIR
 
 
 @dataclass
@@ -19,6 +21,30 @@ class FeatureOutputs:
 def _safe_div(a: pd.Series, b: pd.Series, default: float = 0.0) -> pd.Series:
     out = a / b.replace(0, np.nan)
     return out.replace([np.inf, -np.inf], np.nan).fillna(default)
+
+
+def _aggregate_backlog_component_day(backlog: pd.DataFrame) -> pd.DataFrame:
+    """Reduce órdenes concurrentes al grano componente-día sin perder severidad."""
+    severity_rank = {"baja": 1, "media": 2, "alta": 3, "critica": 4}
+    inverse_rank = {value: key for key, value in severity_rank.items()}
+    frame = backlog[
+        [
+            "fecha",
+            "unidad_id",
+            "componente_id",
+            "antiguedad_backlog_dias",
+            "riesgo_acumulado",
+            "severidad_pendiente",
+        ]
+    ].copy()
+    frame["severity_rank"] = frame["severidad_pendiente"].map(severity_rank).fillna(1).astype(int)
+    aggregated = frame.groupby(["fecha", "unidad_id", "componente_id"], as_index=False).agg(
+        antiguedad_backlog_dias=("antiguedad_backlog_dias", "max"),
+        riesgo_acumulado=("riesgo_acumulado", "max"),
+        severity_rank=("severity_rank", "max"),
+    )
+    aggregated["severidad_pendiente"] = aggregated.pop("severity_rank").map(inverse_rank)
+    return aggregated
 
 
 def _compute_days_since_event(
@@ -79,20 +105,24 @@ def _build_component_day_features() -> pd.DataFrame:
     parametros["fecha"] = pd.to_datetime(parametros["fecha"], errors="coerce")
     backlog["fecha"] = pd.to_datetime(backlog["fecha"], errors="coerce")
 
-    comp_ref = componentes[[
-        "componente_id",
-        "unidad_id",
-        "criticidad_componente",
-        "edad_componente_dias",
-        "vida_util_teorica_dias",
-        "ciclos_acumulados",
-        "vida_util_teorica_ciclos",
-        "tipo_componente",
-        "subsistema",
-        "sistema_principal",
-    ]].drop_duplicates()
+    comp_ref = componentes[
+        [
+            "componente_id",
+            "unidad_id",
+            "criticidad_componente",
+            "edad_componente_dias",
+            "vida_util_teorica_dias",
+            "ciclos_acumulados",
+            "vida_util_teorica_ciclos",
+            "tipo_componente",
+            "subsistema",
+            "sistema_principal",
+        ]
+    ].drop_duplicates()
 
-    df = mart.merge(comp_ref, on=["componente_id", "unidad_id", "tipo_componente", "subsistema", "sistema_principal"], how="left")
+    df = mart.merge(
+        comp_ref, on=["componente_id", "unidad_id", "tipo_componente", "subsistema", "sistema_principal"], how="left"
+    )
     if "criticidad_componente" not in df.columns:
         left_col = "criticidad_componente_x"
         right_col = "criticidad_componente_y"
@@ -174,7 +204,16 @@ def _build_component_day_features() -> pd.DataFrame:
     unit_line = unidades[["unidad_id", "linea_servicio"]].drop_duplicates()
     df = df.merge(unit_line, on="unidad_id", how="left")
 
-    env = parametros[["fecha", "linea_servicio", "temperatura_ambiente", "humedad", "intensidad_servicio", "nivel_congestion_operativa_proxy"]]
+    env = parametros[
+        [
+            "fecha",
+            "linea_servicio",
+            "temperatura_ambiente",
+            "humedad",
+            "intensidad_servicio",
+            "nivel_congestion_operativa_proxy",
+        ]
+    ]
     df = df.merge(env, on=["fecha", "linea_servicio"], how="left")
     df["environment_stress_proxy"] = (
         (df["temperatura_ambiente"].sub(df["temperatura_ambiente"].median()).abs() / 18.0)
@@ -183,9 +222,13 @@ def _build_component_day_features() -> pd.DataFrame:
         + (df["nivel_congestion_operativa_proxy"].fillna(0.4) * 0.9)
     ).clip(0, 4.5)
 
-    backlog_key = backlog[["fecha", "unidad_id", "componente_id", "antiguedad_backlog_dias", "riesgo_acumulado", "severidad_pendiente"]]
+    backlog_key = _aggregate_backlog_component_day(backlog)
     df = df.merge(backlog_key, on=["fecha", "unidad_id", "componente_id"], how="left")
-    backlog_risk_q80 = float(backlog["riesgo_acumulado"].dropna().quantile(0.80)) if backlog["riesgo_acumulado"].notna().any() else 40.0
+    backlog_risk_q80 = (
+        float(backlog["riesgo_acumulado"].dropna().quantile(0.80))
+        if backlog["riesgo_acumulado"].notna().any()
+        else 40.0
+    )
     df["backlog_exposure_flag"] = (
         (df["antiguedad_backlog_dias"].fillna(0) >= 25)
         | ((df["riesgo_acumulado"].notna()) & (df["riesgo_acumulado"].fillna(0) >= backlog_risk_q80))
@@ -271,6 +314,9 @@ def _build_component_day_features() -> pd.DataFrame:
             "linea_servicio",
         ]
     ].copy()
+    duplicate_grain = int(out.duplicated(["fecha", "componente_id"]).sum())
+    if duplicate_grain:
+        raise RuntimeError(f"component_day_features viola su grano componente-día: {duplicate_grain} duplicados")
 
     out = out.rename(columns={"alert_density_30d": "alert_density"})
     out.to_csv(DATA_PROCESSED_DIR / "component_day_features.csv", index=False)
@@ -285,14 +331,11 @@ def _build_unit_day_features(component_day: pd.DataFrame) -> pd.DataFrame:
     unit_mart["fecha"] = pd.to_datetime(unit_mart["fecha"], errors="coerce")
     component_day["fecha"] = pd.to_datetime(component_day["fecha"], errors="coerce")
 
-    comp_agg = (
-        component_day.groupby(["fecha", "unidad_id"], as_index=False)
-        .agg(
-            aggregated_health_score=("estimated_health_index", "mean"),
-            risk_components=("estimated_health_index", lambda s: int((s < 55).sum())),
-            component_alert_density=("alert_density", "mean"),
-            avg_component_criticality=("criticidad_componente", "mean"),
-        )
+    comp_agg = component_day.groupby(["fecha", "unidad_id"], as_index=False).agg(
+        aggregated_health_score=("estimated_health_index", "mean"),
+        risk_components=("estimated_health_index", lambda s: int((s < 55).sum())),
+        component_alert_density=("alert_density", "mean"),
+        avg_component_criticality=("criticidad_componente", "mean"),
     )
 
     df = unit_mart.merge(comp_agg, on=["fecha", "unidad_id"], how="left")
@@ -433,11 +476,12 @@ def _build_fleet_week_features() -> pd.DataFrame:
 
     # presión de capacidad por depósito-flota en semana
     depot_week = depot.assign(week_start=depot["fecha"] - pd.to_timedelta(depot["fecha"].dt.dayofweek, unit="D"))
-    depot_week = depot_week.merge(unidades_depot[["flota_id", "deposito_id"]].drop_duplicates(), on="deposito_id", how="left")
+    depot_week = depot_week.merge(
+        unidades_depot[["flota_id", "deposito_id"]].drop_duplicates(), on="deposito_id", how="left"
+    )
 
-    cap = (
-        depot_week.groupby(["week_start", "flota_id"], as_index=False)
-        .agg(capacity_pressure_by_depot=("saturation_ratio", "mean"))
+    cap = depot_week.groupby(["week_start", "flota_id"], as_index=False).agg(
+        capacity_pressure_by_depot=("saturation_ratio", "mean")
     )
 
     out = fleet.merge(cap, on=["week_start", "flota_id"], how="left")
@@ -446,7 +490,9 @@ def _build_fleet_week_features() -> pd.DataFrame:
     if "backlog_critical_items" not in out.columns:
         out["backlog_critical_items"] = 0.0
 
-    out["capacity_pressure_by_depot"] = out["capacity_pressure_by_depot"].fillna(out["backlog_exposure_adjusted_score"] / 100)
+    out["capacity_pressure_by_depot"] = out["capacity_pressure_by_depot"].fillna(
+        out["backlog_exposure_adjusted_score"] / 100
+    )
     out["backlog_pressure"] = (
         out["backlog_exposure_adjusted_score"].fillna(0) * 0.75
         + out["backlog_critical_items"].fillna(0).clip(0, 300) * 0.25
@@ -504,7 +550,11 @@ def _build_workshop_priority_features(component_day: pd.DataFrame, unit_day: pd.
     ]
 
     df = comp_latest.merge(unit_latest_cols, on="unidad_id", how="left")
-    df = df.merge(componentes[["componente_id", "criticidad_componente", "subsistema", "tipo_componente"]], on=["componente_id", "subsistema", "tipo_componente"], how="left")
+    df = df.merge(
+        componentes[["componente_id", "criticidad_componente", "subsistema", "tipo_componente"]],
+        on=["componente_id", "subsistema", "tipo_componente"],
+        how="left",
+    )
     if "criticidad_componente" not in df.columns:
         left_col = "criticidad_componente_x"
         right_col = "criticidad_componente_y"
@@ -515,7 +565,9 @@ def _build_workshop_priority_features(component_day: pd.DataFrame, unit_day: pd.
         elif right_col in df.columns:
             df["criticidad_componente"] = df[right_col]
 
-    depot_latest = depot_pressure[pd.to_datetime(depot_pressure["fecha"]) == pd.to_datetime(depot_pressure["fecha"]).max()].copy()
+    depot_latest = depot_pressure[
+        pd.to_datetime(depot_pressure["fecha"]) == pd.to_datetime(depot_pressure["fecha"]).max()
+    ].copy()
     keep_cols = [
         "deposito_id",
         "saturation_ratio",
@@ -537,12 +589,23 @@ def _build_workshop_priority_features(component_day: pd.DataFrame, unit_day: pd.
         intervenciones[intervenciones["fecha_programada"] >= latest_day]
         .sort_values("fecha_programada")
         .groupby(["unidad_id", "componente_id"], as_index=False)
-        .first()[["unidad_id", "componente_id", "deposito_id", "fecha_programada", "prioridad_planificada", "ventana_operativa_disponible"]]
+        .first()[
+            [
+                "unidad_id",
+                "componente_id",
+                "deposito_id",
+                "fecha_programada",
+                "prioridad_planificada",
+                "ventana_operativa_disponible",
+            ]
+        ]
     )
 
     if next_window.empty:
         unidades = pd.read_csv(DATA_RAW_DIR / "unidades.csv")
-        next_window = df[["unidad_id", "componente_id"]].merge(unidades[["unidad_id", "deposito_id"]], on="unidad_id", how="left")
+        next_window = df[["unidad_id", "componente_id"]].merge(
+            unidades[["unidad_id", "deposito_id"]], on="unidad_id", how="left"
+        )
         next_window["fecha_programada"] = latest_day + pd.Timedelta(days=14)
         next_window["prioridad_planificada"] = "media"
         next_window["ventana_operativa_disponible"] = "media"
@@ -694,6 +757,7 @@ def _write_feature_dictionary() -> None:
 
 
 def build_feature_tables() -> FeatureOutputs:
+    """Regenera y persiste todas las tablas oficiales de variables."""
     component_day = _build_component_day_features()
     unit_day = _build_unit_day_features(component_day)
     fleet_week = _build_fleet_week_features()

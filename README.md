@@ -1,8 +1,15 @@
 # Inteligencia de Mantenimiento Ferroviario - CBM
 
+[![CI](https://github.com/mfidalgomartins/inteligencia-mantenimiento-ferroviario-cbm/actions/workflows/ci.yml/badge.svg)](https://github.com/mfidalgomartins/inteligencia-mantenimiento-ferroviario-cbm/actions/workflows/ci.yml)
+[![Licencia MIT](https://img.shields.io/badge/licencia-MIT-2c5fa8)](LICENSE)
+[![Python 3.12+](https://img.shields.io/badge/python-3.12%2B-2c5fa8)](pyproject.toml)
+
 Sistema de decisión para flotas ferroviarias: prioriza intervenciones de taller, cuantifica el riesgo de diferir cada decisión y mide el valor del mantenimiento basado en condición frente a una estrategia reactiva.
 
-**[Panel de control en vivo](https://mfidalgomartins.github.io/inteligencia-mantenimiento-ferroviario-cbm/)** · Python · SQL · DuckDB · HTML sin conexión
+**[Abrir el panel de control](https://mfidalgomartins.github.io/inteligencia-mantenimiento-ferroviario-cbm/)** · **[Leer el informe analítico (PDF)](outputs/reports/informe_analitico_cbm_ferroviario.pdf)** · Python · SQL · DuckDB · HTML sin conexión
+
+Los dos entregables ejecutivos del proyecto son el **panel de control** (la experiencia analítica interactiva)
+y el **informe analítico** (el documento de apoyo a la decisión). Ambos se muestran a continuación.
 
 ## Resultados - flota sintética de 144 unidades
 
@@ -57,11 +64,43 @@ Sistema de decisión para flotas ferroviarias: prioriza intervenciones de taller
 
 ## Panel de control
 
-HTML autocontenido sin dependencias externas. Funciona sin conexión e incluye filtros por flota, depósito, familia, sistema, riesgo e intervención.
+![Panel de control CBM ferroviario](assets/preview/dashboard.png)
+
+HTML autocontenido sin dependencias externas ni llamadas de red: funciona completamente sin conexión. Arquitectura en
+pirámide invertida — abre con la orden de trabajo prioritaria y su evidencia, no con un muro de gráficos.
+
+- Filtros cruzados por flota, depósito, familia de componente, sistema, nivel de riesgo, tipo de intervención y ventana temporal.
+- Procedencia visible en cada indicador: `oficial` (registro gobernado de métricas) frente a `vista` (recorte por filtro activo).
+- Ocho secciones de lectura: decisión, estado de flota, riesgo técnico, cola de intervención, capacidad y pendientes, factores, caso estratégico y detalle.
+- Modo claro/oscuro y exportación a impresión, con tipografía embebida para paridad visual exacta.
+- Verificado con validador de contraste y visión cromática: contraste de marca >3:1 y ΔE ≥12 bajo protanopia y deuteranopia.
 
 **[Abrir panel de control en vivo](https://mfidalgomartins.github.io/inteligencia-mantenimiento-ferroviario-cbm/)**
 
+## Informe analítico
+
+<table>
+<tr>
+<td width="38%">
+
+![Portada del informe analítico](assets/preview/report-cover.png)
+
+</td>
+<td width="62%">
+
+Documento ejecutivo en PDF que acompaña al panel con el razonamiento completo: riesgo y priorización de taller,
+vida remanente operativa, comparación de estrategias de mantenimiento y disciplina económica del caso CBM.
+
+- Lectura ejecutiva en la portada con la decisión inmediata, antes de cualquier detalle técnico.
+- Mismo registro oficial de métricas que el panel — cero divergencia entre lo narrado y lo mostrado.
+- Diseño visual auditado a estándar de consultoría (tipografía, paleta y jerarquía consistentes con el panel).
+- Generado de forma determinista con WeasyPrint a partir de HTML/CSS versionado, sin edición manual.
+
 **[Descargar informe analítico (PDF)](outputs/reports/informe_analitico_cbm_ferroviario.pdf)**
+
+</td>
+</tr>
+</table>
 
 ## Arquitectura
 
@@ -92,16 +131,31 @@ El flujo usa semilla fija y regenera datos, métricas, documentación derivada y
 ## Estructura
 
 ```
-src/          lógica de datos, puntuación y generador del panel de control
-sql/          capa SQL por etapas (preparación → integración → tablas analíticas → indicadores)
-notebooks/    análisis exploratorio por fase del flujo
-scripts/      ejecución del flujo, pruebas y publicación
-outputs/      panel de control, gráficos PNG e informe PDF
-tests/        validaciones de calidad, métricas y consistencia
-docs/         reproducibilidad, supuestos y contratos de métricas
+src/railway_cbm/  paquete instalable: datos, SQL, puntuación, planificación y panel de control
+sql/               capa SQL por etapas (preparación → integración → tablas analíticas → indicadores)
+notebooks/         análisis exploratorio por fase del flujo
+scripts/           ejecución del flujo, pruebas y publicación
+outputs/           panel de control, gráficos PNG e informe PDF
+tests/             validaciones de calidad, métricas y consistencia
+docs/              reproducibilidad, supuestos, gobierno de métricas y preparación productiva
+assets/            tipografía embebida y capturas de referencia del panel/informe
 ```
 
 Documentación técnica: [reproducibilidad](docs/reproducibility.md) · [arquitectura del repositorio](docs/repo_architecture.md) · [preparación productiva](docs/production_readiness.md) · [seguridad y dependencias](docs/security_dependency_hygiene.md) · [marco RUL](docs/rul_framework.md) · [gobierno de métricas](docs/gobierno_metricas.md)
+
+## Hoja de ruta
+
+El núcleo batch (datos → riesgo → priorización → panel) está implementado y gobernado por puertas de calidad. El
+avance hacia operación real sigue tres fases, sin saltos: cada una exige responsable, umbral y evidencia de
+aceptación antes de habilitar la siguiente ([detalle completo](docs/production_readiness.md)).
+
+| Fase | Objetivo | Bloqueo actual |
+|------|----------|----------------|
+| **P0 — Evidencia real** | Cargar histórico autorizado vía `--source external` y recalibrar umbrales con Fiabilidad, Operaciones y Finanzas. | Ejecución publicada usa datos sintéticos; `model_deployment_gate.csv` exige fuente externa. |
+| **P1 — Piloto en sombra** | Orquestar en producción, registrar aprobaciones humanas y comparar recomendaciones contra decisiones reales a 30/60/90 días. | Requiere un histórico con seis cortes maduros y ≥30 fallos observados. |
+| **P2 — Operación controlada** | Integrar identidad y roles, conectar el registro aprobado con EAM/ERP, y ampliar el MILP con repuestos y habilidades. | Requiere piloto P1 validado con SLA y plan de reversión definidos. |
+
+El sistema nunca ejecuta acciones de forma autónoma: la autoejecución permanece desactivada por diseño en las tres fases.
 
 ## Limitaciones
 - Todos los datos son sintéticos; los umbrales requieren calibración antes de uso operacional.

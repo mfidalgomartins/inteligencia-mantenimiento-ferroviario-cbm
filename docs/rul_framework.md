@@ -2,7 +2,7 @@
 
 ## 1) Diagnóstico de la lógica anterior
 - La lógica anterior usaba extrapolación lineal y regla de saturación `slope >= -0.02 => RUL=365`.
-- Resultado observado: `proporcion_rul_365_anterior = 0.723` (colapso en horizontes amplios).
+- Resultado observado: `proporcion_rul_365_anterior = 0.713` (colapso en horizontes amplios).
 - Impacto: baja discriminación para priorización, intervención y planificación.
 
 ## 2) Definición operativa del nuevo RUL
@@ -30,48 +30,48 @@ bajo condiciones operativas actuales y degradación efectiva diaria.
 
 ## 4) Convivencia con salud y riesgo
 - `health_score`: estado actual (alto=mejor).
-- `prob_fallo_30d`: probabilidad de fallo a corto plazo.
+- `prob_fallo_30d`: puntuación relativa de propensión a fallo a corto plazo.
 - `component_rul_estimate`: horizonte temporal de agotamiento bajo condiciones actuales.
 - Regla práctica: decisión prioritaria cuando riesgo alto + RUL corto + impacto servicio alto.
 
 ## 5) Comparación con la lógica anterior
 | metodo                     |   rul_medio |   rul_p10 |   rul_p50 |   rul_p90 |   proporcion_tope_rul |   proporcion_rul_<=30 |
 |:---------------------------|------------:|----------:|----------:|----------:|----------------------:|----------------------:|
-| lineal_anterior_365        |    318.322  |       162 |       365 |       365 |           0.72309     |           0.000868056 |
-| nueva_aproximacion_familia |     73.3377 |        17 |        63 |       146 |           0.000868056 |           0.206597    |
+| lineal_anterior_365        |    313.023  |     143.1 |       365 |     365   |           0.712674    |            0.00173611 |
+| nueva_aproximacion_familia |     73.2283 |      16.1 |        63 |     145.9 |           0.000868056 |            0.207465   |
 
 ### Discriminación por familia
 | familia_componente   |   anterior_p50 |   anterior_p10 |   anterior_p90 |   nuevo_p50 |   nuevo_p10 |   nuevo_p90 |   nuevo_proporcion_<=30 |
 |:---------------------|---------------:|---------------:|---------------:|------------:|------------:|------------:|------------------------:|
-| pantógrafo           |            365 |          158.8 |            365 |        26   |           3 |        58.4 |               0.555556  |
-| freno                |            365 |          170.1 |            365 |        41.5 |           9 |        86.7 |               0.354167  |
-| rueda                |            365 |          141.6 |            365 |        54   |          18 |       119.4 |               0.256944  |
-| bogie                |            365 |          162   |            365 |        82   |          31 |       162.2 |               0.0972222 |
+| pantógrafo           |            365 |          146.5 |            365 |        26   |           3 |        58.4 |               0.555556  |
+| freno                |            365 |          163.6 |            365 |        41.5 |           9 |        86.4 |               0.361111  |
+| rueda                |            365 |          135.5 |            365 |        54   |          18 |       119.4 |               0.256944  |
+| bogie                |            365 |          143.9 |            365 |        82.5 |          31 |       162.2 |               0.0972222 |
 
 ### Relación con fallas posteriores (validación retrospectiva)
 | metodo                     | grupo_rul   |   observaciones |   fallas_30d |   tasa_falla_30d |
 |:---------------------------|:------------|----------------:|-------------:|-----------------:|
-| lineal_anterior_365        | 01_15_30    |              25 |            3 |         0.12     |
-| lineal_anterior_365        | 02_31_60    |             177 |           28 |         0.158192 |
-| lineal_anterior_365        | 03_61_90    |             361 |           43 |         0.119114 |
-| lineal_anterior_365        | 04_91_180   |            1451 |          208 |         0.143349 |
-| lineal_anterior_365        | 05_>180     |           11207 |         1555 |         0.138753 |
-| nueva_aproximacion_familia | 00_<=14     |            1261 |          194 |         0.153846 |
-| nueva_aproximacion_familia | 01_15_30    |            1777 |          259 |         0.145751 |
-| nueva_aproximacion_familia | 02_31_60    |            3599 |          516 |         0.143373 |
-| nueva_aproximacion_familia | 03_61_90    |            2716 |          396 |         0.145803 |
-| nueva_aproximacion_familia | 04_91_180   |            3377 |          418 |         0.123779 |
-| nueva_aproximacion_familia | 05_>180     |             491 |           54 |         0.10998  |
+| lineal_anterior_365        | 01_15_30    |              27 |            4 |         0.148148 |
+| lineal_anterior_365        | 02_31_60    |             218 |           33 |         0.151376 |
+| lineal_anterior_365        | 03_61_90    |             384 |           47 |         0.122396 |
+| lineal_anterior_365        | 04_91_180   |            1559 |          223 |         0.14304  |
+| lineal_anterior_365        | 05_>180     |           11033 |         1530 |         0.138675 |
+| nueva_aproximacion_familia | 00_<=14     |            1265 |          194 |         0.15336  |
+| nueva_aproximacion_familia | 01_15_30    |            1779 |          260 |         0.14615  |
+| nueva_aproximacion_familia | 02_31_60    |            3606 |          515 |         0.142818 |
+| nueva_aproximacion_familia | 03_61_90    |            2705 |          395 |         0.146026 |
+| nueva_aproximacion_familia | 04_91_180   |            3378 |          418 |         0.123742 |
+| nueva_aproximacion_familia | 05_>180     |             488 |           55 |         0.112705 |
 
 ## 6) Validaciones específicas de RUL
 | check_id                        | severidad   | aprobado   |   valor_metrica | umbral                          | detalle                                                    |
 |:--------------------------------|:------------|:-----------|----------------:|:--------------------------------|:-----------------------------------------------------------|
 | rul_distribution_not_saturated  | alta        | sí         |     0.000868056 | <=0.60                          | proporción en techo de RUL                                 |
-| rul_distribution_spread         | alta        | sí         |   129           | >=55 días                       | amplitud P90-P10                                           |
-| rul_family_discrimination       | media       | sí         |    56           | >=12 días                       | diferencia medianas entre familias                         |
-| rul_confidence_entropy          | media       | sí         |     0.917425    | >=0.65                          | entropía de confidence_flag                                |
-| rul_failure_linkage_direction   | media       | sí         |    -0.0289239   | <=-0.02                         | control direccional; asociación esperada negativa          |
-| rul_failure_quantile_separation | alta        | sí         |     0.0337573   | >=0.02; soporte >=500 por grupo | tasa_falla(Q1 RUL) - tasa_falla(Q4 RUL); soporte=3424/3309 |
+| rul_distribution_spread         | alta        | sí         |   129.8         | >=55 días                       | amplitud P90-P10                                           |
+| rul_family_discrimination       | media       | sí         |    56.5         | >=12 días                       | diferencia medianas entre familias                         |
+| rul_confidence_entropy          | media       | sí         |     0.92755     | >=0.65                          | entropía de confidence_flag                                |
+| rul_failure_linkage_direction   | media       | sí         |    -0.0287468   | <=-0.02                         | control direccional; asociación esperada negativa          |
+| rul_failure_quantile_separation | alta        | sí         |     0.0345555   | >=0.02; soporte >=500 por grupo | tasa_falla(Q1 RUL) - tasa_falla(Q4 RUL); soporte=3426/3309 |
 
 ## 7) Integración con recomendación y planificación
 - `component_rul_estimate` y `confidence_rul` alimentan `assign_operational_decisions` y `workshop_priority_table`.

@@ -1,24 +1,25 @@
+"""Perfila los datos sintéticos y materializa controles de calidad priorizados."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Dict, List
 
 import numpy as np
 import pandas as pd
 
-from src.config import DATA_RAW_DIR, OUTPUTS_REPORTS_DIR
+from railway_cbm.config import DATA_PROCESSED_DIR, DATA_RAW_DIR
 
-REPORT_DIR = OUTPUTS_REPORTS_DIR / "explore_data"
+REPORT_DIR = DATA_PROCESSED_DIR / "data_quality"
 
 
 @dataclass
 class TableMeta:
     grain: str
-    candidate_key: List[str]
-    expected_fks: Dict[str, str]
+    candidate_key: list[str]
+    expected_fks: dict[str, str]
 
 
-TABLE_META: Dict[str, TableMeta] = {
+TABLE_META: dict[str, TableMeta] = {
     "flotas": TableMeta(
         grain="1 fila por flota",
         candidate_key=["flota_id"],
@@ -117,9 +118,43 @@ def _classify_column(col: str, dtype: str) -> str:
         return "temporales"
     if c.endswith("_flag") or c.startswith("es_") or c.startswith("is_"):
         return "booleanas"
-    if any(k in c for k in ["tipo", "modo", "familia", "estrategia", "resultado", "motivo", "region", "linea", "operador", "severidad"]):
+    if any(
+        k in c
+        for k in [
+            "tipo",
+            "modo",
+            "familia",
+            "estrategia",
+            "resultado",
+            "motivo",
+            "region",
+            "linea",
+            "operador",
+            "severidad",
+        ]
+    ):
         return "dimensiones"
-    if any(k in c for k in ["ratio", "score", "riesgo", "coste", "horas", "km", "temperatura", "vibracion", "presion", "desgaste", "corriente", "ruido", "intensidad", "puntualidad", "availability", "disponibilidad"]):
+    if any(
+        k in c
+        for k in [
+            "ratio",
+            "score",
+            "riesgo",
+            "coste",
+            "horas",
+            "km",
+            "temperatura",
+            "vibracion",
+            "presion",
+            "desgaste",
+            "corriente",
+            "ruido",
+            "intensidad",
+            "puntualidad",
+            "availability",
+            "disponibilidad",
+        ]
+    ):
         return "metricas"
     if dtype in {"int64", "float64"}:
         return "metricas"
@@ -157,43 +192,49 @@ def _numeric_profile(df: pd.DataFrame, table: str) -> pd.DataFrame:
     return pd.DataFrame(rows)
 
 
-def _table_specific_checks(tables: Dict[str, pd.DataFrame]) -> List[dict]:
-    issues: List[dict] = []
+def _table_specific_checks(tables: dict[str, pd.DataFrame]) -> list[dict]:
+    issues: list[dict] = []
 
     comp = tables["componentes_criticos"]
     mask_life = (comp["edad_componente_dias"] <= 0) | (comp["vida_util_teorica_dias"] <= 0)
     if int(mask_life.sum()) > 0:
-        issues.append({
-            "severidad": "alta",
-            "issue": "componentes_vida_util_imposible",
-            "tabla": "componentes_criticos",
-            "detalle": f"{int(mask_life.sum())} filas con edad/vida util no positiva",
-            "impacto": "Distorsiona RUL y puntuación de salud",
-        })
+        issues.append(
+            {
+                "severidad": "alta",
+                "issue": "componentes_vida_util_imposible",
+                "tabla": "componentes_criticos",
+                "detalle": f"{int(mask_life.sum())} filas con edad/vida util no positiva",
+                "impacto": "Distorsiona RUL y puntuación de salud",
+            }
+        )
 
     sens = tables["sensores_componentes"]
     out_temp = int(((sens["temperatura_operacion"] < -30) | (sens["temperatura_operacion"] > 180)).sum())
     out_vibr = int(((sens["vibracion_proxy"] < 0) | (sens["vibracion_proxy"] > 30)).sum())
     out_wear = int(((sens["desgaste_proxy"] < 0) | (sens["desgaste_proxy"] > 200)).sum())
     if out_temp + out_vibr + out_wear > 0:
-        issues.append({
-            "severidad": "alta",
-            "issue": "sensores_fuera_rango",
-            "tabla": "sensores_componentes",
-            "detalle": f"temp={out_temp}, vibr={out_vibr}, desgaste={out_wear}",
-            "impacto": "Afecta degradación, alertas, riesgo y panel de control",
-        })
+        issues.append(
+            {
+                "severidad": "alta",
+                "issue": "sensores_fuera_rango",
+                "tabla": "sensores_componentes",
+                "detalle": f"temp={out_temp}, vibr={out_vibr}, desgaste={out_wear}",
+                "impacto": "Afecta degradación, alertas, riesgo y panel de control",
+            }
+        )
 
     fail = tables["fallas_historicas"]
     no_impact = int(((fail["impacto_en_servicio"].isna()) | (fail["tiempo_fuera_servicio_horas"] <= 0)).sum())
     if no_impact > 0:
-        issues.append({
-            "severidad": "alta",
-            "issue": "fallas_sin_impacto_asociado",
-            "tabla": "fallas_historicas",
-            "detalle": f"{no_impact} fallas sin impacto o downtime válido",
-            "impacto": "Debilita MTTR, indisponibilidad y evaluación estratégica",
-        })
+        issues.append(
+            {
+                "severidad": "alta",
+                "issue": "fallas_sin_impacto_asociado",
+                "tabla": "fallas_historicas",
+                "detalle": f"{no_impact} fallas sin impacto o downtime válido",
+                "impacto": "Debilita MTTR, indisponibilidad y evaluación estratégica",
+            }
+        )
 
     maint = tables["eventos_mantenimiento"]
     start = pd.to_datetime(maint["fecha_inicio"], errors="coerce")
@@ -201,56 +242,67 @@ def _table_specific_checks(tables: Dict[str, pd.DataFrame]) -> List[dict]:
     bad_time = int((start > end).sum())
     missing_result = int(maint["resultado_intervencion"].isna().sum())
     if bad_time > 0:
-        issues.append({
-            "severidad": "alta",
-            "issue": "mantenimientos_con_tiempo_incoherente",
-            "tabla": "eventos_mantenimiento",
-            "detalle": f"{bad_time} eventos con fecha_inicio > fecha_fin",
-            "impacto": "Afecta carga de taller, MTTR y planificación",
-        })
+        issues.append(
+            {
+                "severidad": "alta",
+                "issue": "mantenimientos_con_tiempo_incoherente",
+                "tabla": "eventos_mantenimiento",
+                "detalle": f"{bad_time} eventos con fecha_inicio > fecha_fin",
+                "impacto": "Afecta carga de taller, MTTR y planificación",
+            }
+        )
     if missing_result > 0:
-        issues.append({
-            "severidad": "media",
-            "issue": "mantenimientos_sin_resultado",
-            "tabla": "eventos_mantenimiento",
-            "detalle": f"{missing_result} eventos sin resultado_intervencion",
-            "impacto": "Complica evaluación de efectividad del mantenimiento",
-        })
+        issues.append(
+            {
+                "severidad": "media",
+                "issue": "mantenimientos_sin_resultado",
+                "tabla": "eventos_mantenimiento",
+                "detalle": f"{missing_result} eventos sin resultado_intervencion",
+                "impacto": "Complica evaluación de efectividad del mantenimiento",
+            }
+        )
 
     backlog = tables["backlog_mantenimiento"]
     bad_backlog = int(((backlog["antiguedad_backlog_dias"] < 0) | (backlog["riesgo_acumulado"] < 0)).sum())
     if bad_backlog > 0:
-        issues.append({
-            "severidad": "alta",
-            "issue": "backlog_inconsistente",
-            "tabla": "backlog_mantenimiento",
-            "detalle": f"{bad_backlog} filas con antigüedad o riesgo negativos",
-            "impacto": "Distorsiona presión de depósito y priorización",
-        })
+        issues.append(
+            {
+                "severidad": "alta",
+                "issue": "backlog_inconsistente",
+                "tabla": "backlog_mantenimiento",
+                "detalle": f"{bad_backlog} filas con antigüedad o riesgo negativos",
+                "impacto": "Distorsiona presión de depósito y priorización",
+            }
+        )
 
     disp = tables["disponibilidad_servicio"]
-    recon_error = float((disp["horas_planificadas"] - (disp["horas_disponibles"] + disp["horas_no_disponibles"])).abs().mean())
+    recon_error = float(
+        (disp["horas_planificadas"] - (disp["horas_disponibles"] + disp["horas_no_disponibles"])).abs().mean()
+    )
     if recon_error > 0.02:
-        issues.append({
-            "severidad": "media",
-            "issue": "coherencia_horas_disponibilidad",
-            "tabla": "disponibilidad_servicio",
-            "detalle": f"error medio de reconciliación={recon_error:.4f}",
-            "impacto": "Afecta KPI de disponibilidad e impacto operativo",
-        })
+        issues.append(
+            {
+                "severidad": "media",
+                "issue": "coherencia_horas_disponibilidad",
+                "tabla": "disponibilidad_servicio",
+                "detalle": f"error medio de reconciliación={recon_error:.4f}",
+                "impacto": "Afecta KPI de disponibilidad e impacto operativo",
+            }
+        )
 
     return issues
 
 
 def run_explore_data_audit() -> None:
+    """Ejecuta el perfilado completo y escribe sus artefactos de auditoría."""
     REPORT_DIR.mkdir(parents=True, exist_ok=True)
 
     tables = {name: pd.read_csv(DATA_RAW_DIR / f"{name}.csv") for name in TABLE_META}
 
-    profile_rows: List[dict] = []
-    column_rows: List[dict] = []
-    numeric_profiles: List[pd.DataFrame] = []
-    issues: List[dict] = []
+    profile_rows: list[dict] = []
+    column_rows: list[dict] = []
+    numeric_profiles: list[pd.DataFrame] = []
+    issues: list[dict] = []
 
     for table_name, df in tables.items():
         meta = TABLE_META[table_name]
@@ -323,7 +375,11 @@ def run_explore_data_audit() -> None:
             )
 
             null_pct = float(series.isna().mean() * 100)
-            if null_pct > 40 and _classify_column(col, str(series.dtype)) in {"metricas", "temporales", "identificadores"}:
+            if null_pct > 40 and _classify_column(col, str(series.dtype)) in {
+                "metricas",
+                "temporales",
+                "identificadores",
+            }:
                 issues.append(
                     {
                         "severidad": "media",
@@ -346,8 +402,10 @@ def run_explore_data_audit() -> None:
     summary_df = pd.DataFrame(profile_rows).sort_values("tabla")
     column_df = pd.DataFrame(column_rows).sort_values(["tabla", "columna"])
     numeric_df = pd.concat(numeric_profiles, ignore_index=True) if numeric_profiles else pd.DataFrame()
-    issues_df = pd.DataFrame(issues).drop_duplicates().sort_values(["severidad", "tabla", "issue"]) if issues else pd.DataFrame(
-        columns=["severidad", "issue", "tabla", "detalle", "impacto"]
+    issues_df = (
+        pd.DataFrame(issues).drop_duplicates().sort_values(["severidad", "tabla", "issue"])
+        if issues
+        else pd.DataFrame(columns=["severidad", "issue", "tabla", "detalle", "impacto"])
     )
 
     joins_df = _build_official_joins()
@@ -368,8 +426,8 @@ def run_explore_data_audit() -> None:
         raise RuntimeError(f"Auditoría raw con issues abiertos: {detail}")
 
 
-def _validate_foreign_keys(tables: Dict[str, pd.DataFrame]) -> List[dict]:
-    issues: List[dict] = []
+def _validate_foreign_keys(tables: dict[str, pd.DataFrame]) -> list[dict]:
+    issues: list[dict] = []
     key_values = {
         "flotas.flota_id": set(tables["flotas"]["flota_id"].astype(str)),
         "unidades.unidad_id": set(tables["unidades"]["unidad_id"].astype(str)),
@@ -405,24 +463,84 @@ def _build_official_joins() -> pd.DataFrame:
         ("componentes_criticos", "unidades", "componentes_criticos.unidad_id = unidades.unidad_id", "jerarquía activo"),
         ("unidades", "flotas", "unidades.flota_id = flotas.flota_id", "nivel flota"),
         ("unidades", "depositos", "unidades.deposito_id = depositos.deposito_id", "capacidad y especialización"),
-        ("sensores_componentes", "componentes_criticos", "sensores_componentes.componente_id = componentes_criticos.componente_id", "condición por activo"),
-        ("inspecciones_automaticas", "componentes_criticos", "inspecciones_automaticas.componente_id = componentes_criticos.componente_id", "defectos detectados"),
-        ("fallas_historicas", "componentes_criticos", "fallas_historicas.componente_id = componentes_criticos.componente_id", "historial de fallo"),
-        ("eventos_mantenimiento", "componentes_criticos", "eventos_mantenimiento.componente_id = componentes_criticos.componente_id", "historial de intervención"),
-        ("alertas_operativas", "componentes_criticos", "alertas_operativas.componente_id = componentes_criticos.componente_id", "alerta temprana"),
-        ("disponibilidad_servicio", "asignacion_servicio", "disponibilidad_servicio.fecha = asignacion_servicio.fecha AND disponibilidad_servicio.unidad_id = asignacion_servicio.unidad_id", "impacto servicio"),
-        ("backlog_mantenimiento", "intervenciones_programadas", "backlog_mantenimiento.componente_id = intervenciones_programadas.componente_id AND backlog_mantenimiento.unidad_id = intervenciones_programadas.unidad_id", "presión de taller"),
+        (
+            "sensores_componentes",
+            "componentes_criticos",
+            "sensores_componentes.componente_id = componentes_criticos.componente_id",
+            "condición por activo",
+        ),
+        (
+            "inspecciones_automaticas",
+            "componentes_criticos",
+            "inspecciones_automaticas.componente_id = componentes_criticos.componente_id",
+            "defectos detectados",
+        ),
+        (
+            "fallas_historicas",
+            "componentes_criticos",
+            "fallas_historicas.componente_id = componentes_criticos.componente_id",
+            "historial de fallo",
+        ),
+        (
+            "eventos_mantenimiento",
+            "componentes_criticos",
+            "eventos_mantenimiento.componente_id = componentes_criticos.componente_id",
+            "historial de intervención",
+        ),
+        (
+            "alertas_operativas",
+            "componentes_criticos",
+            "alertas_operativas.componente_id = componentes_criticos.componente_id",
+            "alerta temprana",
+        ),
+        (
+            "disponibilidad_servicio",
+            "asignacion_servicio",
+            "disponibilidad_servicio.fecha = asignacion_servicio.fecha AND disponibilidad_servicio.unidad_id = asignacion_servicio.unidad_id",
+            "impacto servicio",
+        ),
+        (
+            "backlog_mantenimiento",
+            "intervenciones_programadas",
+            "backlog_mantenimiento.componente_id = intervenciones_programadas.componente_id AND backlog_mantenimiento.unidad_id = intervenciones_programadas.unidad_id",
+            "presión de taller",
+        ),
     ]
     return pd.DataFrame(rows, columns=["tabla_izquierda", "tabla_derecha", "condicion_union", "proposito"])
 
 
 def _build_candidate_marts() -> pd.DataFrame:
     rows = [
-        ("tabla_componente_dia", "componente-dia", "salud, degradación, alertas, fallas, mantenimiento", "puntuación y RUL"),
-        ("tabla_unidad_dia", "unidad-dia", "riesgo agregado, indisponibilidad, pendientes, impacto servicio", "priorización operativa"),
-        ("tabla_deposito_dia", "deposito-dia", "saturación, carga correctiva/programada, riesgo pendiente", "planificación de taller"),
-        ("tabla_flota_semana", "flota-semana", "disponibilidad, MTBF/MTTR aproximados, tendencia estratégica", "dirección de mantenimiento"),
-        ("tabla_valor_condicion", "global-periodo", "alertas tempranas, correctivas evitables, valor CBM", "caso de negocio"),
+        (
+            "tabla_componente_dia",
+            "componente-dia",
+            "salud, degradación, alertas, fallas, mantenimiento",
+            "puntuación y RUL",
+        ),
+        (
+            "tabla_unidad_dia",
+            "unidad-dia",
+            "riesgo agregado, indisponibilidad, pendientes, impacto servicio",
+            "priorización operativa",
+        ),
+        (
+            "tabla_deposito_dia",
+            "deposito-dia",
+            "saturación, carga correctiva/programada, riesgo pendiente",
+            "planificación de taller",
+        ),
+        (
+            "tabla_flota_semana",
+            "flota-semana",
+            "disponibilidad, MTBF/MTTR aproximados, tendencia estratégica",
+            "dirección de mantenimiento",
+        ),
+        (
+            "tabla_valor_condicion",
+            "global-periodo",
+            "alertas tempranas, correctivas evitables, valor CBM",
+            "caso de negocio",
+        ),
     ]
     return pd.DataFrame(rows, columns=["nombre_tabla_analitica", "grano", "contenido_central", "uso_principal"])
 
@@ -433,11 +551,13 @@ def _build_markdown_report(
     joins_df: pd.DataFrame,
     marts_df: pd.DataFrame,
 ) -> str:
-    lines: List[str] = []
+    lines: list[str] = []
     lines.append("# Auditoría de Datos | CBM Ferroviario")
     lines.append("")
     lines.append("## Objetivo")
-    lines.append("Auditoría de calidad y preparación de datos previa a modelado, puntuación, RUL, priorización y panel de control.")
+    lines.append(
+        "Auditoría de calidad y preparación de datos previa a modelado, puntuación, RUL, priorización y panel de control."
+    )
     lines.append("")
     lines.append("## Resumen por dataset")
     lines.append(summary_df.to_markdown(index=False))
@@ -462,11 +582,17 @@ def _build_markdown_report(
     lines.append("")
 
     lines.append("## Recomendaciones de transformación analítica")
-    lines.append("- Consolidar un `component_day` con ventanas móviles y señales de estrés para soporte directo a puntuación y RUL.")
-    lines.append("- Normalizar severidades categóricas a ordinales para modelos interpretables y comparables entre dominios.")
+    lines.append(
+        "- Consolidar un `component_day` con ventanas móviles y señales de estrés para soporte directo a puntuación y RUL."
+    )
+    lines.append(
+        "- Normalizar severidades categóricas a ordinales para modelos interpretables y comparables entre dominios."
+    )
     lines.append("- Mantener cortes de pendientes con frecuencia fija para análisis de presión de taller robusto.")
     lines.append("- Controlar deriva de sensores por familia de componente antes de ajustar umbrales de alerta.")
-    lines.append("- Versionar reglas de alerta temprana y su precisión operacional por familia (`wheel`, `brake`, `bogie`, `pantograph`).")
+    lines.append(
+        "- Versionar reglas de alerta temprana y su precisión operacional por familia (`wheel`, `brake`, `bogie`, `pantograph`)."
+    )
     lines.append("")
 
     lines.append("## Propuesta de uniones oficiales")
@@ -478,9 +604,15 @@ def _build_markdown_report(
     lines.append("")
 
     lines.append("## Impacto en puntuación, RUL y panel de control")
-    lines.append("- Nulos o duplicados en llaves de componente/unidad afectan directamente calidad de variables y estabilidad de la clasificación de riesgo.")
-    lines.append("- Incoherencias temporales en mantenimiento alteran `days_since_last_maintenance` y degradan priorización de taller.")
-    lines.append("- Señales fuera de rango generan falsos positivos de alerta y sesgo en estimaciones de salud/riesgo de fallo.")
+    lines.append(
+        "- Nulos o duplicados en llaves de componente/unidad afectan directamente calidad de variables y estabilidad de la clasificación de riesgo."
+    )
+    lines.append(
+        "- Incoherencias temporales en mantenimiento alteran `days_since_last_maintenance` y degradan priorización de taller."
+    )
+    lines.append(
+        "- Señales fuera de rango generan falsos positivos de alerta y sesgo en estimaciones de salud/riesgo de fallo."
+    )
     lines.append("- Fallas sin impacto asociado subestiman MTTR, indisponibilidad y valor de estrategias CBM.")
 
     return "\n".join(lines)

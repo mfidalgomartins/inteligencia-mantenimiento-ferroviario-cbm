@@ -54,9 +54,9 @@ La definición semántica oficial se consume en:
   - `sql/10_kpi_queries.sql`
   - `sql/11_validation_queries.sql`
 - Python:
-  - `src/feature_engineering.py`
-  - `src/risk_scoring.py`
-  - `src/build_dashboard.py`
+  - `src/railway_cbm/feature_engineering.py`
+  - `src/railway_cbm/risk_scoring.py`
+  - `src/railway_cbm/build_dashboard.py`
 - Diccionarios/docs:
   - `docs/sql_metric_definitions.md`
   - `docs/feature_dictionary.md`

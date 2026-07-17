@@ -17,7 +17,8 @@
 - `deterioration_index`: deterioro derivado en variables/puntuación (0-100, alto=peor).
 - `degradation_velocity`: velocidad aproximada de degradación (0-10, alto=peor).
 - `maintenance_restoration_index`: recuperación por mantenimiento reciente (0-100, alto=mejor).
-- `component_failure_risk_score` (`prob_fallo_30d`): probabilidad de falla en 30 días (0-1, alto=peor).
+- `component_failure_risk_score` (`prob_fallo_30d`): puntuación relativa de propensión a fallo en 30 días (0-1, alto=peor); no es probabilidad calibrada hasta superar la puerta externa.
+- `calibrated_probability_30d`: probabilidad calibrada de forma rodante con cortes anteriores maduros; sólo es operacional si `model_deployment_gate.csv` lo permite.
 - `unit_unavailability_risk_score`: riesgo agregado de indisponibilidad por unidad (0-100, alto=peor).
 - `riesgo_ajustado_negocio`: combinación de riesgo técnico y exposición operativa (0-100, alto=peor).
 - `main_risk_driver`: señal dominante del riesgo (`degradacion`, `estres_operacion`, `anomalias`, `pendientes`, `repetitividad`).
@@ -32,6 +33,7 @@
 - `service_impact_score`: impacto esperado en servicio si no se interviene (0-100, alto=peor).
 - `workshop_fit_score`: ajuste técnico-operativo del depósito (0-100, alto=mejor ajuste).
 - `saturation_ratio`: presión de capacidad de taller por depósito (alto=peor).
+- `utilization` (capacidad formal): horas asignadas / horas disponibles por depósito-semana (0-1).
 - `backlog_physical_items`: número de pendientes físicos abiertos (alto=peor carga real).
 - `backlog_overdue_items`: pendientes físicos fuera de ventana (>=14 días).
 - `backlog_critical_items`: pendientes físicos críticos (edad/severidad o riesgo acumulado alto).

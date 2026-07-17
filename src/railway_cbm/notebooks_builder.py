@@ -1,8 +1,10 @@
+"""Regenera notebooks ligeros que documentan cada fase analítica."""
+
 from __future__ import annotations
 
 import json
 
-from src.config import NOTEBOOKS_DIR
+from railway_cbm.config import NOTEBOOKS_DIR
 
 
 def _build_notebook(cells: list[dict], file_name: str) -> None:
@@ -23,10 +25,17 @@ def _md(text: str) -> dict:
 
 
 def _code(code: str) -> dict:
-    return {"cell_type": "code", "execution_count": None, "metadata": {}, "outputs": [], "source": [line + "\n" for line in code.strip("\n").split("\n")]}
+    return {
+        "cell_type": "code",
+        "execution_count": None,
+        "metadata": {},
+        "outputs": [],
+        "source": [line + "\n" for line in code.strip("\n").split("\n")],
+    }
 
 
 def build_notebooks() -> None:
+    """Regenera los cuatro notebooks canónicos sin salidas embebidas."""
     NOTEBOOKS_DIR.mkdir(parents=True, exist_ok=True)
 
     common_setup = _code(

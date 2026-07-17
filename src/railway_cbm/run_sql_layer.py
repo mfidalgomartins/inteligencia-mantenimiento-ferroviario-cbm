@@ -1,9 +1,11 @@
+"""Ejecuta la capa DuckDB, sus validaciones bloqueantes y sus exportaciones."""
+
 from __future__ import annotations
 
 import duckdb
 import pandas as pd
 
-from src.config import DATA_PROCESSED_DIR, DATA_RAW_DIR, OUTPUTS_REPORTS_DIR, SQL_DIR
+from railway_cbm.config import DATA_PROCESSED_DIR, DATA_RAW_DIR, SQL_DIR
 
 DUCKDB_PATH = DATA_PROCESSED_DIR / "railway_cbm.duckdb"
 
@@ -73,8 +75,15 @@ EXPORT_OBJECTS = [
 
 
 def run_sql_layer() -> None:
+    """Reconstruye la base DuckDB y exporta tablas y controles aprobados."""
     DATA_PROCESSED_DIR.mkdir(parents=True, exist_ok=True)
-    OUTPUTS_REPORTS_DIR.mkdir(parents=True, exist_ok=True)
+
+    missing_inputs = [
+        DATA_RAW_DIR / f"{name}.csv" for name in RAW_TABLES if not (DATA_RAW_DIR / f"{name}.csv").is_file()
+    ]
+    if missing_inputs:
+        missing = ", ".join(path.name for path in missing_inputs)
+        raise FileNotFoundError(f"Faltan entradas obligatorias para la capa SQL: {missing}")
 
     con = duckdb.connect(str(DUCKDB_PATH))
     try:
@@ -88,9 +97,8 @@ def run_sql_layer() -> None:
 
 
 def _configure_connection(con: duckdb.DuckDBPyConnection) -> None:
-    # Determinismo: una sola hebra fija el orden de sumación en las agregaciones
-    # en coma flotante (AVG/SUM) y el orden de filas exportadas, de modo que la
-    # El flujo es reproducible byte a byte entre ejecuciones.
+    # Una sola hebra fija el orden de las agregaciones en coma flotante y de las
+    # filas exportadas, lo que preserva el determinismo byte a byte.
     con.execute("SET threads TO 1")
 
 
@@ -99,10 +107,10 @@ def _load_raw_tables(con: duckdb.DuckDBPyConnection) -> None:
         path = DATA_RAW_DIR / f"{name}.csv"
         rel_name = f"raw_{name}"
         con.execute(f"DROP TABLE IF EXISTS {rel_name}")
-        df = pd.read_csv(path)
-        con.register("tmp_df", df)
-        con.execute(f"CREATE TABLE {rel_name} AS SELECT * FROM tmp_df")
-        con.unregister("tmp_df")
+        con.execute(
+            f"CREATE TABLE {rel_name} AS SELECT * FROM read_csv_auto(?)",  # noqa: S608 -- identificadores internos
+            [str(path)],
+        )
 
 
 def _run_sql_scripts(con: duckdb.DuckDBPyConnection) -> None:
@@ -163,7 +171,7 @@ def _export_objects(con: duckdb.DuckDBPyConnection) -> None:
             "dialecto": ["DuckDB"] * len(SQL_SEQUENCE),
         }
     )
-    execution_df.to_csv(OUTPUTS_REPORTS_DIR / "sql_execution_manifest.csv", index=False)
+    execution_df.to_csv(DATA_PROCESSED_DIR / "sql_execution_manifest.csv", index=False)
 
 
 if __name__ == "__main__":

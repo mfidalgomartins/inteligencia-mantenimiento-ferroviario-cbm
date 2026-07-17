@@ -1,10 +1,12 @@
+"""Calcula salud, propensión a fallo y riesgo de indisponibilidad interpretable."""
+
 from __future__ import annotations
 
 import numpy as np
 import pandas as pd
 
-from src.config import DATA_PROCESSED_DIR, DATA_RAW_DIR, DOCS_DIR, OUTPUTS_REPORTS_DIR
-from src.recommendation_engine import assign_component_recommendations
+from railway_cbm.config import DATA_PROCESSED_DIR, DATA_RAW_DIR, DOCS_DIR
+from railway_cbm.recommendation_engine import assign_component_recommendations
 
 
 def _sigmoid(x: pd.Series) -> pd.Series:
@@ -20,12 +22,14 @@ def _minmax01(s: pd.Series) -> pd.Series:
     return (s - lo) / (hi - lo)
 
 
-def _family_threshold(df: pd.DataFrame, family_map: dict[str, float], default: float, col: str = "component_family") -> pd.Series:
+def _family_threshold(
+    df: pd.DataFrame, family_map: dict[str, float], default: float, col: str = "component_family"
+) -> pd.Series:
     return df[col].map(family_map).fillna(default).astype(float)
 
 
 def _component_family(row: pd.Series) -> str:
-    txt = f"{row.get('sistema_principal','')} {row.get('subsistema','')} {row.get('tipo_componente','')}".lower()
+    txt = f"{row.get('sistema_principal', '')} {row.get('subsistema', '')} {row.get('tipo_componente', '')}".lower()
     if "wheel" in txt or "rodadura" in txt:
         return "wheel"
     if "brake" in txt or "fren" in txt:
@@ -33,6 +37,42 @@ def _component_family(row: pd.Series) -> str:
     if "pant" in txt or "capt" in txt:
         return "pantograph"
     return "bogie"
+
+
+def calculate_component_scores(frame: pd.DataFrame) -> pd.DataFrame:
+    """Aplica la misma puntuación interpretable a cualquier corte de componentes."""
+    df = frame.copy()
+    df["component_family"] = df.apply(_component_family, axis=1)
+    if "deterioration_index" not in df.columns:
+        df["deterioration_index"] = (100 - df["estimated_health_index"].fillna(55)).clip(0, 100)
+    if "maintenance_restoration_index" not in df.columns:
+        days_since_maint = df["days_since_last_maintenance"].fillna(3650).clip(lower=0)
+        df["maintenance_restoration_index"] = (100 * np.exp(-days_since_maint / 45.0)).clip(0, 100)
+
+    df["component_health_score"] = (
+        df["estimated_health_index"].fillna(60) * 0.58
+        + (100 - df["deterioration_index"].fillna(40)).clip(0, 100) * 0.17
+        + (100 - (df["degradation_velocity"].fillna(0) * 10)).clip(0, 100) * 0.12
+        + (100 - df["inspection_defect_score_recent"].fillna(0)).clip(0, 100) * 0.07
+        + df["maintenance_restoration_index"].fillna(0) * 0.10
+        - df["backlog_exposure_flag"].fillna(0) * 2.0
+    ).clip(5, 100)
+
+    risk_raw = (
+        0.45 * _minmax01(df["deterioration_index"].fillna(40))
+        + 0.22 * _minmax01(df["degradation_velocity"].fillna(0))
+        + 0.12 * _minmax01(df["operating_stress_index"].fillna(0.9))
+        + 0.08 * _minmax01(df["anomaly_count_30d"].fillna(0))
+        + 0.05 * _minmax01(df["shock_event_count"].fillna(0))
+        + 0.05 * _minmax01(df["backlog_exposure_flag"].fillna(0))
+        + 0.03 * _minmax01(df["repetitive_failure_flag"].fillna(0))
+        - 0.10 * _minmax01(df["maintenance_restoration_index"].fillna(0))
+    ).clip(0, 1)
+    family_pct = risk_raw.groupby(df["component_family"]).rank(pct=True)
+    global_pct = risk_raw.rank(pct=True)
+    calibrated_pct = (0.60 * family_pct + 0.40 * global_pct).clip(0, 1)
+    df["component_failure_risk_score"] = (0.03 + 0.88 * (calibrated_pct**1.55)).clip(0.02, 0.95)
+    return df
 
 
 def _build_modeling_framework_doc() -> None:
@@ -49,9 +89,10 @@ def _build_modeling_framework_doc() -> None:
         "",
         "## 2) Puntuación interpretable de riesgo de fallo",
         "- Entradas: salud, deterioro, velocidad de degradación, estrés operativo, historial de fallas, exposición a pendientes.",
-        "- Lógica: combinación lineal + sigmoide para `prob_fallo_30d`.",
-        "- Supuesto: la probabilidad depende de degradación reciente y carga operacional.",
-        "- Limitación: calibración sobre dato sintético; requiere recalibración con histórico real.",
+        "- Lógica: señal ponderada, ranking por familia/global y transformación acotada para `prob_fallo_30d`.",
+        "- Semántica: pese al nombre histórico de la columna, es una puntuación no calibrada en [0,1], no una probabilidad operacional.",
+        "- Supuesto: la propensión al fallo aumenta con degradación reciente y carga operacional.",
+        "- Limitación: evaluada sobre dato sintético; exige calibración temporal y validación fuera de muestra con histórico real.",
         "- Utilidad operativa: clasificación de riesgo para decidir entrada a taller.",
         "",
         "## 3) Reglas de alerta temprana",
@@ -75,6 +116,7 @@ def _build_modeling_framework_doc() -> None:
 
 
 def run_risk_scoring() -> pd.DataFrame:
+    """Calcula y persiste las puntuaciones canónicas de componente y unidad."""
     component_day = pd.read_csv(DATA_PROCESSED_DIR / "component_day_features.csv")
     unit_day = pd.read_csv(DATA_PROCESSED_DIR / "unit_day_features.csv")
     fallas = pd.read_csv(DATA_RAW_DIR / "fallas_historicas.csv")
@@ -86,42 +128,16 @@ def run_risk_scoring() -> pd.DataFrame:
     latest = component_day["fecha"].max()
     latest_comp = component_day[component_day["fecha"] == latest].copy()
     latest_unit = unit_day[unit_day["fecha"] == latest][
-        ["unidad_id", "predicted_unavailability_risk", "impact_on_service_proxy", "service_exposure", "fleet_dependency_flag"]
+        [
+            "unidad_id",
+            "predicted_unavailability_risk",
+            "impact_on_service_proxy",
+            "service_exposure",
+            "fleet_dependency_flag",
+        ]
     ].copy()
 
-    df = latest_comp.merge(latest_unit, on="unidad_id", how="left")
-    df["component_family"] = df.apply(_component_family, axis=1)
-    if "deterioration_index" not in df.columns:
-        df["deterioration_index"] = (100 - df["estimated_health_index"].fillna(55)).clip(0, 100)
-    if "maintenance_restoration_index" not in df.columns:
-        days_since_maint = df["days_since_last_maintenance"].fillna(3650).clip(lower=0)
-        df["maintenance_restoration_index"] = (100 * np.exp(-days_since_maint / 45.0)).clip(0, 100)
-
-    # Puntuación técnica de salud (alto = mejor)
-    df["component_health_score"] = (
-        df["estimated_health_index"].fillna(60) * 0.58
-        + (100 - df["deterioration_index"].fillna(40)).clip(0, 100) * 0.17
-        + (100 - (df["degradation_velocity"].fillna(0) * 10)).clip(0, 100) * 0.12
-        + (100 - df["inspection_defect_score_recent"].fillna(0)).clip(0, 100) * 0.07
-        + df["maintenance_restoration_index"].fillna(0) * 0.10
-        - df["backlog_exposure_flag"].fillna(0) * 2.0
-    ).clip(5, 100)
-
-    # Riesgo de falla interpretable (30 días), calibrado para evitar colapso de clases.
-    risk_raw = (
-        0.45 * _minmax01(df["deterioration_index"].fillna(40))
-        + 0.22 * _minmax01(df["degradation_velocity"].fillna(0))
-        + 0.12 * _minmax01(df["operating_stress_index"].fillna(0.9))
-        + 0.08 * _minmax01(df["anomaly_count_30d"].fillna(0))
-        + 0.05 * _minmax01(df["shock_event_count"].fillna(0))
-        + 0.05 * _minmax01(df["backlog_exposure_flag"].fillna(0))
-        + 0.03 * _minmax01(df["repetitive_failure_flag"].fillna(0))
-        - 0.10 * _minmax01(df["maintenance_restoration_index"].fillna(0))
-    ).clip(0, 1)
-    family_pct = risk_raw.groupby(df["component_family"]).rank(pct=True)
-    global_pct = risk_raw.rank(pct=True)
-    calibrated_pct = (0.60 * family_pct + 0.40 * global_pct).clip(0, 1)
-    df["component_failure_risk_score"] = (0.03 + 0.88 * (calibrated_pct ** 1.55)).clip(0.02, 0.95)
+    df = calculate_component_scores(latest_comp.merge(latest_unit, on="unidad_id", how="left"))
 
     # Factor principal (mayor contribución)
     drivers = pd.DataFrame(
@@ -133,8 +149,13 @@ def run_risk_scoring() -> pd.DataFrame:
             ),
             "estres_operacion": _minmax01(df["operating_stress_index"].fillna(0.9)),
             "anomalias": _minmax01(df["anomaly_count_30d"].fillna(0) + 0.6 * df["shock_event_count"].fillna(0)),
-            "pendientes": _minmax01(df["backlog_exposure_flag"].fillna(0) + (df["days_since_last_maintenance"].fillna(365) > 120).astype(int)),
-            "repetitividad": _minmax01(df["repetitive_failure_flag"].fillna(0) + (df["days_since_last_failure"].fillna(365) < 60).astype(int)),
+            "pendientes": _minmax01(
+                df["backlog_exposure_flag"].fillna(0)
+                + (df["days_since_last_maintenance"].fillna(365) > 120).astype(int)
+            ),
+            "repetitividad": _minmax01(
+                df["repetitive_failure_flag"].fillna(0) + (df["days_since_last_failure"].fillna(365) < 60).astype(int)
+            ),
         }
     )
     base_driver = drivers.idxmax(axis=1)
@@ -154,8 +175,7 @@ def run_risk_scoring() -> pd.DataFrame:
         "main_risk_driver",
     ] = "estres_operacion"
     df.loc[
-        (anom_signal >= anom_q)
-        & (df["component_failure_risk_score"] >= 0.50),
+        (anom_signal >= anom_q) & (df["component_failure_risk_score"] >= 0.50),
         "main_risk_driver",
     ] = "anomalias"
     df.loc[
@@ -181,10 +201,7 @@ def run_risk_scoring() -> pd.DataFrame:
     anomaly_support = _minmax01(df["anomaly_count_30d"].fillna(0) + 0.5 * df["shock_event_count"].fillna(0))
 
     quality_signal = (
-        completeness * 0.45
-        + freshness * 0.20
-        + inspection_conf * 0.25
-        + (1 - anomaly_support) * 0.10
+        completeness * 0.45 + freshness * 0.20 + inspection_conf * 0.25 + (1 - anomaly_support) * 0.10
     ).clip(0, 1)
 
     q_low = float(quality_signal.quantile(0.20))
@@ -202,19 +219,16 @@ def run_risk_scoring() -> pd.DataFrame:
     df = assign_component_recommendations(df)
 
     # Puntuación de unidad.
-    unit_score = (
-        df.groupby("unidad_id", as_index=False)
-        .agg(
-            component_failure_risk_mean=("component_failure_risk_score", "mean"),
-            component_failure_risk_p90=("component_failure_risk_score", lambda s: float(np.percentile(s, 90))),
-            components_high_risk=("component_failure_risk_score", lambda s: int((s >= 0.65).sum())),
-            component_count=("component_failure_risk_score", "size"),
-            avg_component_deterioration=("deterioration_index", "mean"),
-            service_exposure=("service_exposure", "mean"),
-            predicted_unavailability_risk=("predicted_unavailability_risk", "mean"),
-            impact_on_service_proxy=("impact_on_service_proxy", "mean"),
-            fleet_dependency_flag=("fleet_dependency_flag", "max"),
-        )
+    unit_score = df.groupby("unidad_id", as_index=False).agg(
+        component_failure_risk_mean=("component_failure_risk_score", "mean"),
+        component_failure_risk_p90=("component_failure_risk_score", lambda s: float(np.percentile(s, 90))),
+        components_high_risk=("component_failure_risk_score", lambda s: int((s >= 0.65).sum())),
+        component_count=("component_failure_risk_score", "size"),
+        avg_component_deterioration=("deterioration_index", "mean"),
+        service_exposure=("service_exposure", "mean"),
+        predicted_unavailability_risk=("predicted_unavailability_risk", "mean"),
+        impact_on_service_proxy=("impact_on_service_proxy", "mean"),
+        fleet_dependency_flag=("fleet_dependency_flag", "max"),
     )
     unit_score["high_risk_ratio"] = unit_score["components_high_risk"] / unit_score["component_count"].clip(lower=1)
     unit_score["unit_unavailability_risk_score"] = (
@@ -228,7 +242,9 @@ def run_risk_scoring() -> pd.DataFrame:
     ).clip(0, 100)
 
     # Comparación de puntuación técnica vs evidencia histórica (falla 60d).
-    history = component_day[["fecha", "componente_id", "estimated_health_index", "deterioration_index", "degradation_velocity"]].copy()
+    history = component_day[
+        ["fecha", "componente_id", "estimated_health_index", "deterioration_index", "degradation_velocity"]
+    ].copy()
     history = history.sort_values(["componente_id", "fecha"])
     events = fallas[["componente_id", "fecha_falla"]].dropna().sort_values(["componente_id", "fecha_falla"])
 
@@ -254,9 +270,15 @@ def run_risk_scoring() -> pd.DataFrame:
     history_merge["days_to_next_failure"] = (history_merge["fecha_falla"] - history_merge["fecha"]).dt.days
     history_merge["failure_in_30d"] = history_merge["days_to_next_failure"].between(0, 30, inclusive="both").astype(int)
 
-    history_merge["health_risk_proxy"] = history_merge["deterioration_index"].fillna((100 - history_merge["estimated_health_index"]).clip(0, 100)).clip(0, 100)
+    history_merge["health_risk_proxy"] = (
+        history_merge["deterioration_index"]
+        .fillna((100 - history_merge["estimated_health_index"]).clip(0, 100))
+        .clip(0, 100)
+    )
     evidence_table = (
-        history_merge.groupby(pd.cut(history_merge["health_risk_proxy"], bins=[-1, 20, 40, 60, 80, 100]), observed=False)
+        history_merge.groupby(
+            pd.cut(history_merge["health_risk_proxy"], bins=[-1, 20, 40, 60, 80, 100]), observed=False
+        )
         .agg(component_days=("failure_in_30d", "size"), failures_30d=("failure_in_30d", "sum"))
         .reset_index()
     )
@@ -347,9 +369,17 @@ def run_risk_scoring() -> pd.DataFrame:
     out[["fecha", "unidad_id", "componente_id", "component_health_score"]].to_csv(
         DATA_PROCESSED_DIR / "component_health_score.csv", index=False
     )
-    out[["fecha", "unidad_id", "componente_id", "component_failure_risk_score", "confidence_flag", "main_risk_driver", "recommended_action_initial"]].to_csv(
-        DATA_PROCESSED_DIR / "component_failure_risk_score.csv", index=False
-    )
+    out[
+        [
+            "fecha",
+            "unidad_id",
+            "componente_id",
+            "component_failure_risk_score",
+            "confidence_flag",
+            "main_risk_driver",
+            "recommended_action_initial",
+        ]
+    ].to_csv(DATA_PROCESSED_DIR / "component_failure_risk_score.csv", index=False)
 
     unit_score[["unidad_id", "unit_unavailability_risk_score"]].to_csv(
         DATA_PROCESSED_DIR / "unit_unavailability_risk_score.csv", index=False
@@ -375,10 +405,6 @@ def run_risk_scoring() -> pd.DataFrame:
     ranked = ranked.sort_values("riesgo_ajustado_negocio", ascending=False).reset_index(drop=True)
     ranked["ranking_riesgo"] = np.arange(1, len(ranked) + 1)
     ranked.to_csv(DATA_PROCESSED_DIR / "scoring_componentes.csv", index=False)
-
-    OUTPUTS_REPORTS_DIR.mkdir(parents=True, exist_ok=True)
-    ranked.head(40).to_csv(OUTPUTS_REPORTS_DIR / "scoring_componentes_top40.csv", index=False)
-    determinantes.to_csv(OUTPUTS_REPORTS_DIR / "drivers_principales_riesgo.csv", index=False)
 
     _build_modeling_framework_doc()
     return ranked

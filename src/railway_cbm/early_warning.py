@@ -1,11 +1,14 @@
+"""Deriva alertas tempranas accionables desde riesgo, RUL y confianza."""
+
 from __future__ import annotations
 
 import pandas as pd
 
-from src.config import DATA_PROCESSED_DIR
+from railway_cbm.config import DATA_PROCESSED_DIR
 
 
 def run_early_warning_rules() -> pd.DataFrame:
+    """Genera y persiste alertas tempranas con su ventana de actuación."""
     scoring = pd.read_csv(DATA_PROCESSED_DIR / "scoring_componentes.csv")
     rul = pd.read_csv(DATA_PROCESSED_DIR / "component_rul_estimate.csv")
 
@@ -47,7 +50,9 @@ def run_early_warning_rules() -> pd.DataFrame:
         & (df["prob_fallo_30d"] >= df["risk_thr_high"])
     ).astype(int)
 
-    df["n_reglas_activas"] = df[["regla_riesgo_alto", "regla_salud_baja", "regla_rul_corto", "regla_driver_critico"]].sum(axis=1)
+    df["n_reglas_activas"] = df[
+        ["regla_riesgo_alto", "regla_salud_baja", "regla_rul_corto", "regla_driver_critico"]
+    ].sum(axis=1)
 
     df["nivel_alerta"] = "sin_alerta"
     df.loc[df["n_reglas_activas"] >= 1, "nivel_alerta"] = "preventiva"

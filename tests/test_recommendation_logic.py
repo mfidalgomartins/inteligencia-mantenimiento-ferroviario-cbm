@@ -3,7 +3,7 @@ from pathlib import Path
 import pandas as pd
 import pytest
 
-from src.recommendation_engine import assign_component_recommendations, assign_operational_decisions
+from railway_cbm.recommendation_engine import assign_component_recommendations, assign_operational_decisions
 
 ROOT = Path(__file__).resolve().parents[1]
 PROCESSED = ROOT / "data" / "processed"

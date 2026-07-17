@@ -3,7 +3,6 @@ from __future__ import annotations
 import re
 import shutil
 import subprocess
-import tempfile
 from pathlib import Path
 
 import pytest
@@ -19,9 +18,5 @@ def test_dashboard_embedded_js_has_valid_syntax():
     assert match, "Script embebido no encontrado en el panel de control"
 
     script = match.group(1)
-    with tempfile.NamedTemporaryFile("w", suffix=".js", delete=False, encoding="utf-8") as tmp:
-        tmp.write(script)
-        tmp_path = tmp.name
-
-    result = subprocess.run(["node", "--check", tmp_path], capture_output=True, text=True)
+    result = subprocess.run(["node", "--check", "-"], input=script, capture_output=True, text=True)
     assert result.returncode == 0, f"Error de sintaxis JS en el panel de control: {result.stderr}"

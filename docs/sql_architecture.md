@@ -74,7 +74,7 @@ DuckDB ejecuta esta capa en modo analítico local y no necesita índices persist
 Para tablas grandes, materializar los CTEs diarios de sensores, inspecciones, mantenimiento y fallas antes de construir `mart_component_day`.
 
 ## Ejecutor
-La ejecución está centralizada en `src/run_sql_layer.py`, que:
+La ejecución está centralizada en `src/railway_cbm/run_sql_layer.py`, que:
 - carga `data/raw/*.csv` en tablas `raw_*`
 - ejecuta scripts en orden
 - exporta tablas analíticas, vistas de indicadores y validaciones a `data/processed/`

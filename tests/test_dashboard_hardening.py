@@ -3,6 +3,8 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
+from railway_cbm.build_dashboard import _json_for_script
+
 ROOT = Path(__file__).resolve().parents[1]
 PANEL = ROOT / "outputs" / "dashboard" / "centro-control-mantenimiento-ferroviario.html"
 ROOT_INDEX = ROOT / "index.html"
@@ -21,7 +23,9 @@ def _root_index_html() -> str:
 def test_dashboard_single_official_artifact():
     dashboard_dir = ROOT / "outputs" / "dashboard"
     html_files = sorted(p.name for p in dashboard_dir.glob("*.html"))
-    assert html_files == ["centro-control-mantenimiento-ferroviario.html"], f"Se esperaba un único HTML final, encontrado: {html_files}"
+    assert html_files == ["centro-control-mantenimiento-ferroviario.html"], (
+        f"Se esperaba un único HTML final, encontrado: {html_files}"
+    )
 
 
 def test_dashboard_offline_no_cdn_refs():
@@ -100,12 +104,20 @@ def test_dashboard_performance_payload_ceiling():
 
 def test_dashboard_responsive_redraw_debounce():
     html = _html()
-    assert "window.addEventListener(\"resize\"" in html
+    assert 'window.addEventListener("resize"' in html
     assert "setTimeout(() => renderAll(), 180)" in html
 
 
 def test_dashboard_filter_options_are_dom_built_not_template_injected():
     html = _html()
     assert "function setSelectOptions(sel, values)" in html
-    assert "document.createElement(\"option\")" in html
+    assert 'document.createElement("option")' in html
     assert "sel.innerHTML = uniq(baseRows.map" not in html
+
+
+def test_dashboard_payload_serialization_blocks_script_breakout():
+    serialized = _json_for_script({"value": "</script><script>alert('xss')</script>&"})
+    assert "</script>" not in serialized.lower()
+    assert "<" not in serialized
+    assert ">" not in serialized
+    assert "&" not in serialized

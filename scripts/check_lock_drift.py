@@ -1,50 +1,89 @@
 #!/usr/bin/env python3
-"""Verifica que el entorno activo coincide exactamente con requirements-lock.txt.
-
-Falla con código 1 si algún paquete fijado está ausente, tiene otra versión, o si
-alguna entrada del lock no usa un pin exacto (``==``). Se usa como puerta de calidad
-en local (`run_tests.sh`) y en CI.
-"""
+"""Valida el lock, los manifiestos de dependencias y el entorno activo."""
 
 from __future__ import annotations
 
 import importlib.metadata as metadata
+import re
 import sys
 from pathlib import Path
 
-LOCK_FILE = Path(__file__).resolve().parents[1] / "requirements-lock.txt"
+ROOT = Path(__file__).resolve().parents[1]
+LOCK_FILE = ROOT / "requirements-lock.txt"
+MANIFEST_FILES = (ROOT / "requirements.txt", ROOT / "requirements-dev.txt")
+
+_NAME_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*")
 
 
 def _normalize(name: str) -> str:
-    return name.lower().replace("_", "-")
+    """Aplica la normalización de nombres definida por PEP 503."""
+    return re.sub(r"[-_.]+", "-", name).lower()
 
 
-def check_drift() -> list[str]:
-    installed = {
-        _normalize(dist.metadata["Name"]): dist.version
-        for dist in metadata.distributions()
-    }
-    drift: list[str] = []
+def _requirement_name(line: str) -> str | None:
+    """Extrae el nombre de una dependencia de una línea de requirements."""
+    match = _NAME_PATTERN.match(line.strip())
+    return _normalize(match.group(0)) if match else None
 
-    for raw_line in LOCK_FILE.read_text(encoding="utf-8").splitlines():
+
+def read_lock() -> tuple[dict[str, str], list[str]]:
+    """Devuelve los pins exactos y los errores estructurales del lock."""
+    locked: dict[str, str] = {}
+    errors: list[str] = []
+
+    for line_number, raw_line in enumerate(LOCK_FILE.read_text(encoding="utf-8").splitlines(), start=1):
         line = raw_line.strip()
         if not line or line.startswith("#"):
             continue
-        if "==" not in line:
-            drift.append(f"{line}: entrada sin pin exacto")
+        if line.count("==") != 1:
+            errors.append(f"requirements-lock.txt:{line_number}: se requiere un único pin exacto (==)")
             continue
-        name, expected = line.split("==", 1)
-        actual = installed.get(_normalize(name))
-        if actual != expected:
-            drift.append(f"{name}: esperado {expected}, instalado {actual or 'ausente'}")
+        name, version = (part.strip() for part in line.split("==", 1))
+        normalized = _normalize(name)
+        if not name or not version:
+            errors.append(f"requirements-lock.txt:{line_number}: entrada incompleta")
+        elif normalized in locked:
+            errors.append(f"requirements-lock.txt:{line_number}: dependencia duplicada: {name}")
+        else:
+            locked[normalized] = version
 
-    return drift
+    return locked, errors
+
+
+def declared_requirements() -> set[str]:
+    """Obtiene las dependencias directas declaradas en runtime y desarrollo."""
+    declared: set[str] = set()
+    for path in MANIFEST_FILES:
+        for raw_line in path.read_text(encoding="utf-8").splitlines():
+            line = raw_line.strip()
+            if not line or line.startswith(("#", "-r ", "--requirement ")):
+                continue
+            name = _requirement_name(line)
+            if name:
+                declared.add(name)
+    return declared
+
+
+def check_drift() -> list[str]:
+    """Detecta incoherencias del lock y diferencias frente al entorno activo."""
+    locked, errors = read_lock()
+    missing_from_lock = sorted(declared_requirements().difference(locked))
+    errors.extend(f"{name}: dependencia directa ausente del lock" for name in missing_from_lock)
+
+    installed = {_normalize(dist.metadata["Name"]): dist.version for dist in metadata.distributions()}
+    for name, expected in locked.items():
+        actual = installed.get(name)
+        if actual != expected:
+            errors.append(f"{name}: esperado {expected}, instalado {actual or 'ausente'}")
+
+    return errors
 
 
 def main() -> int:
+    """Expone la validación como puerta de calidad para local y CI."""
     drift = check_drift()
     if drift:
-        print("Deriva entre requirements-lock.txt y el entorno activo:", file=sys.stderr)
+        print("Deriva o inconsistencia en dependencias:", file=sys.stderr)
         for item in drift:
             print(f"- {item}", file=sys.stderr)
         return 1

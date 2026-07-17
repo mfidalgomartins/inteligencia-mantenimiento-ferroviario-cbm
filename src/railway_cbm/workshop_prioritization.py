@@ -1,3 +1,5 @@
+"""Prioriza intervenciones y construye un plan heurístico con capacidad finita."""
+
 from __future__ import annotations
 
 from datetime import timedelta
@@ -5,10 +7,9 @@ from datetime import timedelta
 import numpy as np
 import pandas as pd
 
-from src.config import DATA_PROCESSED_DIR, DATA_RAW_DIR, DOCS_DIR, OUTPUTS_REPORTS_DIR
-from src.recommendation_engine import (
+from railway_cbm.config import DATA_PROCESSED_DIR, DATA_RAW_DIR, DOCS_DIR
+from railway_cbm.recommendation_engine import (
     assign_operational_decisions,
-    write_recommendation_distribution_reports,
     write_recommendation_logic_doc,
 )
 
@@ -37,7 +38,9 @@ def _normalize(s: pd.Series) -> pd.Series:
     return (s - lo) / (hi - lo)
 
 
-def _rank_depots_for_component(row: pd.Series, depositos: pd.DataFrame, depot_pressure: pd.DataFrame) -> list[tuple[str, float]]:
+def _rank_depots_for_component(
+    row: pd.Series, depositos: pd.DataFrame, depot_pressure: pd.DataFrame
+) -> list[tuple[str, float]]:
     ranking: list[tuple[str, float]] = []
     for dep in depositos.itertuples(index=False):
         spec = str(dep.especializacion_tecnica).lower()
@@ -229,15 +232,21 @@ def _schedule_redesigned(
         start_day=latest,
     )
 
-    regular_remaining = {(r.deposito_id, int(r.day_offset)): float(r.regular_capacity_h) for r in cap_calendar.itertuples(index=False)}
-    flex_remaining = {(r.deposito_id, int(r.day_offset)): float(r.flex_capacity_h) for r in cap_calendar.itertuples(index=False)}
+    regular_remaining = {
+        (r.deposito_id, int(r.day_offset)): float(r.regular_capacity_h) for r in cap_calendar.itertuples(index=False)
+    }
+    flex_remaining = {
+        (r.deposito_id, int(r.day_offset)): float(r.flex_capacity_h) for r in cap_calendar.itertuples(index=False)
+    }
     day_units: dict[tuple[str, int], set[str]] = {}
     day_families: dict[tuple[str, int], set[str]] = {}
 
     queue = priorities.copy()
     queue["bucket_rank"] = queue["bucket_prioridad"].map({"P1": 1, "P2": 2, "P3": 3, "P4": 4}).fillna(3).astype(int)
     queue["queue_score"] = queue["queue_score"].fillna(0.0).astype(float)
-    queue = queue.sort_values(["bucket_rank", "queue_score", "recommended_entry_sequence"], ascending=[True, False, True]).reset_index(drop=True)
+    queue = queue.sort_values(
+        ["bucket_rank", "queue_score", "recommended_entry_sequence"], ascending=[True, False, True]
+    ).reset_index(drop=True)
 
     sensitive_types = {"pantograph_head", "gearbox_drive", "brake_disc_pad"}
     intervention_types = {"intervención inmediata", "intervención en próxima ventana"}
@@ -424,7 +433,9 @@ def _compute_schedule_metrics(
     unresolved = merged[~merged["estado_intervencion"].isin(ACTIONABLE_STATUSES)].copy()
 
     risk_weight = 0.6 * merged["deferral_risk_score"].fillna(0) + 0.4 * merged["service_impact_score"].fillna(0)
-    unresolved_weight = 0.6 * unresolved["deferral_risk_score"].fillna(0) + 0.4 * unresolved["service_impact_score"].fillna(0)
+    unresolved_weight = 0.6 * unresolved["deferral_risk_score"].fillna(0) + 0.4 * unresolved[
+        "service_impact_score"
+    ].fillna(0)
     residual_risk_pct = float(unresolved_weight.sum() / max(risk_weight.sum(), 1e-6) * 100)
 
     capture_factor = {
@@ -444,11 +455,19 @@ def _compute_schedule_metrics(
         "scenario": label,
         "total_casos": int(total),
         "programadas_pct": round(float((schedule["estado_intervencion"] == SCHED_STATUS_PROGRAMADA).mean() * 100), 3),
-        "programables_proxima_ventana_pct": round(float((schedule["estado_intervencion"] == SCHED_STATUS_PROGRAMABLE).mean() * 100), 3),
+        "programables_proxima_ventana_pct": round(
+            float((schedule["estado_intervencion"] == SCHED_STATUS_PROGRAMABLE).mean() * 100), 3
+        ),
         "pendientes_total_pct": round(float(pending_mask.mean() * 100), 3),
-        "pendiente_capacidad_pct": round(float((schedule["estado_intervencion"] == SCHED_STATUS_PEND_CAP).mean() * 100), 3),
-        "pendiente_repuesto_pct": round(float((schedule["estado_intervencion"] == SCHED_STATUS_PEND_REP).mean() * 100), 3),
-        "pendiente_conflicto_operativo_pct": round(float((schedule["estado_intervencion"] == SCHED_STATUS_PEND_OPS).mean() * 100), 3),
+        "pendiente_capacidad_pct": round(
+            float((schedule["estado_intervencion"] == SCHED_STATUS_PEND_CAP).mean() * 100), 3
+        ),
+        "pendiente_repuesto_pct": round(
+            float((schedule["estado_intervencion"] == SCHED_STATUS_PEND_REP).mean() * 100), 3
+        ),
+        "pendiente_conflicto_operativo_pct": round(
+            float((schedule["estado_intervencion"] == SCHED_STATUS_PEND_OPS).mean() * 100), 3
+        ),
         "escalar_decision_pct": round(float((schedule["estado_intervencion"] == SCHED_STATUS_ESCALAR).mean() * 100), 3),
         "actionable_pct": round(float(actionable_mask.mean() * 100), 3),
         "capacidad_utilizada_pct": round(float(utilization * 100), 3),
@@ -523,6 +542,7 @@ def _write_scheduling_framework_doc(
 
 
 def run_workshop_prioritization() -> tuple[pd.DataFrame, pd.DataFrame]:
+    """Genera la cola priorizada y el calendario con restricciones de taller."""
     features = pd.read_csv(DATA_PROCESSED_DIR / "workshop_priority_features.csv")
     scoring = pd.read_csv(DATA_PROCESSED_DIR / "scoring_componentes.csv")
     rul = pd.read_csv(DATA_PROCESSED_DIR / "component_rul_estimate.csv")
@@ -583,8 +603,7 @@ def run_workshop_prioritization() -> tuple[pd.DataFrame, pd.DataFrame]:
     ).clip(0, 100)
 
     base["service_impact_score"] = (
-        base["service_impact_inputs"].fillna(0) * 0.70
-        + base["predicted_unavailability_risk"].fillna(0) * 100 * 0.30
+        base["service_impact_inputs"].fillna(0) * 0.70 + base["predicted_unavailability_risk"].fillna(0) * 100 * 0.30
     ).clip(0, 100)
 
     # Mejor depósito recomendado por especialización + carga
@@ -604,16 +623,18 @@ def run_workshop_prioritization() -> tuple[pd.DataFrame, pd.DataFrame]:
     base["candidate_depots"] = ["|".join([x[0] for x in rank[:4]]) for rank in depot_rankings]
 
     base["coste_retraso_proxy"] = (
-        base["deferral_risk_score"] * 180
-        + base["service_impact_score"] * 95
-        + (100 - base["workshop_fit_score"]) * 40
+        base["deferral_risk_score"] * 180 + base["service_impact_score"] * 95 + (100 - base["workshop_fit_score"]) * 40
     )
 
     base["recommended_entry_sequence"] = (
-        base["intervention_priority_score"] * 0.50
-        + base["deferral_risk_score"] * 0.30
-        + base["service_impact_score"] * 0.20
-    ).rank(method="first", ascending=False).astype(int)
+        (
+            base["intervention_priority_score"] * 0.50
+            + base["deferral_risk_score"] * 0.30
+            + base["service_impact_score"] * 0.20
+        )
+        .rank(method="first", ascending=False)
+        .astype(int)
+    )
 
     # Motor jerárquico de decisión operativa (no colapsado).
     base = assign_operational_decisions(base)
@@ -628,7 +649,9 @@ def run_workshop_prioritization() -> tuple[pd.DataFrame, pd.DataFrame]:
     base.loc[base["decision_type"] == "no acción por ahora", "suggested_window_days"] = 21
     base.loc[base["decision_type"] == "escalado técnico/revisión manual", "suggested_window_days"] = 1
 
-    base["reason_main"] = base["decision_rule_id"].fillna("D04_monitorizacion") + " | " + base["main_risk_driver"].fillna("degradacion")
+    base["reason_main"] = (
+        base["decision_rule_id"].fillna("D04_monitorizacion") + " | " + base["main_risk_driver"].fillna("degradacion")
+    )
     base["bucket_prioridad"] = base.apply(_priority_bucket, axis=1)
     base["aging_score"] = (
         ((22 - base["suggested_window_days"].fillna(21)).clip(1, 21) / 21) * 100
@@ -691,7 +714,9 @@ def run_workshop_prioritization() -> tuple[pd.DataFrame, pd.DataFrame]:
     resources_index = float(latest_scen["disponibilidad_recursos_indice"].mean()) if not latest_scen.empty else 0.55
 
     # Base inicial para auditar la mejora.
-    schedule_before, cap_before = _schedule_legacy(priorities=priorities, latest=pd.to_datetime(latest), depositos=depositos)
+    schedule_before, cap_before = _schedule_legacy(
+        priorities=priorities, latest=pd.to_datetime(latest), depositos=depositos
+    )
     metrics_before = _compute_schedule_metrics(
         schedule=schedule_before,
         priorities=priorities,
@@ -721,11 +746,19 @@ def run_workshop_prioritization() -> tuple[pd.DataFrame, pd.DataFrame]:
     cap_after.to_csv(DATA_PROCESSED_DIR / "workshop_capacity_calendar.csv", index=False)
 
     status_before = (
-        schedule_before["estado_intervencion"].value_counts(normalize=True).rename("share").reset_index().rename(columns={"index": "estado_intervencion"})
+        schedule_before["estado_intervencion"]
+        .value_counts(normalize=True)
+        .rename("share")
+        .reset_index()
+        .rename(columns={"index": "estado_intervencion"})
     )
     status_before["scenario"] = "base_inicial_voraz_21d"
     status_after = (
-        scheduling["estado_intervencion"].value_counts(normalize=True).rename("share").reset_index().rename(columns={"index": "estado_intervencion"})
+        scheduling["estado_intervencion"]
+        .value_counts(normalize=True)
+        .rename("share")
+        .reset_index()
+        .rename(columns={"index": "estado_intervencion"})
     )
     status_after["scenario"] = "heuristica_redisenada_35d"
     status_dist = pd.concat([status_before, status_after], ignore_index=True)
@@ -735,11 +768,7 @@ def run_workshop_prioritization() -> tuple[pd.DataFrame, pd.DataFrame]:
     before_after = pd.DataFrame([metrics_before, metrics_after])
     before_after.to_csv(DATA_PROCESSED_DIR / "scheduling_before_after_metrics.csv", index=False)
 
-    metric_cols = [
-        c
-        for c in before_after.columns
-        if c not in {"scenario"}
-    ]
+    metric_cols = [c for c in before_after.columns if c not in {"scenario"}]
     baseline_row = before_after[before_after["scenario"] == "base_inicial_voraz_21d"].iloc[0]
     redesign_row = before_after[before_after["scenario"] == "heuristica_redisenada_35d"].iloc[0]
     before_after_delta = pd.DataFrame(
@@ -762,67 +791,20 @@ def run_workshop_prioritization() -> tuple[pd.DataFrame, pd.DataFrame]:
         .rename(columns={"deposito_recomendado": "deposito_id"})
     )
     bottleneck["pending_rate_pct"] = (bottleneck["pendientes_capacidad"] / bottleneck["casos"] * 100).round(2)
-    bottleneck = bottleneck.sort_values(["pendientes_capacidad", "horas_requeridas"], ascending=[False, False]).reset_index(drop=True)
+    bottleneck = bottleneck.sort_values(
+        ["pendientes_capacidad", "horas_requeridas"], ascending=[False, False]
+    ).reset_index(drop=True)
     bottleneck.to_csv(DATA_PROCESSED_DIR / "scheduling_bottleneck_diagnosis.csv", index=False)
-
-    # Compatibilidad con salidas históricas.
-    legacy_prior = priorities.rename(
-        columns={
-            "intervention_priority_score": "indice_prioridad",
-            "recommended_entry_sequence": "ranking_prioridad_taller",
-            "component_rul_estimate": "rul_dias",
-        }
-    )
-    legacy_prior.to_csv(DATA_PROCESSED_DIR / "priorizacion_intervenciones.csv", index=False)
-
-    legacy_plan = scheduling.rename(
-        columns={
-            "deposito_recomendado": "deposito_id",
-            "ventana_temporal_sugerida": "dia_horizonte",
-            "prioridad": "ranking_prioridad_taller",
-        }
-    )
-    legacy_plan.to_csv(DATA_PROCESSED_DIR / "plan_taller_14d.csv", index=False)
-
-    # Reportes para dirección
-    OUTPUTS_REPORTS_DIR.mkdir(parents=True, exist_ok=True)
-    priorities.head(50).to_csv(OUTPUTS_REPORTS_DIR / "priorizacion_intervenciones.csv", index=False)
-    scheduling.head(100).to_csv(OUTPUTS_REPORTS_DIR / "plan_taller_14d.csv", index=False)
-    before_after.to_csv(OUTPUTS_REPORTS_DIR / "scheduling_before_after_metrics.csv", index=False)
-    before_after_delta.to_csv(OUTPUTS_REPORTS_DIR / "scheduling_before_after_deltas.csv", index=False)
-    bottleneck.to_csv(OUTPUTS_REPORTS_DIR / "scheduling_bottleneck_diagnosis.csv", index=False)
-    status_dist.to_csv(OUTPUTS_REPORTS_DIR / "scheduling_status_distribution.csv", index=False)
-    cap_after.to_csv(OUTPUTS_REPORTS_DIR / "workshop_capacity_calendar.csv", index=False)
-
-    tradeoffs = pd.DataFrame(
-        {
-            "compensacion": [
-                "capacidad_flexible_vs_coste_operativo_taller",
-                "arrastre_controlado_vs_riesgo_de_espera",
-                "reasignacion_deposito_vs_eficiencia_local",
-                "escalar_decision_vs_ejecucion_automatica",
-            ],
-            "lectura": [
-                "La bolsa flexible reduce pendientes críticos, pero debe limitarse para no simular sobrecapacidad estructural.",
-                "El arrastre mejora ejecutabilidad sin maquillar urgencias: fuera de ventana preferida queda etiquetado explícitamente.",
-                "Reasignar depósitos reduce cuellos, pero implica coordinación logística adicional.",
-                "Escalar decisión preserva seguridad cuando la señal no permite automatizar intervención.",
-            ],
-        }
-    )
-    tradeoffs.to_csv(OUTPUTS_REPORTS_DIR / "workshop_tradeoffs.csv", index=False)
 
     _write_scheduling_framework_doc(
         before_after=before_after_delta,
         bottlenecks=bottleneck.head(10),
-        statuses_after=status_after.assign(share_pct=(status_after["share"] * 100).round(3))[["estado_intervencion", "share_pct"]].sort_values(
-            "share_pct", ascending=False
-        ),
+        statuses_after=status_after.assign(share_pct=(status_after["share"] * 100).round(3))[
+            ["estado_intervencion", "share_pct"]
+        ].sort_values("share_pct", ascending=False),
     )
 
-    # Distribución de recomendaciones, reglas y ejemplos.
-    score_after = pd.read_csv(DATA_PROCESSED_DIR / "scoring_componentes.csv")
-    write_recommendation_distribution_reports(score=score_after, priorities=priorities)
+    # Reglas y ejemplos trazables de recomendación.
     examples = (
         base.sort_values("intervention_priority_score", ascending=False)
         .groupby("decision_type", as_index=False, sort=False)

@@ -1,8 +1,10 @@
+"""Convierte señales técnicas y restricciones operativas en decisiones trazables."""
+
 from __future__ import annotations
 
 import pandas as pd
 
-from src.config import DOCS_DIR, OUTPUTS_REPORTS_DIR
+from railway_cbm.config import DOCS_DIR
 
 COMPONENT_ACTIONS = [
     "intervencion_inmediata",
@@ -66,12 +68,13 @@ def _confidence_value(series: pd.Series) -> pd.Series:
 
 
 def assign_component_recommendations(df: pd.DataFrame) -> pd.DataFrame:
+    """Asigna una acción por componente sin modificar el DataFrame recibido."""
     _require_columns(df, COMPONENT_REQUIRED_COLUMNS, "assign_component_recommendations")
     out = df.copy()
 
     out["component_failure_risk_score"] = out["component_failure_risk_score"].fillna(0.0).clip(0, 1)
     out["component_health_score"] = out["component_health_score"].fillna(50.0).clip(0, 100)
-    out["deterioration_index"] = out["deterioration_index"].fillna((100 - out["component_health_score"])).clip(0, 100)
+    out["deterioration_index"] = out["deterioration_index"].fillna(100 - out["component_health_score"]).clip(0, 100)
     out["predicted_unavailability_risk"] = out["predicted_unavailability_risk"].fillna(0.0).clip(0, 1)
     out["impact_on_service_proxy"] = out["impact_on_service_proxy"].fillna(45.0).clip(0, 100)
     out["defect_confidence_recent"] = out["defect_confidence_recent"].fillna(0.62).clip(0, 1)
@@ -80,7 +83,9 @@ def assign_component_recommendations(df: pd.DataFrame) -> pd.DataFrame:
 
     model_conf = _confidence_value(out["confidence_flag"])
     signal_conf = (0.55 * model_conf + 0.45 * out["defect_confidence_recent"]).clip(0, 1)
-    impact_norm = (0.65 * out["impact_on_service_proxy"] / 100.0 + 0.35 * out["predicted_unavailability_risk"]).clip(0, 1)
+    impact_norm = (0.65 * out["impact_on_service_proxy"] / 100.0 + 0.35 * out["predicted_unavailability_risk"]).clip(
+        0, 1
+    )
     urgency_core = (
         out["component_failure_risk_score"] * 0.45
         + (1 - out["component_health_score"] / 100.0) * 0.22
@@ -132,7 +137,11 @@ def assign_component_recommendations(df: pd.DataFrame) -> pd.DataFrame:
             (out["component_failure_risk_score"].between(max(0.40, risk_q35), max(0.55, risk_q70), inclusive="left"))
             & (signal_conf < 0.62)
         )
-        | ((out["deterioration_index"] >= out["deterioration_index"].quantile(0.70)) & (impact_norm < impact_q45) & (out["component_failure_risk_score"] < risk_q88))
+        | (
+            (out["deterioration_index"] >= out["deterioration_index"].quantile(0.70))
+            & (impact_norm < impact_q45)
+            & (out["component_failure_risk_score"] < risk_q88)
+        )
         | ((out["critical_alerts_count"] >= 2) & (signal_conf < 0.68))
     )
     out.loc[c_inspect, "recommended_action_initial"] = "inspeccion_prioritaria"
@@ -148,26 +157,33 @@ def assign_component_recommendations(df: pd.DataFrame) -> pd.DataFrame:
 
     c_immediate = (
         ((out["component_failure_risk_score"] >= risk_q95) & (impact_norm >= impact_q75) & (signal_conf >= 0.50))
-        | ((out["component_health_score"] <= out["component_health_score"].quantile(0.12)) & (impact_norm >= impact_q75) & (signal_conf >= 0.55))
+        | (
+            (out["component_health_score"] <= out["component_health_score"].quantile(0.12))
+            & (impact_norm >= impact_q75)
+            & (signal_conf >= 0.55)
+        )
         | (
             (out["component_failure_risk_score"] >= risk_q88)
             & (impact_norm >= impact_q75)
             & (out["critical_alerts_count"] >= 2)
             & (signal_conf >= 0.58)
         )
-        | (
-            (out["component_failure_risk_score"] >= 0.88)
-            & (out["critical_alerts_count"] >= 1)
-            & (impact_norm >= 0.55)
-        )
+        | ((out["component_failure_risk_score"] >= 0.88) & (out["critical_alerts_count"] >= 1) & (impact_norm >= 0.55))
     )
     out.loc[c_immediate, "recommended_action_initial"] = "intervencion_inmediata"
     out.loc[c_immediate, "recommendation_rule_id"] = "R01_inmediata"
 
     c_conflict = (
         ((out["component_failure_risk_score"] >= risk_q88) & (signal_conf < 0.56))
-        | ((out["component_health_score"] <= out["component_health_score"].quantile(0.12)) & (out["component_failure_risk_score"] <= risk_q35))
-        | ((out["deterioration_index"] >= out["deterioration_index"].quantile(0.88)) & (impact_norm >= impact_q75) & (signal_conf < 0.60))
+        | (
+            (out["component_health_score"] <= out["component_health_score"].quantile(0.12))
+            & (out["component_failure_risk_score"] <= risk_q35)
+        )
+        | (
+            (out["deterioration_index"] >= out["deterioration_index"].quantile(0.88))
+            & (impact_norm >= impact_q75)
+            & (signal_conf < 0.60)
+        )
     ) & (~c_immediate)
     out.loc[c_conflict, "recommended_action_initial"] = "escalado_tecnico_revision_manual"
     out.loc[c_conflict, "recommendation_rule_id"] = "R07_escalado_conflicto"
@@ -192,6 +208,7 @@ def assign_component_recommendations(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def assign_operational_decisions(df: pd.DataFrame) -> pd.DataFrame:
+    """Resuelve la decisión operativa combinando urgencia y capacidad."""
     _require_columns(df, OPERATIONAL_REQUIRED_COLUMNS, "assign_operational_decisions")
     out = df.copy()
 
@@ -241,10 +258,7 @@ def assign_operational_decisions(df: pd.DataFrame) -> pd.DataFrame:
         rul_q20 = 21.0
         rul_q05 = 7.0
 
-    capacity_block = (
-        (out["workshop_fit_score"] < 45)
-        | (out["saturation_ratio"] > 1.05)
-    )
+    capacity_block = (out["workshop_fit_score"] < 45) | (out["saturation_ratio"] > 1.05)
     window_block = out["ventana_operativa_disponible"] <= 0
     high_urgency = (
         (out["prob_fallo_30d"] >= risk_q92)
@@ -279,8 +293,16 @@ def assign_operational_decisions(df: pd.DataFrame) -> pd.DataFrame:
     out.loc[c_observe, "decision_rule_id"] = "D05_observacion"
 
     c_inspection = (
-        ((out["prob_fallo_30d"] >= max(0.42, risk_q30)) & (out["prob_fallo_30d"] < risk_q80) & (confidence_joint < 0.63))
-        | ((out["health_score"] <= out["health_score"].quantile(0.35)) & (impact_operativo < 0.52) & (out["prob_fallo_30d"] < risk_q80))
+        (
+            (out["prob_fallo_30d"] >= max(0.42, risk_q30))
+            & (out["prob_fallo_30d"] < risk_q80)
+            & (confidence_joint < 0.63)
+        )
+        | (
+            (out["health_score"] <= out["health_score"].quantile(0.35))
+            & (impact_operativo < 0.52)
+            & (out["prob_fallo_30d"] < risk_q80)
+        )
         | (out["recommended_action_initial"] == "inspeccion_prioritaria")
     )
     out.loc[c_inspection, "decision_type"] = "inspección prioritaria"
@@ -296,10 +318,7 @@ def assign_operational_decisions(df: pd.DataFrame) -> pd.DataFrame:
     out.loc[c_next_window, "decision_rule_id"] = "D02_proxima_ventana"
 
     c_immediate = (
-        high_urgency
-        & (out["service_impact_score"] >= impact_q80)
-        & (confidence_joint >= 0.56)
-        & (~capacity_block)
+        high_urgency & (out["service_impact_score"] >= impact_q80) & (confidence_joint >= 0.56) & (~capacity_block)
     )
     out.loc[c_immediate, "decision_type"] = "intervención inmediata"
     out.loc[c_immediate, "decision_rule_id"] = "D01_inmediata"
@@ -333,53 +352,99 @@ def assign_operational_decisions(df: pd.DataFrame) -> pd.DataFrame:
         + ", ajuste="
         + out["workshop_fit_score"].round(1).astype(str)
     )
-    out["decision_type"] = out["decision_type"].where(out["decision_type"].isin(OPERATIONAL_DECISIONS), "monitorización intensiva")
+    out["decision_type"] = out["decision_type"].where(
+        out["decision_type"].isin(OPERATIONAL_DECISIONS), "monitorización intensiva"
+    )
     return out
 
 
-def write_recommendation_distribution_reports(score: pd.DataFrame, priorities: pd.DataFrame) -> None:
-    OUTPUTS_REPORTS_DIR.mkdir(parents=True, exist_ok=True)
-
-    action_dist = score["recommended_action_initial"].value_counts(dropna=False).rename_axis("accion").reset_index(name="conteo")
-    action_dist["proporcion"] = action_dist["conteo"] / action_dist["conteo"].sum()
-    action_dist.to_csv(OUTPUTS_REPORTS_DIR / "recommendation_action_distribution.csv", index=False)
-
-    decision_dist = priorities["decision_type"].value_counts(dropna=False).rename_axis("decision").reset_index(name="conteo")
-    decision_dist["proporcion"] = decision_dist["conteo"] / decision_dist["conteo"].sum()
-    decision_dist.to_csv(OUTPUTS_REPORTS_DIR / "recommendation_decision_distribution.csv", index=False)
-
-
 def write_recommendation_logic_doc(examples_df: pd.DataFrame) -> None:
+    """Regenera la especificación de reglas y sus ejemplos trazables."""
     DOCS_DIR.mkdir(parents=True, exist_ok=True)
-    OUTPUTS_REPORTS_DIR.mkdir(parents=True, exist_ok=True)
 
     rules_component = pd.DataFrame(
         [
-            {"rule_id": "R01_inmediata", "accion": "intervencion_inmediata", "condicion": "riesgo muy alto + impacto alto + confianza suficiente"},
-            {"rule_id": "R02_proxima_ventana", "accion": "intervencion_proxima_ventana", "condicion": "riesgo alto o RUL operativo estrecho sin condición de emergencia inmediata"},
-            {"rule_id": "R03_inspeccion", "accion": "inspeccion_prioritaria", "condicion": "señal degradada con confianza baja o conflicto moderado"},
-            {"rule_id": "R04_monitorizacion", "accion": "monitorizacion_intensiva", "condicion": "riesgo/interacción moderada sin gatillos de intervención"},
-            {"rule_id": "R05_observacion", "accion": "mantener_bajo_observacion", "condicion": "riesgo bajo con salud aceptable"},
-            {"rule_id": "R06_no_accion", "accion": "no_accion_por_ahora", "condicion": "riesgo muy bajo, salud alta, sin alertas ni pendientes"},
-            {"rule_id": "R07_escalado_conflicto", "accion": "escalado_tecnico_revision_manual", "condicion": "conflicto señal-riesgo o riesgo alto con baja confianza"},
+            {
+                "rule_id": "R01_inmediata",
+                "accion": "intervencion_inmediata",
+                "condicion": "riesgo muy alto + impacto alto + confianza suficiente",
+            },
+            {
+                "rule_id": "R02_proxima_ventana",
+                "accion": "intervencion_proxima_ventana",
+                "condicion": "riesgo alto o RUL operativo estrecho sin condición de emergencia inmediata",
+            },
+            {
+                "rule_id": "R03_inspeccion",
+                "accion": "inspeccion_prioritaria",
+                "condicion": "señal degradada con confianza baja o conflicto moderado",
+            },
+            {
+                "rule_id": "R04_monitorizacion",
+                "accion": "monitorizacion_intensiva",
+                "condicion": "riesgo/interacción moderada sin gatillos de intervención",
+            },
+            {
+                "rule_id": "R05_observacion",
+                "accion": "mantener_bajo_observacion",
+                "condicion": "riesgo bajo con salud aceptable",
+            },
+            {
+                "rule_id": "R06_no_accion",
+                "accion": "no_accion_por_ahora",
+                "condicion": "riesgo muy bajo, salud alta, sin alertas ni pendientes",
+            },
+            {
+                "rule_id": "R07_escalado_conflicto",
+                "accion": "escalado_tecnico_revision_manual",
+                "condicion": "conflicto señal-riesgo o riesgo alto con baja confianza",
+            },
         ]
     )
-    rules_component.to_csv(OUTPUTS_REPORTS_DIR / "recommendation_rules_component.csv", index=False)
-
     rules_operational = pd.DataFrame(
         [
-            {"rule_id": "D01_inmediata", "decision": "intervención inmediata", "condicion": "urgencia alta + impacto operativo alto + capacidad disponible + confianza suficiente"},
-            {"rule_id": "D02_proxima_ventana", "decision": "intervención en próxima ventana", "condicion": "riesgo alto o RUL corto en escenario no emergente"},
-            {"rule_id": "D03_inspeccion", "decision": "inspección prioritaria", "condicion": "incertidumbre alta o degradación sin impacto operacional crítico"},
-            {"rule_id": "D04_monitorizacion", "decision": "monitorización intensiva", "condicion": "riesgo medio con seguimiento reforzado"},
-            {"rule_id": "D05_observacion", "decision": "mantener bajo observación", "condicion": "baja criticidad y ventana de seguridad amplia"},
-            {"rule_id": "D06_no_accion", "decision": "no acción por ahora", "condicion": "riesgo mínimo y salud elevada"},
-            {"rule_id": "D07_escalado_conflicto", "decision": "escalado técnico/revisión manual", "condicion": "riesgo alto con baja confianza o RUL crítico sin capacidad de taller"},
-            {"rule_id": "D02B_inmediata_bloqueada_capacidad", "decision": "intervención en próxima ventana", "condicion": "urgencia alta pero bloqueo de capacidad/ventana"},
+            {
+                "rule_id": "D01_inmediata",
+                "decision": "intervención inmediata",
+                "condicion": "urgencia alta + impacto operativo alto + capacidad disponible + confianza suficiente",
+            },
+            {
+                "rule_id": "D02_proxima_ventana",
+                "decision": "intervención en próxima ventana",
+                "condicion": "riesgo alto o RUL corto en escenario no emergente",
+            },
+            {
+                "rule_id": "D03_inspeccion",
+                "decision": "inspección prioritaria",
+                "condicion": "incertidumbre alta o degradación sin impacto operacional crítico",
+            },
+            {
+                "rule_id": "D04_monitorizacion",
+                "decision": "monitorización intensiva",
+                "condicion": "riesgo medio con seguimiento reforzado",
+            },
+            {
+                "rule_id": "D05_observacion",
+                "decision": "mantener bajo observación",
+                "condicion": "baja criticidad y ventana de seguridad amplia",
+            },
+            {
+                "rule_id": "D06_no_accion",
+                "decision": "no acción por ahora",
+                "condicion": "riesgo mínimo y salud elevada",
+            },
+            {
+                "rule_id": "D07_escalado_conflicto",
+                "decision": "escalado técnico/revisión manual",
+                "condicion": "riesgo alto con baja confianza o RUL crítico sin capacidad de taller",
+            },
+            {
+                "rule_id": "D02B_inmediata_bloqueada_capacidad",
+                "decision": "intervención en próxima ventana",
+                "condicion": "urgencia alta pero bloqueo de capacidad/ventana",
+            },
         ]
     )
-    rules_operational.to_csv(OUTPUTS_REPORTS_DIR / "recommendation_rules_operational.csv", index=False)
-
     lines = [
         "# Lógica de Recomendación Operativa",
         "",

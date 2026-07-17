@@ -14,7 +14,9 @@ def _latest_component_semantics() -> pd.DataFrame:
 
 
 def _merge_semantic_columns(score: pd.DataFrame) -> pd.DataFrame:
-    comp_latest = _latest_component_semantics()[["unidad_id", "componente_id", "deterioration_index", "maintenance_restoration_index"]]
+    comp_latest = _latest_component_semantics()[
+        ["unidad_id", "componente_id", "deterioration_index", "maintenance_restoration_index"]
+    ]
     df = score.merge(
         comp_latest.rename(
             columns={
@@ -32,7 +34,9 @@ def _merge_semantic_columns(score: pd.DataFrame) -> pd.DataFrame:
     if "maintenance_restoration_index" not in df.columns:
         df["maintenance_restoration_index"] = df["maintenance_restoration_index_aux"]
     else:
-        df["maintenance_restoration_index"] = df["maintenance_restoration_index"].fillna(df["maintenance_restoration_index_aux"])
+        df["maintenance_restoration_index"] = df["maintenance_restoration_index"].fillna(
+            df["maintenance_restoration_index_aux"]
+        )
     return df
 
 
@@ -68,7 +72,9 @@ def test_sign_consistency_health_deterioration_risk():
 def test_monotonicity_risk_by_deterioration_terciles():
     score = pd.read_csv(PROCESSED / "scoring_componentes.csv")
     df = _merge_semantic_columns(score)
-    tiers = pd.qcut(df["deterioration_index"].fillna(df["deterioration_index"].median()), q=3, labels=["bajo", "medio", "alto"])
+    tiers = pd.qcut(
+        df["deterioration_index"].fillna(df["deterioration_index"].median()), q=3, labels=["bajo", "medio", "alto"]
+    )
     risk_means = df.assign(det_tier=tiers).groupby("det_tier", observed=False)["prob_fallo_30d"].mean()
     assert float(risk_means.loc["alto"]) >= float(risk_means.loc["medio"]) >= float(risk_means.loc["bajo"])
 

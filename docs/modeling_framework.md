@@ -9,9 +9,10 @@
 
 ## 2) Puntuación interpretable de riesgo de fallo
 - Entradas: salud, deterioro, velocidad de degradación, estrés operativo, historial de fallas, exposición a pendientes.
-- Lógica: combinación lineal + sigmoide para `prob_fallo_30d`.
-- Supuesto: la probabilidad depende de degradación reciente y carga operacional.
-- Limitación: calibración sobre dato sintético; requiere recalibración con histórico real.
+- Lógica: señal ponderada, ranking por familia/global y transformación acotada para `prob_fallo_30d`.
+- Semántica: pese al nombre histórico de la columna, es una puntuación no calibrada en [0,1], no una probabilidad operacional.
+- Supuesto: la propensión al fallo aumenta con degradación reciente y carga operacional.
+- Limitación: evaluada sobre dato sintético; exige calibración temporal y validación fuera de muestra con histórico real.
 - Utilidad operativa: clasificación de riesgo para decidir entrada a taller.
 
 ## 3) Reglas de alerta temprana

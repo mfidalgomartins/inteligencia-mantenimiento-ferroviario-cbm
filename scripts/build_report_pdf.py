@@ -7,13 +7,17 @@ El informe combina texto ejecutivo, evidencia cuantificada y los 19 gráficos de
 paquete de publicación incrustados a lo largo del documento. Todas las cifras se calculan en tiempo
 de construcción desde data/processed para garantizar trazabilidad y reproducibilidad.
 """
+
 from __future__ import annotations
 
 import base64
 from html import escape
+from io import BytesIO
 from pathlib import Path
 
+import numpy as np
 import pandas as pd
+from PIL import Image
 from weasyprint import HTML
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -54,7 +58,24 @@ def b64_font(path: Path) -> str:
 
 
 def b64_img(path: Path) -> str:
-    return base64.b64encode(path.read_bytes()).decode("ascii")
+    palette = {
+        (23, 32, 51): (11, 31, 58),
+        (36, 99, 212): (30, 73, 226),
+        (180, 35, 24): (114, 19, 234),
+        (23, 114, 69): (0, 184, 230),
+        (183, 110, 0): (0, 166, 200),
+        (138, 148, 166): (112, 128, 150),
+        (102, 112, 133): (82, 101, 122),
+    }
+    with Image.open(path) as source:
+        rgba = np.array(source.convert("RGBA"), dtype=np.uint8)
+    rgb = rgba[:, :, :3]
+    for original, editorial in palette.items():
+        distance = np.max(np.abs(rgb.astype(np.int16) - np.array(original, dtype=np.int16)), axis=2)
+        rgb[distance <= 8] = editorial
+    output = BytesIO()
+    Image.fromarray(rgba, mode="RGBA").save(output, format="PNG", optimize=True)
+    return base64.b64encode(output.getvalue()).decode("ascii")
 
 
 # --------------------------------------------------------------------------- #
@@ -70,7 +91,7 @@ class Doc:
     def h(self, level: int, text: str, *, anchor: str | None = None, section: str | None = None) -> None:
         idattr = f' id="{anchor}"' if anchor else ""
         datasec = f' data-section="{escape(section)}"' if section else ""
-        self.parts.append(f'<h{level}{idattr}{datasec}>{escape(text)}</h{level}>')
+        self.parts.append(f"<h{level}{idattr}{datasec}>{escape(text)}</h{level}>")
 
     def p(self, text: str) -> None:
         self.parts.append(f"<p>{text}</p>")
@@ -88,7 +109,7 @@ class Doc:
         data = b64_img(GRAPHS / filename)
         self.parts.append(
             f'<figure><img src="data:image/png;base64,{data}" alt="{escape(caption)}"/>'
-            f'<figcaption><strong>Figura.</strong> {caption} '
+            f"<figcaption><strong>Figura.</strong> {caption} "
             f'<span class="src">Fuente: {escape(source)}.</span></figcaption></figure>'
         )
 
@@ -124,13 +145,9 @@ def build() -> None:
     rul_fam = read("rul_family_discrimination_before_after.csv").set_index("component_family")
     rul_dist = read("rul_distribution_before_after.csv").set_index("metodo")
     inspection = read("inspection_module_family_performance.csv").set_index("family")
-    determinants = read("risk_signal_determinants.csv").set_index("feature")[
-        "spearman_corr_with_failure_risk"
-    ]
+    determinants = read("risk_signal_determinants.csv").set_index("feature")["spearman_corr_with_failure_risk"]
     checks = read("governance_contract_checks.csv")
-    priority = read("workshop_priority_table.csv").sort_values(
-        "intervention_priority_score", ascending=False
-    )
+    priority = read("workshop_priority_table.csv").sort_values("intervention_priority_score", ascending=False)
     top = priority.iloc[0]
     top10 = priority.head(10)
     priority_threshold_85 = int((priority["intervention_priority_score"] >= 85).sum())
@@ -143,7 +160,9 @@ def build() -> None:
     top10_units_count = int(top10["unidad_id"].nunique())
     top10_pantograph_count = int((top10["component_family"] == "pantograph").sum())
     top10_bogie_count = int((top10["component_family"] == "bogie").sum())
-    top3_priority_spread = float(priority.head(3)["intervention_priority_score"].max() - priority.head(3)["intervention_priority_score"].min())
+    top3_priority_spread = float(
+        priority.head(3)["intervention_priority_score"].max() - priority.head(3)["intervention_priority_score"].min()
+    )
 
     risk = read("unit_unavailability_risk_score.csv")["unit_unavailability_risk_score"]
     threshold = risk.mean() + 1.5 * risk.std()
@@ -159,9 +178,7 @@ def build() -> None:
 
     failures = read("kpi_fallas_repetitivas_mas_frecuentes.csv")
     top5_fail_share = (
-        failures.nlargest(5, "repetitive_events")["repetitive_events"].sum()
-        / failures["repetitive_events"].sum()
-        * 100
+        failures.nlargest(5, "repetitive_events")["repetitive_events"].sum() / failures["repetitive_events"].sum() * 100
     )
 
     capacity = read("workshop_capacity_calendar.csv")
@@ -203,14 +220,12 @@ def build() -> None:
     cbm_vs_preventive_av_gap = cbm_av - float(preventive["fleet_availability"])
     cbm_vs_preventive_cost_gap = cbm_cost - pv_cost
     cbm_cost_per_availability_pp = (cbm_cost - re_cost) / av_gap
-    inspection_correctives_delta = (
-        float(inspection_value.loc["sin_inspeccion_automatica", "correctivas_estimadas"])
-        - float(inspection_value.loc["con_inspeccion_automatica", "correctivas_estimadas"])
-    )
-    inspection_downtime_delta = (
-        float(inspection_value.loc["sin_inspeccion_automatica", "horas_indisponibilidad_estimadas"])
-        - float(inspection_value.loc["con_inspeccion_automatica", "horas_indisponibilidad_estimadas"])
-    )
+    inspection_correctives_delta = float(
+        inspection_value.loc["sin_inspeccion_automatica", "correctivas_estimadas"]
+    ) - float(inspection_value.loc["con_inspeccion_automatica", "correctivas_estimadas"])
+    inspection_downtime_delta = float(
+        inspection_value.loc["sin_inspeccion_automatica", "horas_indisponibilidad_estimadas"]
+    ) - float(inspection_value.loc["con_inspeccion_automatica", "horas_indisponibilidad_estimadas"])
 
     d = Doc()
 
@@ -220,20 +235,23 @@ def build() -> None:
 <section class="cover">
   <div class="cover-band">
     <div class="kicker">Informe analítico</div>
-    <h1 class="cover-title">Inteligencia de mantenimiento ferroviario</h1>
+    <h1 class="cover-title">Inteligencia de<br/>mantenimiento<br/>ferroviario</h1>
     <p class="cover-sub">Riesgo, priorización de taller, vida remanente y disciplina económica
     del mantenimiento basado en condición</p>
   </div>
   <div class="cover-meta">
-    <div class="cover-meta-row"><span>Periodo analizado</span><strong>{m['coverage_start']} a {m['coverage_end']}</strong></div>
-    <div class="cover-meta-row"><span>Alcance</span><strong>{fmt_int(mv('n_unidades'))} unidades · {fmt_int(mv('n_componentes'))} componentes críticos</strong></div>
-    <div class="cover-meta-row"><span>Red de talleres</span><strong>{fmt_int(mv('n_depositos'))} depósitos · {fmt_int(mv('n_flotas'))} flotas</strong></div>
+    <div class="cover-meta-row"><span>Periodo analizado</span><strong>{m["coverage_start"]} a {m["coverage_end"]}</strong></div>
+    <div class="cover-meta-row"><span>Alcance</span><strong>{fmt_int(mv("n_unidades"))} unidades · {fmt_int(mv("n_componentes"))} componentes críticos</strong></div>
+    <div class="cover-meta-row"><span>Red de talleres</span><strong>{fmt_int(mv("n_depositos"))} depósitos · {fmt_int(mv("n_flotas"))} flotas</strong></div>
     <div class="cover-meta-row"><span>Controles de gobernanza</span><strong>{len(checks)} activos · 0 bloqueos de publicación</strong></div>
   </div>
   <div class="cover-decision">
     <p>La decisión inmediata no es desplegar más analítica: es ejecutar una cola de taller gobernada
     por riesgo, corregir la asignación de capacidad y tratar CBM como una opción de nivel de servicio
     hasta que el caso financiero quede calibrado con costes reales.</p>
+  </div>
+  <div class="cover-visual" aria-hidden="true">
+    <span></span><span></span><span></span><span></span><span></span><span></span>
   </div>
 </section>
 """
@@ -254,8 +272,7 @@ def build() -> None:
         ("Apéndice. Métricas, fuentes e interpretación", "sec-apendice"),
     ]
     toc_html = "".join(
-        f'<li><a href="#{anchor}"><span class="toc-title">{escape(title)}</span>'
-        f'<span class="toc-dots"></span></a></li>'
+        f'<li><a href="#{anchor}"><span class="toc-title">{escape(title)}</span><span class="toc-dots"></span></a></li>'
         for title, anchor in toc_rows
     )
     d.add(f'<section class="toc"><h2 class="toc-head">Índice</h2><ol class="toc-list">{toc_html}</ol></section>')
@@ -274,10 +291,10 @@ def build() -> None:
     d.add(
         f"""
 <div class="kpi-row">
-  <div class="kpi"><div class="kpi-val">{fmt_pct(mv('fleet_availability_pct'), 1)}</div><div class="kpi-lab">Disponibilidad media de flota</div></div>
-  <div class="kpi danger"><div class="kpi-val">{fmt_int(mv('high_deferral_risk_cases_count'))}</div><div class="kpi-lab">Casos con alto riesgo de diferimiento</div></div>
-  <div class="kpi positive"><div class="kpi-val">+{fmt_dec(float(redesigned['actionable_pct']) - float(baseline['actionable_pct']), 1)} p.p.</div><div class="kpi-lab">Mejora de casos ejecutables tras rediseño</div></div>
-  <div class="kpi warning"><div class="kpi-val">{fmt_money_m(mv('cbm_operational_savings_eur'))}</div><div class="kpi-lab">Diferencial neto de CBM frente a reactiva</div></div>
+  <div class="kpi"><div class="kpi-val">{fmt_pct(mv("fleet_availability_pct"), 1)}</div><div class="kpi-lab">Disponibilidad media de flota</div></div>
+  <div class="kpi danger"><div class="kpi-val">{fmt_int(mv("high_deferral_risk_cases_count"))}</div><div class="kpi-lab">Casos con alto riesgo de diferimiento</div></div>
+  <div class="kpi positive"><div class="kpi-val">+{fmt_dec(float(redesigned["actionable_pct"]) - float(baseline["actionable_pct"]), 1)} p.p.</div><div class="kpi-lab">Mejora de casos ejecutables tras rediseño</div></div>
+  <div class="kpi warning"><div class="kpi-val">{fmt_money_m(mv("cbm_operational_savings_eur"))}</div><div class="kpi-lab">Diferencial neto de CBM frente a reactiva</div></div>
 </div>
 """
     )
@@ -394,6 +411,7 @@ def build() -> None:
     )
 
     # ----- 1. Contexto --------------------------------------------------- #
+    d.add("</section><section class='body'>")
     d.h(2, "1. Contexto y objetivos", anchor="sec-contexto", section="Contexto y objetivos")
     d.p(
         "Una operación ferroviaria no puede decidir mantenimiento con una única señal. Un componente con salud "
@@ -428,6 +446,7 @@ def build() -> None:
     )
 
     # ----- 2. Datos y metodología --------------------------------------- #
+    d.add("</section><section class='body'>")
     d.h(2, "2. Datos y metodología", anchor="sec-datos", section="Datos y metodología")
     d.p(
         "La capa analítica parte de datos sintéticos deterministas de sensores, inspecciones automáticas, fallos, "
@@ -523,6 +542,7 @@ def build() -> None:
     )
 
     # ----- 3. Marco analítico ------------------------------------------- #
+    d.add("</section><section class='body'>")
     d.h(2, "3. Marco analítico", anchor="sec-marco", section="Marco analítico")
     d.p(
         "La cadena de decisión conecta evidencia con ejecución en una secuencia ordenada. Comienza en la calidad del "
@@ -556,11 +576,36 @@ def build() -> None:
         "decorativa que nadie tiene obligación de seguir."
     )
     decision_rows = [
-        ("Priorizar intervención", "Modelo + analítica de fiabilidad", "Puntuación, RUL, fallo 30d, factor y confianza", "Clasificación y nivel P1/P2/P3"),
-        ("Autorizar excepción", "Dirección de Mantenimiento", "Motivo, restricción, coste de diferir y nueva fecha", "Excepción trazable"),
-        ("Asignar capacidad", "Planificación de Taller", "Horas, depósito, repuesto, ventana y compatibilidad", "Plan de 35 días"),
-        ("Medir impacto", "Operaciones + Finanzas", "Disponibilidad, indisponibilidad, coste aproximado y servicio preservado", "Revisión mensual"),
-        ("Recalibrar modelo", "Reliability Analytics", "Orden ejecutada, resultado observado, falsa alerta y reincidencia", "Nuevo set de umbrales"),
+        (
+            "Priorizar intervención",
+            "Modelo + analítica de fiabilidad",
+            "Puntuación, RUL, fallo 30d, factor y confianza",
+            "Clasificación y nivel P1/P2/P3",
+        ),
+        (
+            "Autorizar excepción",
+            "Dirección de Mantenimiento",
+            "Motivo, restricción, coste de diferir y nueva fecha",
+            "Excepción trazable",
+        ),
+        (
+            "Asignar capacidad",
+            "Planificación de Taller",
+            "Horas, depósito, repuesto, ventana y compatibilidad",
+            "Plan de 35 días",
+        ),
+        (
+            "Medir impacto",
+            "Operaciones + Finanzas",
+            "Disponibilidad, indisponibilidad, coste aproximado y servicio preservado",
+            "Revisión mensual",
+        ),
+        (
+            "Recalibrar modelo",
+            "Reliability Analytics",
+            "Orden ejecutada, resultado observado, falsa alerta y reincidencia",
+            "Nuevo set de umbrales",
+        ),
     ]
     decision_html = "".join(
         f"<tr><td><strong>{escape(a)}</strong></td><td>{escape(b)}</td><td>{escape(c)}</td><td>{escape(e)}</td></tr>"
@@ -574,6 +619,7 @@ def build() -> None:
     )
 
     # ----- 4. Diagnóstico operativo ------------------------------------- #
+    d.add("</section><section class='body'>")
     d.h(2, "4. Diagnóstico operativo", anchor="sec-diagnostico", section="Diagnóstico operativo")
     d.lead(
         "La disponibilidad agregada permanece alta y estable, pero el riesgo y los pendientes se concentran en una parte "
@@ -657,6 +703,7 @@ def build() -> None:
     )
 
     # ----- 5. Fiabilidad ------------------------------------------------- #
+    d.add("</section><section class='body'>")
     d.h(2, "5. Fiabilidad, inspección y vida remanente", anchor="sec-fiabilidad", section="Fiabilidad y vida remanente")
     d.lead(
         "Las políticas de mantenimiento deben diferenciar familias técnicas. Los pantógrafos concentran el riesgo, el "
@@ -746,6 +793,9 @@ def build() -> None:
         "sino de discriminación: el nuevo cálculo distribuye los casos entre ventanas útiles y permite combinar urgencia "
         "técnica con capacidad disponible. Sigue siendo una aproximación y no una cuenta atrás física, y así debe comunicarse."
     )
+    # Continuación explícita para que WeasyPrint no descarte el último bloque al
+    # fragmentar una sección multicolumna antes del capítulo siguiente.
+    d.add("</section><section class='body body-continuation'>")
     d.figure(
         "15_inspeccion_por_familia.png",
         f"La tasa de detección previa a fallo varía entre {fmt_pct(insp_min, 1)} y {fmt_pct(insp_max, 1)} según la familia.",
@@ -796,6 +846,7 @@ def build() -> None:
     )
 
     # ----- 6. Priorización ---------------------------------------------- #
+    d.add("</section><section class='body'>")
     d.h(2, "6. Priorización y capacidad de taller", anchor="sec-priorizacion", section="Priorización y capacidad")
     d.lead(
         "La mejora inmediata no requiere más capacidad. Requiere proteger la cabeza de la cola priorizada y asignar "
@@ -927,6 +978,7 @@ def build() -> None:
     )
 
     # ----- 7. Economía -------------------------------------------------- #
+    d.add("</section><section class='body'>")
     d.h(2, "7. Economía y decisión estratégica", anchor="sec-economia", section="Economía y decisión")
     d.lead(
         "El mantenimiento basado en condición mejora el servicio, pero el diferencial económico actual no soporta una "
@@ -971,7 +1023,8 @@ def build() -> None:
         "<table class='data'><thead><tr><th>Estrategia</th><th class='num'>Disponibilidad</th>"
         "<th class='num'>Coste total aproximado</th><th class='num'>Diferencial vs reactiva</th>"
         "<th class='num'>Prob. ahorro &gt;0</th><th class='num'>Horas servicio preservadas</th></tr></thead><tbody>"
-        + strat_rows + "</tbody></table>"
+        + strat_rows
+        + "</tbody></table>"
         "<p class='tbl-note'>Comparación de estrategias sobre el escenario base. El diferencial y las horas preservadas "
         "se miden frente a la estrategia reactiva. Los importes son proxies técnico-operativos, no P&amp;L. Las cifras "
         "se redondean de forma independiente a partir de los valores completos; el diferencial puede no coincidir "
@@ -1056,7 +1109,8 @@ def build() -> None:
     d.add(
         "<table class='data'><thead><tr><th class='num'>Diferimiento</th><th class='num'>Prob. fallo media</th>"
         "<th class='num'>Indisponibilidad</th><th class='num'>Coste total aproximado</th></tr></thead><tbody>"
-        + defer_rows + "</tbody></table>"
+        + defer_rows
+        + "</tbody></table>"
         "<p class='tbl-note'>Escenarios de diferimiento de la cola priorizada. Cada fila acumula el efecto de posponer "
         "la intervención el número de días indicado. Fuente: simulación de diferimiento.</p>"
     )
@@ -1069,6 +1123,7 @@ def build() -> None:
     )
 
     # ----- 8. Riesgos ---------------------------------------------------- #
+    d.add("</section><section class='body'>")
     d.h(2, "8. Riesgos, limitaciones y cautelas", anchor="sec-riesgos", section="Riesgos y limitaciones")
     d.p(
         "Los resultados son rigurosos dentro de un entorno sintético, pero no son evidencia de producción. Los datos "
@@ -1141,6 +1196,7 @@ def build() -> None:
     )
 
     # ----- 9. Recomendaciones ------------------------------------------- #
+    d.add("</section><section class='body'>")
     d.h(2, "9. Recomendaciones y prioridades de acción", anchor="sec-recomendaciones", section="Recomendaciones")
     d.lead(
         "Las recomendaciones se ordenan por horizonte y se atan a la evidencia de las secciones anteriores. La "
@@ -1241,6 +1297,7 @@ utilización por depósito, reincidencia por modo y diferencial económico recal
     )
 
     # ----- Apéndice ------------------------------------------------------ #
+    d.add("</section><section class='body'>")
     d.h(2, "Apéndice. Métricas, fuentes e interpretación", anchor="sec-apendice", section="Apéndice")
     d.p(
         "La tabla siguiente recoge las métricas oficiales utilizadas para comunicar resultados, con su valor y su "
@@ -1283,7 +1340,11 @@ utilización por depósito, reincidencia por modo y diferencial económico recal
             lambda v: f"€ {fmt_int(v)}/h",
         ),
         ("deferral_cost_delta_14d_eur", "Coste incremental al diferir 14 días", lambda v: fmt_money_m(v, 2)),
-        ("deferral_downtime_delta_14d_h", "Indisponibilidad incremental al diferir 14 días", lambda v: f"{fmt_dec(v, 0)} h"),
+        (
+            "deferral_downtime_delta_14d_h",
+            "Indisponibilidad incremental al diferir 14 días",
+            lambda v: f"{fmt_dec(v, 0)} h",
+        ),
     ]
     metric_rows = "".join(
         f"<tr><td>{escape(label)}</td><td class='num'>{formatter(mv(mid))}</td>"
@@ -1333,10 +1394,17 @@ utilización por depósito, reincidencia por modo y diferencial económico recal
     # ----- Ensamblado HTML + CSS ---------------------------------------- #
     fonts_css = build_fonts_css()
     html = f"""<!DOCTYPE html><html lang="es"><head><meta charset="utf-8"/>
+<title>Informe analítico CBM ferroviario</title>
+<meta name="author" content="Miguel Fidalgo Martins"/>
+<meta name="description" content="Análisis reproducible de mantenimiento ferroviario basado en condición sobre datos sintéticos."/>
 <style>{fonts_css}{base_css()}</style></head><body>{d.html()}</body></html>"""
 
     REPORT.parent.mkdir(parents=True, exist_ok=True)
-    HTML(string=html, base_url=str(ROOT)).write_pdf(str(REPORT))
+    HTML(string=html, base_url=str(ROOT)).write_pdf(
+        str(REPORT),
+        pdf_tags=True,
+        optimize_images=True,
+    )
     print(f"Informe generado: {REPORT}")
 
 
@@ -1357,110 +1425,144 @@ def build_fonts_css() -> str:
                 f"@font-face{{font-family:'{family}';font-weight:{weight};font-style:{style};"
                 f"src:url(data:font/ttf;base64,{data}) format('truetype');}}"
             )
+    heading_font = Path("/System/Library/Fonts/Supplemental/DIN Condensed Bold.ttf")
+    if heading_font.exists():
+        data = b64_font(heading_font)
+        faces.append(
+            "@font-face{font-family:'Report Condensed';font-weight:700;font-style:normal;"
+            f"src:url(data:font/ttf;base64,{data}) format('truetype');}}"
+        )
     return "".join(faces)
 
 
 def base_css() -> str:
     return """
 :root{
-  --ink:#172033; --muted:#5b6577; --light:#e6e9ef; --panel:#f5f7fa;
-  --accent:#2463d4; --danger:#b42318; --warning:#b76e00; --positive:#177245;
+  --ink:#0b1f3a; --navy:#00338d; --accent:#1e49e2; --cyan:#00b8e6;
+  --purple:#7213ea; --muted:#52657a; --light:#d8dee8; --panel:#f2f4f7;
+  --danger:#c52a1f; --warning:#7213ea; --positive:#00a6c8;
 }
 @page{
-  size:A4; margin:20mm 18mm 18mm 18mm;
-  @top-left{ content:"Inteligencia de mantenimiento ferroviario"; font-family:'IBM Plex Sans'; font-size:7pt; color:#98a2b3; font-weight:600; letter-spacing:.04em; }
-  @top-right{ content:string(section); font-family:'IBM Plex Sans'; font-size:7pt; color:#98a2b3; font-weight:600; text-transform:uppercase; letter-spacing:.04em; }
-  @bottom-left{ content:"Inteligencia de mantenimiento ferroviario"; font-family:'IBM Plex Sans'; font-size:7pt; color:#98a2b3; }
-  @bottom-right{ content:counter(page) " / " counter(pages); font-family:'IBM Plex Mono'; font-size:7.5pt; color:#98a2b3; }
+  size:13.334in 7.5in; margin:16mm 17mm 13mm 17mm; background:#fff;
+  @top-left{ content:"INTELIGENCIA DE MANTENIMIENTO FERROVIARIO"; background:#f0f1f3;
+    font-family:'IBM Plex Sans'; font-size:6.3pt; color:#66768a; font-weight:600; letter-spacing:.035em;
+    vertical-align:middle; padding-left:4mm; }
+  @top-center{ content:string(section); background:#f0f1f3; font-family:'IBM Plex Sans'; font-size:6.6pt;
+    color:var(--accent); font-weight:700; text-transform:uppercase; letter-spacing:.035em; vertical-align:middle; }
+  @top-right{ content:counter(page); background:#f0f1f3; font-family:'Report Condensed','IBM Plex Sans';
+    font-size:9pt; color:var(--navy); font-weight:700; vertical-align:middle; padding-right:4mm; }
+  @bottom-left{ content:"Análisis reproducible basado en datos sintéticos"; font-family:'IBM Plex Sans';
+    font-size:5.7pt; color:#9aa6b5; }
+  @bottom-right{ content:"Informe analítico CBM ferroviario  |  " counter(page) " / " counter(pages);
+    font-family:'IBM Plex Sans'; font-size:5.8pt; color:var(--navy); }
 }
-@page cover{ margin:0; @top-left{content:""} @top-right{content:""} @bottom-left{content:""} @bottom-right{content:""} }
-@page toc{ @top-left{content:""} @top-right{content:""} }
+@page cover{ margin:0; background:var(--navy); @top-left{content:"";background:transparent}
+  @top-center{content:"";background:transparent} @top-right{content:"";background:transparent}
+  @bottom-left{content:""} @bottom-right{content:""} }
+@page toc{ @top-left{content:"MAPA DEL INFORME"} @top-center{content:""} }
 *{box-sizing:border-box;}
-html{ font-family:'IBM Plex Sans'; color:var(--ink); font-size:10pt; line-height:1.62; }
-body{ margin:0; }
-p{ margin:0 0 9pt 0; text-align:justify; hyphens:auto; }
+html{ font-family:'IBM Plex Sans'; color:var(--ink); font-size:8.35pt; line-height:1.42; background:#fff; }
+body{ margin:0; background:#fff; }
+p{ margin:0 0 5.5pt 0; text-align:left; hyphens:none; orphans:3; widows:3; }
 h2{ string-set:section attr(data-section); }
 
 /* ---------- Portada ---------- */
-.cover{ page:cover; height:297mm; width:210mm; position:relative; color:var(--ink); }
-.cover-band{ background:var(--ink); color:#fff; padding:34mm 20mm 16mm 20mm; height:120mm; }
-.cover-band .kicker{ color:#8fb4ff; font-size:9pt; font-weight:600; letter-spacing:.18em; text-transform:uppercase; }
-.cover-title{ font-size:34pt; font-weight:700; line-height:1.05; margin:14mm 0 6mm 0; max-width:150mm; }
-.cover-sub{ font-size:13pt; line-height:1.5; color:#cdd9ef; max-width:140mm; text-align:left; }
-.cover-meta{ padding:14mm 20mm 0 20mm; }
-.cover-meta-row{ display:flex; justify-content:space-between; border-bottom:.4pt solid var(--light); padding:5pt 0; }
-.cover-meta-row span{ font-size:8pt; font-weight:600; letter-spacing:.06em; text-transform:uppercase; color:var(--muted); }
-.cover-meta-row strong{ font-size:10.5pt; color:var(--ink); font-weight:600; }
-.cover-decision{ margin:12mm 20mm 0 20mm; padding:7mm; background:var(--panel); border-left:3pt solid var(--accent); }
-.cover-decision p{ font-size:11.5pt; font-weight:600; line-height:1.5; margin:0; text-align:left; }
+.cover{ page:cover; break-after:page; height:190.5mm; width:338.68mm; position:relative; overflow:hidden; color:#fff;
+  background:linear-gradient(112deg,#071d8f 0%,#0646c4 52%,#00a8dc 100%); }
+.cover::before{ content:""; position:absolute; inset:0; opacity:.28;
+  background:linear-gradient(160deg,transparent 0 47%,rgba(255,255,255,.22) 47.2% 47.5%,transparent 47.7%),
+    linear-gradient(18deg,transparent 0 71%,rgba(0,184,230,.55) 71.2% 71.6%,transparent 71.8%); }
+.cover-band{ position:relative; z-index:3; width:222mm; height:126mm; padding:17mm 20mm 0 20mm; background:transparent; color:#fff; }
+.cover-band .kicker{ color:#8de7ff; font-size:8.5pt; font-weight:700; letter-spacing:.12em; text-transform:uppercase; }
+.cover-title{ font-family:'Report Condensed','IBM Plex Sans'; font-size:55pt; font-weight:700; line-height:.86;
+  letter-spacing:-.012em; margin:8mm 0 5mm 0; max-width:195mm; }
+.cover-sub{ font-size:13.5pt; line-height:1.28; color:#d8efff; max-width:181mm; text-align:left; }
+.cover-meta{ position:absolute; z-index:4; left:20mm; bottom:13mm; width:197mm; display:flex; flex-wrap:wrap; }
+.cover-meta-row{ width:50%; min-height:16mm; padding:3.5mm 7mm 2mm 0; border-top:.6pt solid rgba(255,255,255,.42); }
+.cover-meta-row span{ display:block; font-size:6.4pt; font-weight:700; letter-spacing:.055em; text-transform:uppercase; color:#8de7ff; }
+.cover-meta-row strong{ display:block; margin-top:1.4mm; font-size:8.8pt; line-height:1.28; color:#fff; font-weight:600; }
+.cover-decision{ position:absolute; z-index:5; right:17mm; top:25mm; width:91mm; min-height:134mm; padding:31mm 11mm 10mm;
+  background:rgba(18,62,214,.88); border:0; }
+.cover-decision::before{ content:"\201C"; position:absolute; top:6mm; left:9mm; font-family:'Report Condensed','IBM Plex Sans';
+  font-size:49pt; line-height:1; color:var(--cyan); }
+.cover-decision p{ font-size:12.2pt; font-weight:700; line-height:1.25; margin:0; color:#fff; text-align:left; }
+.cover-visual{ position:absolute; z-index:2; right:-14mm; bottom:-12mm; width:170mm; height:112mm; transform:rotate(-8deg); }
+.cover-visual span{ position:absolute; left:0; width:190mm; height:0; border-top:3pt solid rgba(255,255,255,.34);
+  transform-origin:left center; }
+.cover-visual span:nth-child(1){ top:14mm; transform:rotate(14deg); border-color:rgba(0,184,230,.85); }
+.cover-visual span:nth-child(2){ top:27mm; transform:rotate(8deg); border-color:rgba(115,19,234,.78); }
+.cover-visual span:nth-child(3){ top:40mm; transform:rotate(3deg); }
+.cover-visual span:nth-child(4){ top:53mm; transform:rotate(-3deg); border-color:rgba(0,184,230,.8); }
+.cover-visual span:nth-child(5){ top:66mm; transform:rotate(-8deg); border-color:rgba(115,19,234,.72); }
+.cover-visual span:nth-child(6){ top:79mm; transform:rotate(-14deg); }
 
 /* ---------- Índice ---------- */
-.toc{ page:toc; padding-top:6mm; break-after:page; }
-.toc-head{ font-size:24pt; font-weight:700; margin:0 0 8mm 0; }
-.toc-list{ list-style:none; padding:0; margin:0; counter-reset:toc; }
-.toc-list li{ margin:0 0 4.5mm 0; }
-.toc-list a{ display:flex; align-items:baseline; text-decoration:none; color:var(--ink); }
-.toc-title{ font-size:11pt; font-weight:600; }
-.toc-dots{ flex:1; border-bottom:.5pt dotted #c2cad6; margin:0 4pt 0 6pt; transform:translateY(-2pt); }
-.toc-list a::after{ content:target-counter(attr(href), page); font-family:'IBM Plex Mono'; font-size:9.5pt; color:var(--muted); }
+.toc{ page:toc; padding-top:5mm; break-after:page; }
+.toc::before{ content:"CONTENIDO Y SECUENCIA DE DECISIÓN"; display:block; color:var(--cyan); font-size:7pt;
+  font-weight:700; letter-spacing:.1em; margin-bottom:3mm; }
+.toc-head{ font-family:'Report Condensed','IBM Plex Sans'; font-size:43pt; line-height:.9; color:var(--navy);
+  font-weight:700; margin:0 0 10mm 0; }
+.toc-list{ list-style:none; padding:0; margin:0; counter-reset:toc; columns:2; column-gap:18mm; column-rule:.5pt solid var(--light); }
+.toc-list li{ margin:0 0 5mm 0; break-inside:avoid; padding-right:7mm; }
+.toc-list a{ display:flex; align-items:baseline; text-decoration:none; color:var(--ink); border-top:.6pt solid var(--light); padding-top:2.5mm; }
+.toc-title{ font-size:10.5pt; font-weight:600; line-height:1.25; }
+.toc-dots{ flex:1; border-bottom:.5pt dotted #b9c3d1; margin:0 4pt 0 6pt; transform:translateY(-2pt); }
+.toc-list a::after{ content:target-counter(attr(href), page); font-family:'Report Condensed','IBM Plex Sans';
+  font-size:13pt; font-weight:700; color:var(--accent); }
 
 /* ---------- Cuerpo ---------- */
-/* Las secciones fluyen de forma continua: un salto de página
-   forzado en cada h2 desperdicia espacio cuando una sección termina temprano.
-   break-after:avoid basta para que un título nunca quede huérfano al pie de página. */
-.body h2{ font-size:19pt; font-weight:700; color:var(--ink); margin:14mm 0 3mm 0; padding-bottom:2.5mm;
-  border-bottom:1.6pt solid var(--ink); break-after:avoid; }
-.body h3{ font-size:12.5pt; font-weight:600; color:var(--accent); margin:7mm 0 2.5mm 0; break-after:avoid; }
+.body{ break-before:page; column-count:2; column-gap:12mm; column-rule:.45pt solid var(--light); column-fill:auto; }
+.body h2{ column-span:all; break-after:avoid; font-family:'Report Condensed','IBM Plex Sans';
+  font-size:40pt; font-weight:700; line-height:.92; color:var(--navy); margin:0 0 7mm 0; padding:0; border:0; }
+.body h3{ font-size:13pt; line-height:1.12; font-weight:700; color:var(--navy); margin:5.5mm 0 2.2mm 0; break-after:avoid; }
 #guia-interpretacion{ break-before:page; }
-.lead{ font-size:11.5pt; line-height:1.6; color:var(--ink); font-weight:500; margin-bottom:7pt;
-  border-left:2.5pt solid var(--accent); padding-left:5mm; text-align:left; }
+.lead{ column-span:all; max-width:252mm; font-size:12.5pt; line-height:1.35; color:var(--accent); font-weight:500;
+  margin:0 0 7mm 0; border:0; padding:0; text-align:left; }
 
-/* Tarjetas de indicadores */
-.kpi-row{ display:flex; gap:4mm; margin:5mm 0 6mm 0; }
-.kpi{ flex:1; background:var(--panel); border:.5pt solid var(--light); border-top:2.5pt solid var(--muted); padding:4mm; }
-.kpi.danger{ border-top-color:var(--danger); } .kpi.positive{ border-top-color:var(--positive); }
-.kpi.warning{ border-top-color:var(--warning); }
-.kpi-val{ font-family:'IBM Plex Mono'; font-size:16pt; font-weight:600; color:var(--ink); line-height:1.1; white-space:nowrap; }
-.kpi-lab{ font-size:7.8pt; color:var(--muted); margin-top:2mm; line-height:1.3; }
+/* Indicadores clave */
+.kpi-row{ column-span:all; display:flex; gap:0; margin:2mm 0 7mm 0; border-top:.6pt solid var(--light); border-bottom:.6pt solid var(--light); }
+.kpi{ flex:1; min-height:31mm; background:transparent; border:0; border-right:.6pt dotted #aeb9c8; padding:4mm 6mm 3mm 0; margin-right:6mm; }
+.kpi:last-child{ border-right:0; margin-right:0; }
+.kpi-val{ font-family:'Report Condensed','IBM Plex Sans'; font-size:31pt; font-weight:700; color:var(--accent); line-height:.9; white-space:nowrap; }
+.kpi.danger .kpi-val{ color:var(--danger); } .kpi.positive .kpi-val{ color:var(--positive); }
+.kpi.warning .kpi-val{ color:var(--warning); }
+.kpi-lab{ font-size:7.6pt; color:var(--muted); margin-top:2.2mm; line-height:1.28; max-width:50mm; }
 
 /* Callouts */
-.callout{ background:var(--panel); border:.5pt solid var(--light); border-left:3pt solid var(--accent);
-  padding:4mm 5mm; margin:4mm 0 6mm 0; break-inside:avoid; }
-.callout.danger{ border-left-color:var(--danger); } .callout.warning{ border-left-color:var(--warning); }
-.callout.positive{ border-left-color:var(--positive); }
-.callout-label{ display:block; font-size:7.5pt; font-weight:700; letter-spacing:.07em; text-transform:uppercase;
-  color:var(--accent); margin-bottom:2mm; }
-.callout.danger .callout-label{ color:var(--danger); } .callout.warning .callout-label{ color:var(--warning); }
-.callout.positive .callout-label{ color:var(--positive); }
-.callout-text{ font-size:9.6pt; line-height:1.5; color:var(--ink); }
+.callout{ width:100%; margin:4mm 0 7mm 0; padding:6mm 7mm 6mm; break-inside:avoid;
+  background:var(--accent); border:0; color:#fff; }
+.callout.danger{ background:var(--danger); } .callout.warning{ background:var(--warning); }
+.callout.positive{ background:#008fb3; }
+.callout-label{ display:block; font-size:6.8pt; font-weight:700; letter-spacing:.09em; text-transform:uppercase;
+  color:#9cecff; margin-bottom:2.8mm; }
+.callout.danger .callout-label,.callout.warning .callout-label,.callout.positive .callout-label{ color:#fff; opacity:.82; }
+.callout-text{ font-size:9.2pt; line-height:1.35; color:#fff; font-weight:600; }
 
 /* Figuras */
-figure{ margin:5mm 0 5mm 0; break-inside:avoid; }
-figure img{ width:100%; height:auto; display:block; border:.5pt solid var(--light); }
-figcaption{ font-size:8pt; color:var(--muted); line-height:1.45; margin-top:2.5mm;
-  border-left:2pt solid var(--light); padding-left:3mm; }
-figcaption strong{ color:var(--ink); }
-figcaption .src{ color:#98a2b3; }
+figure{ column-span:all; margin:5mm 0 6mm 0; padding-top:3mm; border-top:.6pt solid var(--light); break-inside:avoid; }
+figure img{ width:auto; max-width:100%; max-height:104mm; height:auto; margin:0 auto; display:block; border:0; }
+figcaption{ max-width:270mm; font-size:6.7pt; color:var(--muted); line-height:1.35; margin-top:2mm; padding:0; border:0; }
+figcaption strong{ color:var(--navy); } figcaption .src{ color:#8b99aa; }
 
 /* Tablas */
-table.data{ width:100%; border-collapse:collapse; margin:4mm 0 2mm 0; font-size:8.5pt; break-inside:avoid; }
-table.data thead th{ background:var(--ink); color:#fff; font-weight:600; text-align:left; padding:2.5mm 3mm;
-  font-size:8pt; }
+table.data{ column-span:all; width:100%; border-collapse:collapse; margin:4mm 0 2mm 0; font-size:7.4pt; break-inside:avoid; }
+table.data thead th{ background:var(--navy); color:#fff; font-weight:600; text-align:left; padding:2.2mm 2.8mm; font-size:7pt; }
 table.data th.num, table.data td.num{ text-align:right; font-family:'IBM Plex Mono'; }
-table.data tbody td{ padding:2.2mm 3mm; border-bottom:.5pt solid var(--light); color:var(--muted); }
-table.data tbody tr:nth-child(even){ background:#fafbfc; }
+table.data tbody td{ padding:1.8mm 2.8mm; border-bottom:.5pt solid var(--light); color:var(--muted); line-height:1.28; }
+table.data tbody tr:nth-child(even){ background:#f7f9fb; }
+table.data tbody td:first-child{ color:var(--ink); font-weight:600; }
 table.data td.tier{ font-family:'IBM Plex Mono'; font-weight:600; color:#fff; text-align:center; }
 td.tier.p1{ background:var(--danger); } td.tier.p2{ background:var(--warning); } td.tier.p3{ background:var(--accent); }
-.tbl-note{ font-size:7.8pt; color:var(--muted); margin-top:1mm; text-align:left; }
+.tbl-note{ column-span:all; font-size:6.5pt; color:var(--muted); margin-top:1mm; text-align:left; }
 
 /* Roadmap */
-.roadmap{ display:flex; gap:4mm; margin:5mm 0 2mm 0; break-inside:avoid; }
-.phase{ flex:1; background:var(--panel); border:.5pt solid var(--light); }
+.roadmap{ column-span:all; display:flex; gap:4mm; margin:5mm 0 2mm 0; break-inside:avoid; }
+.phase{ flex:1; background:#fff; border:.6pt solid var(--light); }
 .phase-head{ color:#fff; font-family:'IBM Plex Mono'; font-size:8.5pt; font-weight:600; padding:2.5mm 3mm; }
 .phase-head.danger{ background:var(--danger); } .phase-head.accent{ background:var(--accent); }
 .phase-head.warning{ background:var(--warning); }
 .phase ul{ margin:0; padding:3mm 4mm 3mm 7mm; }
-.phase li{ font-size:8.3pt; line-height:1.4; color:var(--ink); margin-bottom:2mm; }
+.phase li{ font-size:7.4pt; line-height:1.32; color:var(--ink); margin-bottom:1.8mm; }
 """
 
 

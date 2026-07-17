@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import pandas as pd
 
-from src import recommendation_engine as rec
-from src.recommendation_engine import assign_component_recommendations, assign_operational_decisions
+from railway_cbm import recommendation_engine as rec
+from railway_cbm.recommendation_engine import assign_component_recommendations, assign_operational_decisions
 
 
 def _component_cases() -> pd.DataFrame:
@@ -106,30 +106,10 @@ def test_assign_operational_decisions_handles_conflicts_capacity_and_defaults():
     assert out["decision_rationale"].str.contains("ajuste=").all()
 
 
-def test_write_recommendation_reports_and_logic_doc_use_target_dirs(tmp_path, monkeypatch):
-    reports_dir = tmp_path / "reports"
+def test_write_recommendation_logic_doc_uses_target_directory(tmp_path, monkeypatch):
     docs_dir = tmp_path / "docs"
-    monkeypatch.setattr(rec, "OUTPUTS_REPORTS_DIR", reports_dir)
     monkeypatch.setattr(rec, "DOCS_DIR", docs_dir)
 
-    score = pd.DataFrame(
-        {
-            "recommended_action_initial": [
-                "intervencion_inmediata",
-                "intervencion_inmediata",
-                "monitorizacion_intensiva",
-            ]
-        }
-    )
-    priorities = pd.DataFrame(
-        {
-            "decision_type": [
-                "intervención inmediata",
-                "monitorización intensiva",
-                "monitorización intensiva",
-            ]
-        }
-    )
     examples = pd.DataFrame(
         {
             "caso": ["alta_urgencia"],
@@ -138,15 +118,7 @@ def test_write_recommendation_reports_and_logic_doc_use_target_dirs(tmp_path, mo
         }
     )
 
-    rec.write_recommendation_distribution_reports(score, priorities)
     rec.write_recommendation_logic_doc(examples)
-
-    action_dist = pd.read_csv(reports_dir / "recommendation_action_distribution.csv")
-    decision_dist = pd.read_csv(reports_dir / "recommendation_decision_distribution.csv")
-    assert action_dist["proporcion"].sum().round(6) == 1.0
-    assert decision_dist["proporcion"].sum().round(6) == 1.0
-    assert (reports_dir / "recommendation_rules_component.csv").exists()
-    assert (reports_dir / "recommendation_rules_operational.csv").exists()
 
     doc = (docs_dir / "recommendation_decision_logic.md").read_text(encoding="utf-8")
     assert "D01_inmediata" in doc

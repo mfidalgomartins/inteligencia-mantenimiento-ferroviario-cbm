@@ -7,6 +7,8 @@ abstract: >-
   diferir cada decisión y mide el valor del CBM frente a una estrategia reactiva sobre
   una flota sintética determinista.
 type: software
+version: "1.0.0"
+date-released: "2026-06-23"
 authors:
   - family-names: "Fidalgo Martins"
     given-names: "Miguel"
@@ -16,7 +18,6 @@ repository-code: "https://github.com/mfidalgomartins/inteligencia-mantenimiento-
 url: "https://mfidalgomartins.github.io/inteligencia-mantenimiento-ferroviario-cbm/"
 keywords:
   - mantenimiento-basado-en-condicion
-  - mantenimiento-predictivo
   - ferroviario
   - analitica-de-decision
   - python

@@ -1,11 +1,14 @@
+"""Cuantifica el coste y la indisponibilidad asociados al diferimiento."""
+
 from __future__ import annotations
 
 import pandas as pd
 
-from src.config import DATA_PROCESSED_DIR, OUTPUTS_REPORTS_DIR
+from railway_cbm.config import DATA_PROCESSED_DIR
 
 
 def run_defer_impact_analysis() -> tuple[pd.DataFrame, pd.DataFrame]:
+    """Simula horizontes de diferimiento y devuelve detalle y resumen."""
     priorities = pd.read_csv(DATA_PROCESSED_DIR / "workshop_priority_table.csv")
 
     universe = priorities.head(450).copy()
@@ -53,9 +56,6 @@ def run_defer_impact_analysis() -> tuple[pd.DataFrame, pd.DataFrame]:
 
     detalle.to_csv(DATA_PROCESSED_DIR / "impacto_diferimiento_detalle.csv", index=False)
     resumen.to_csv(DATA_PROCESSED_DIR / "impacto_diferimiento_resumen.csv", index=False)
-
-    OUTPUTS_REPORTS_DIR.mkdir(parents=True, exist_ok=True)
-    resumen.to_csv(OUTPUTS_REPORTS_DIR / "impacto_diferimiento_resumen.csv", index=False)
 
     return detalle, resumen
 

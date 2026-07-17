@@ -1,3 +1,5 @@
+"""Estima ventanas de vida remanente y valida su utilidad operativa."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -5,7 +7,7 @@ from dataclasses import dataclass
 import numpy as np
 import pandas as pd
 
-from src.config import DATA_PROCESSED_DIR, DATA_RAW_DIR, DOCS_DIR, OUTPUTS_REPORTS_DIR
+from railway_cbm.config import DATA_PROCESSED_DIR, DATA_RAW_DIR, DOCS_DIR
 
 RUL_FAILURE_THRESHOLD_LEGACY = 30.0
 
@@ -70,7 +72,7 @@ def _safe_float(value: float | int | None, default: float) -> float:
 
 
 def _component_family(row: pd.Series) -> str:
-    txt = f"{row.get('sistema_principal','')} {row.get('subsistema','')} {row.get('tipo_componente','')}".lower()
+    txt = f"{row.get('sistema_principal', '')} {row.get('subsistema', '')} {row.get('tipo_componente', '')}".lower()
     if "wheel" in txt or "rodadura" in txt:
         return "wheel"
     if "brake" in txt or "fren" in txt:
@@ -139,7 +141,9 @@ def _rul_bucket(days: float) -> str:
     return "05_>180"
 
 
-def _new_rul_projection(grp: pd.DataFrame, latest_row: pd.Series, prob_fallo_30d: float | None) -> dict[str, float | str]:
+def _new_rul_projection(
+    grp: pd.DataFrame, latest_row: pd.Series, prob_fallo_30d: float | None
+) -> dict[str, float | str]:
     family = _component_family(latest_row)
     profile = FAMILY_PROFILES[family]
 
@@ -169,7 +173,7 @@ def _new_rul_projection(grp: pd.DataFrame, latest_row: pd.Series, prob_fallo_30d
     days_since_maint = latest_row.get("days_since_last_maintenance")
     days_since_fail = latest_row.get("days_since_last_failure")
 
-    # Señal de riesgo interpretable: mezcla aproximación técnica + probabilidad de fallo si está disponible.
+    # Combina condición técnica y probabilidad de fallo cuando está disponible.
     risk_proxy = (
         0.52 * _clip(deterioration / 100.0, 0.0, 1.0)
         + 0.28 * _clip(degradation_velocity / 10.0, 0.0, 1.0)
@@ -368,10 +372,17 @@ def _build_rul_validation_checks(
 ) -> pd.DataFrame:
     p10 = float(latest_compare["component_rul_estimate"].quantile(0.10))
     p90 = float(latest_compare["component_rul_estimate"].quantile(0.90))
-    share_cap = float((latest_compare["component_rul_estimate"] >= latest_compare["component_rul_estimate"].max()).mean())
+    share_cap = float(
+        (latest_compare["component_rul_estimate"] >= latest_compare["component_rul_estimate"].max()).mean()
+    )
     family_medians = latest_compare.groupby("component_family")["component_rul_estimate"].median()
     family_disp = float(family_medians.max() - family_medians.min()) if not family_medians.empty else 0.0
-    conf_entropy = float(-(latest_compare["confidence_flag"].value_counts(normalize=True) * np.log2(latest_compare["confidence_flag"].value_counts(normalize=True) + 1e-12)).sum())
+    conf_entropy = float(
+        -(
+            latest_compare["confidence_flag"].value_counts(normalize=True)
+            * np.log2(latest_compare["confidence_flag"].value_counts(normalize=True) + 1e-12)
+        ).sum()
+    )
 
     if backtest_linkage.empty:
         corr_new = np.nan
@@ -435,10 +446,7 @@ def _build_rul_validation_checks(
             "check_id": "rul_failure_quantile_separation",
             "severity": "alta",
             "passed": bool(
-                np.isfinite(low_vs_high_new)
-                and low_vs_high_new >= 0.02
-                and low_support >= 500
-                and high_support >= 500
+                np.isfinite(low_vs_high_new) and low_vs_high_new >= 0.02 and low_support >= 500 and high_support >= 500
             ),
             "metric_value": low_vs_high_new,
             "threshold": ">=0.02; soporte >=500 por grupo",
@@ -519,7 +527,9 @@ def _write_rul_framework_doc(
             "detail": "detalle",
         }
     )
-    checks_display["aprobado"] = checks_display["aprobado"].map({True: "sí", False: "no"}).fillna(checks_display["aprobado"])
+    checks_display["aprobado"] = (
+        checks_display["aprobado"].map({True: "sí", False: "no"}).fillna(checks_display["aprobado"])
+    )
     checks_display["detalle"] = (
         checks_display["detalle"]
         .astype(str)
@@ -560,7 +570,7 @@ def _write_rul_framework_doc(
         "",
         "## 4) Convivencia con salud y riesgo",
         "- `health_score`: estado actual (alto=mejor).",
-        "- `prob_fallo_30d`: probabilidad de fallo a corto plazo.",
+        "- `prob_fallo_30d`: puntuación relativa de propensión a fallo a corto plazo.",
         "- `component_rul_estimate`: horizonte temporal de agotamiento bajo condiciones actuales.",
         "- Regla práctica: decisión prioritaria cuando riesgo alto + RUL corto + impacto servicio alto.",
         "",
@@ -591,6 +601,7 @@ def _write_rul_framework_doc(
 
 
 def estimate_rul() -> pd.DataFrame:
+    """Estima RUL por componente y ejecuta las validaciones retrospectivas."""
     daily = pd.read_csv(DATA_PROCESSED_DIR / "component_day_features.csv")
     scoring = pd.read_csv(DATA_PROCESSED_DIR / "scoring_componentes.csv")
     fallas = pd.read_csv(DATA_RAW_DIR / "fallas_historicas.csv")
@@ -641,23 +652,9 @@ def estimate_rul() -> pd.DataFrame:
 
     # Artefacto principal para consumo downstream.
     DATA_PROCESSED_DIR.mkdir(parents=True, exist_ok=True)
-    OUTPUTS_REPORTS_DIR.mkdir(parents=True, exist_ok=True)
     DOCS_DIR.mkdir(parents=True, exist_ok=True)
 
     rul.to_csv(DATA_PROCESSED_DIR / "component_rul_estimate.csv", index=False)
-    rul.to_csv(OUTPUTS_REPORTS_DIR / "component_rul_estimate.csv", index=False)
-
-    # Compatibilidad con formato anterior
-    legacy = rul.rename(
-        columns={
-            "componente_id": "instancia_id",
-            "component_rul_estimate": "rul_dias",
-            "degradation_slope_daily": "pendiente_degradacion_diaria",
-            "confidence_rul": "confianza_rul",
-        }
-    )
-    legacy.to_csv(DATA_PROCESSED_DIR / "rul_instancia.csv", index=False)
-    legacy.to_csv(OUTPUTS_REPORTS_DIR / "rul_instancia.csv", index=False)
 
     # Comparación del snapshot más reciente.
     compare_latest = latest_compare[
@@ -678,9 +675,10 @@ def estimate_rul() -> pd.DataFrame:
             "confidence_flag",
         ]
     ].copy()
-    compare_latest["delta_rul_new_minus_legacy"] = compare_latest["component_rul_estimate"] - compare_latest["legacy_rul_days"]
+    compare_latest["delta_rul_new_minus_legacy"] = (
+        compare_latest["component_rul_estimate"] - compare_latest["legacy_rul_days"]
+    )
     compare_latest.to_csv(DATA_PROCESSED_DIR / "rul_before_after_comparison.csv", index=False)
-    compare_latest.to_csv(OUTPUTS_REPORTS_DIR / "rul_before_after_comparison.csv", index=False)
 
     summary_before_after = pd.DataFrame(
         [
@@ -699,13 +697,14 @@ def estimate_rul() -> pd.DataFrame:
                 "p10_rul": float(compare_latest["component_rul_estimate"].quantile(0.10)),
                 "p50_rul": float(compare_latest["component_rul_estimate"].quantile(0.50)),
                 "p90_rul": float(compare_latest["component_rul_estimate"].quantile(0.90)),
-                "share_rul_cap": float((compare_latest["component_rul_estimate"] >= compare_latest["component_rul_estimate"].max()).mean()),
+                "share_rul_cap": float(
+                    (compare_latest["component_rul_estimate"] >= compare_latest["component_rul_estimate"].max()).mean()
+                ),
                 "share_rul_<=30": float((compare_latest["component_rul_estimate"] <= 30).mean()),
             },
         ]
     )
     summary_before_after.to_csv(DATA_PROCESSED_DIR / "rul_distribution_before_after.csv", index=False)
-    summary_before_after.to_csv(OUTPUTS_REPORTS_DIR / "rul_distribution_before_after.csv", index=False)
 
     family_summary = (
         compare_latest.groupby("component_family", as_index=False)
@@ -722,12 +721,10 @@ def estimate_rul() -> pd.DataFrame:
         .reset_index(drop=True)
     )
     family_summary.to_csv(DATA_PROCESSED_DIR / "rul_family_discrimination_before_after.csv", index=False)
-    family_summary.to_csv(OUTPUTS_REPORTS_DIR / "rul_family_discrimination_before_after.csv", index=False)
 
     # Validación retrospectiva de relación con fallas posteriores.
     backtest = _build_backtest_failure_linkage(daily=daily, fallas=fallas, latest=latest)
     backtest.to_csv(DATA_PROCESSED_DIR / "rul_backtest_component_cutoff.csv", index=False)
-    backtest.to_csv(OUTPUTS_REPORTS_DIR / "rul_backtest_component_cutoff.csv", index=False)
 
     if not backtest.empty:
         long = pd.concat(
@@ -753,22 +750,29 @@ def estimate_rul() -> pd.DataFrame:
         )
         corr_table = (
             long.groupby("method", as_index=False)
-            .apply(lambda g: pd.Series({"spearman_rul_vs_failure30d": float(g[["rul_days", "failure_in_30d"]].corr(method="spearman").iloc[0, 1])}))
+            .apply(
+                lambda g: pd.Series(
+                    {
+                        "spearman_rul_vs_failure30d": float(
+                            g[["rul_days", "failure_in_30d"]].corr(method="spearman").iloc[0, 1]
+                        )
+                    }
+                )
+            )
             .reset_index(drop=True)
         )
     else:
-        failure_linkage = pd.DataFrame(columns=["method", "rul_bucket", "observations", "failures_30d", "failure_rate_30d"])
+        failure_linkage = pd.DataFrame(
+            columns=["method", "rul_bucket", "observations", "failures_30d", "failure_rate_30d"]
+        )
         corr_table = pd.DataFrame(columns=["method", "spearman_rul_vs_failure30d"])
 
     failure_linkage.to_csv(DATA_PROCESSED_DIR / "rul_backtest_failure_linkage.csv", index=False)
-    failure_linkage.to_csv(OUTPUTS_REPORTS_DIR / "rul_backtest_failure_linkage.csv", index=False)
     corr_table.to_csv(DATA_PROCESSED_DIR / "rul_backtest_correlation.csv", index=False)
-    corr_table.to_csv(OUTPUTS_REPORTS_DIR / "rul_backtest_correlation.csv", index=False)
 
     # Validaciones específicas de RUL.
     rul_checks = _build_rul_validation_checks(latest_compare=compare_latest, backtest_linkage=backtest)
     rul_checks.to_csv(DATA_PROCESSED_DIR / "rul_validation_checks.csv", index=False)
-    rul_checks.to_csv(OUTPUTS_REPORTS_DIR / "rul_validation_checks.csv", index=False)
     _assert_rul_validation(rul_checks)
 
     util = pd.DataFrame(
@@ -793,7 +797,6 @@ def estimate_rul() -> pd.DataFrame:
         }
     )
     util.to_csv(DATA_PROCESSED_DIR / "rul_window_utility_before_after.csv", index=False)
-    util.to_csv(OUTPUTS_REPORTS_DIR / "rul_window_utility_before_after.csv", index=False)
 
     _write_rul_framework_doc(
         latest_compare=compare_latest,
