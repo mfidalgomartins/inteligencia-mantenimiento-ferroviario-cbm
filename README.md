@@ -1,17 +1,31 @@
-# Inteligencia de Mantenimiento Ferroviario - CBM
+<div align="center">
+
+# Inteligencia de Mantenimiento Ferroviario · CBM
+
+### Sistema de decisión para flotas ferroviarias basado en condición
+
+Prioriza qué componente entra a taller primero, cuantifica el riesgo económico y operativo de diferir cada
+intervención, y mide el valor del mantenimiento basado en condición frente a operar hasta el fallo.
 
 [![CI](https://github.com/mfidalgomartins/inteligencia-mantenimiento-ferroviario-cbm/actions/workflows/ci.yml/badge.svg)](https://github.com/mfidalgomartins/inteligencia-mantenimiento-ferroviario-cbm/actions/workflows/ci.yml)
 [![Licencia MIT](https://img.shields.io/badge/licencia-MIT-2c5fa8)](LICENSE)
 [![Python 3.12+](https://img.shields.io/badge/python-3.12%2B-2c5fa8)](pyproject.toml)
+[![Cobertura de pruebas ≥90%](https://img.shields.io/badge/cobertura-%E2%89%A590%25-2c5fa8)](scripts/run_coverage.sh)
 
-Sistema de decisión para flotas ferroviarias: prioriza intervenciones de taller, cuantifica el riesgo de diferir cada decisión y mide el valor del mantenimiento basado en condición frente a una estrategia reactiva.
+[![Abrir el Dashboard en Vivo](https://img.shields.io/badge/Dashboard-Abrir%20en%20vivo-2c5fa8?style=for-the-badge&logo=googlechrome&logoColor=white)](https://mfidalgomartins.github.io/inteligencia-mantenimiento-ferroviario-cbm/)
+[![Leer el Informe Analítico](https://img.shields.io/badge/Informe-Ver%20PDF-15224a?style=for-the-badge&logo=adobeacrobatreader&logoColor=white)](outputs/reports/informe_analitico_cbm_ferroviario.pdf)
 
-**[Abrir el panel de control](https://mfidalgomartins.github.io/inteligencia-mantenimiento-ferroviario-cbm/)** · **[Leer el informe analítico (PDF)](outputs/reports/informe_analitico_cbm_ferroviario.pdf)** · Python · SQL · DuckDB · HTML sin conexión
+![Panel de control CBM ferroviario](assets/preview/dashboard.png)
 
-Los dos entregables ejecutivos del proyecto son el **panel de control** (la experiencia analítica interactiva)
-y el **informe analítico** (el documento de apoyo a la decisión). Ambos se muestran a continuación.
+*Panel de control real generado por el propio sistema — no una maqueta. Datos: flota sintética de 144 unidades.*
 
-## Resultados - flota sintética de 144 unidades
+</div>
+
+## Resumen ejecutivo
+
+Una red de 144 unidades y 1.152 componentes críticos genera más pendientes de taller de los que la capacidad
+disponible puede absorber a tiempo. El sistema convierte sensores, inspección, historial de fallos y órdenes de
+mantenimiento en una única cola de decisión: qué intervenir primero, en qué depósito y con qué evidencia.
 
 | Métrica | Valor |
 |---------|------:|
@@ -21,10 +35,15 @@ y el **informe analítico** (el documento de apoyo a la decisión). Ambos se mue
 | Pendientes vencidos | **2.011 pendientes** |
 | Pendientes críticos físicos | **1.955 pendientes** |
 | Casos de alto riesgo de diferimiento | **43** |
-| Coste incremental aproximado CBM vs reactiva | **€ 48.700.525** |
 | Mejora de disponibilidad CBM vs reactiva | **+0,93 p.p.** |
+| Coste incremental aproximado CBM vs reactiva | **€ 48.700.525** |
 
-**Decisión actual:** intervenir primero la unidad `UNI0055`, componente `COMP000438`.
+**Decisión gobernada por el sistema en este corte:** intervenir primero la unidad `UNI0055`, componente `COMP000438` (pantógrafo, sistema de captación), con evidencia y ventana de taller trazables en el panel.
+
+**Lectura económica honesta:** en el escenario base actual, CBM todavía cuesta más que operar hasta el fallo —
+el valor está en la disponibilidad y en la reducción de riesgo, no (todavía) en el ahorro directo. El sistema lo
+declara explícitamente en lugar de forzar un caso de negocio favorable; el [análisis de sensibilidad completo](docs/maintenance_strategy_comparison_framework.md)
+muestra bajo qué condiciones de madurez operativa el caso económico se vuelve positivo.
 
 ## Qué resuelve
 
@@ -64,10 +83,9 @@ y el **informe analítico** (el documento de apoyo a la decisión). Ambos se mue
 
 ## Panel de control
 
-![Panel de control CBM ferroviario](assets/preview/dashboard.png)
-
-HTML autocontenido sin dependencias externas ni llamadas de red: funciona completamente sin conexión. Arquitectura en
-pirámide invertida — abre con la orden de trabajo prioritaria y su evidencia, no con un muro de gráficos.
+HTML autocontenido sin dependencias externas ni llamadas de red: funciona completamente sin conexión (captura en
+la cabecera de esta página). Arquitectura en pirámide invertida — abre con la orden de trabajo prioritaria y su
+evidencia, no con un muro de gráficos.
 
 - Filtros cruzados por flota, depósito, familia de componente, sistema, nivel de riesgo, tipo de intervención y ventana temporal.
 - Procedencia visible en cada indicador: `oficial` (registro gobernado de métricas) frente a `vista` (recorte por filtro activo).
@@ -75,7 +93,7 @@ pirámide invertida — abre con la orden de trabajo prioritaria y su evidencia,
 - Modo claro/oscuro y exportación a impresión, con tipografía embebida para paridad visual exacta.
 - Verificado con validador de contraste y visión cromática: contraste de marca >3:1 y ΔE ≥12 bajo protanopia y deuteranopia.
 
-**[Abrir panel de control en vivo](https://mfidalgomartins.github.io/inteligencia-mantenimiento-ferroviario-cbm/)**
+**[Abrir el Dashboard en Vivo →](https://mfidalgomartins.github.io/inteligencia-mantenimiento-ferroviario-cbm/)**
 
 ## Informe analítico
 
@@ -96,7 +114,9 @@ vida remanente operativa, comparación de estrategias de mantenimiento y discipl
 - Diseño visual auditado a estándar de consultoría (tipografía, paleta y jerarquía consistentes con el panel).
 - Generado de forma determinista con WeasyPrint a partir de HTML/CSS versionado, sin edición manual.
 
-**[Descargar informe analítico (PDF)](outputs/reports/informe_analitico_cbm_ferroviario.pdf)**
+El enlace abre la vista previa de PDF integrada de GitHub, sin necesidad de descargar el archivo.
+
+**[Leer el Informe Analítico (vista previa PDF) →](outputs/reports/informe_analitico_cbm_ferroviario.pdf)**
 
 </td>
 </tr>

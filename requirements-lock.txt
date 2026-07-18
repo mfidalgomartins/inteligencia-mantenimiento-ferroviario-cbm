@@ -17,6 +17,7 @@ idna==3.18
 iniconfig==2.3.0
 kiwisolver==1.5.0
 license-expression==30.4.4
+lxml==6.1.1
 markdown-it-py==4.2.0
 matplotlib==3.10.8
 mdurl==0.1.2
@@ -25,6 +26,7 @@ numpy==2.4.3
 packageurl-python==0.17.6
 packaging==26.0
 pandas==3.0.1
+pikepdf==10.10.0
 pillow==12.3.0
 pip-api==0.0.34
 pip-audit==2.10.1

@@ -17,6 +17,7 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
+import pikepdf
 from PIL import Image
 from weasyprint import HTML
 
@@ -1405,6 +1406,11 @@ utilización por depósito, reincidencia por modo y diferencial económico recal
         pdf_tags=True,
         optimize_images=True,
     )
+    # Reescribe con estructura linealizada ("fast web view"): WeasyPrint no expone esta
+    # opción directamente y algunos visores web de PDF (incluida la vista previa de GitHub)
+    # no renderizan de forma fiable un PDF no linealizado con árbol de etiquetas.
+    with pikepdf.open(REPORT, allow_overwriting_input=True) as pdf:
+        pdf.save(REPORT, linearize=True)
     print(f"Informe generado: {REPORT}")
 
 
